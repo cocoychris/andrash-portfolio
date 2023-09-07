@@ -8,8 +8,14 @@ export default defineConfig({
     outDir: "./dist",
   },
   server: {
+    port: 80,
+    strictPort: true,
     proxy: {
       "/api": "http://localhost:8000",
     },
+  },
+  preview: {
+    port: 8080,
+    strictPort: true,
   },
 });
