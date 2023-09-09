@@ -1,48 +1,49 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import Alert from "./components/Alert";
 import Button from "./components/Button";
-import ListGroup from "./components/ListGroup";
+import Navbar from "./layouts/Navbar";
+import NavItem from "./layouts/NavItem";
 import axios from "axios";
-
-let items = ["apple", "orange", "banana", "pineapple"];
-
-function handleSelectItem(item: string) {
-  console.log(item);
-}
+import "./App.css";
+import { ReactComponent as MenuIcon } from "./assets/icons/menu-svgrepo-com.svg";
+import { ReactComponent as BellIcon } from "./assets/icons/bell-svgrepo-com.svg";
+import DropdownMenu from "./layouts/DropdownMenu";
 
 function App() {
   const [alertVisible, setAlertVisible] = useState(false);
-  return (
-    <>
-      <h1>Andrash Portfolio Project</h1>
-      <img src="vite.svg" />
-      React + TypeScript frontend structure created with Vite.
-      <br />
-      Backend API server built with Express.js + TypeScript.
-      {alertVisible && (
+  const [alertContent, setAlertContent] = useState<ReactNode>(<>HI</>);
+  function renderAlert() {
+    return (
+      alertVisible && (
         <Alert
           onClose={() => {
             setAlertVisible(false);
-            //故意送出一個 DELETE 的 API 呼叫，以確保沒有 CORS 問題。如果呼叫成功，應看到 DELETE 文字出現在 console。
-            axios.delete("/api/delete").then((res) => {
-              console.log("DELETED!");
-            });
           }}
         >
-          <b>This</b> is a message UI test.
-          <br />
-          <a href="/api">CLICK ME TO CALL GET API</a>
-          <br />
-          You should see a "DELETED!" console log when you close this message.
-          This is to test the DELETE API call to ensure that there is no CORS
-          problem.
+          {alertContent}
         </Alert>
-      )}
-      <br />
+      )
+    );
+  }
+  function alert(content: ReactNode) {
+    setAlertContent(content);
+    setAlertVisible(true);
+  }
+  return (
+    <>
+      {renderAlert()}
+      <Navbar>
+        <NavItem icon="🥣">
+          <DropdownMenu></DropdownMenu>
+        </NavItem>
+        <NavItem icon="👍" />
+        <NavItem icon="🤩" />
+        <NavItem icon={<MenuIcon />} />
+        <NavItem icon={<BellIcon />} />
+      </Navbar>
       <Button
         onClick={() => {
-          setAlertVisible(true);
-          console.log("Opened");
+          alert(<>HELLO WORLD {Math.floor(Math.random() * 10)}</>);
         }}
       >
         Click Me
@@ -50,17 +51,4 @@ function App() {
     </>
   );
 }
-
-// function App() {
-//   return (
-//     <div>
-//       <ListGroup
-//         items={items}
-//         heading="Fruits"
-//         onSelectItem={handleSelectItem}
-//       />
-//     </div>
-//   );
-// }
-
 export default App;

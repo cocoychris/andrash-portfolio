@@ -1,0 +1,28 @@
+.alert {
+  border: 2px solid #eeaa66;
+  border-radius: 5px;
+  background-color: #ffdd99;
+  padding: 4px 10px;
+  margin: 1px 1px;
+  font-size: 24px;
+}
+
+.alert .btn-close {
+  border: 0;
+  background-color: #eeaa66;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 50px;
+  transition: filter 300ms;
+}
+.alert .btn-close:hover {
+  filter: brightness(1.2);
+}
+.alert .clearFloat {
+  clear: right;
+}
