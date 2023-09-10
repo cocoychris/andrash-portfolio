@@ -1,13 +1,12 @@
 # Change Log of this version
 
-Navigation bar & dropdown menu component created.
+Dropdown menu component re-designed and made reusable.
 
 ## Frontend
 
-- Navigation bar & dropdown menu component created.
-- Solving SVG loading issue by installing vite-plugin-svgr package. See: https://www.npmjs.com/package/vite-plugin-svgr
-- Adding svg icons pack from https://www.svgrepo.com
+- Dropdown menu is now a reusable component. It will generate multi-level menu UI according to provided data.
+- RWD: Dropdown menu will not exceed the left-bound of viewport.
 
 ## Backend
 
-- Replacing 'build' dir with 'dist' dir.
+- none

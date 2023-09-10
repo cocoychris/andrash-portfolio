@@ -1,0 +1,91 @@
+.dropdown {
+  --bg: #242526;
+  --text-color: #dadce1;
+  --nav-size: 60px;
+  --border: 1px solid #474a4d;
+  --border-radius: 8px;
+  --speed: 400ms;
+
+  position: absolute;
+  top: 58px;
+  width: 300px;
+  height: auto;
+  transform: translateX(-45%);
+  background-color: var(--bg);
+  border: var(--border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  overflow: hidden;
+  transition: height var(--speed) ease;
+  margin-left: 0px;
+}
+
+.menu-item {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--border-radius);
+  transition: background var(--speed);
+  padding: 0.5rem;
+}
+
+.menu-item:hover {
+  background-color: #525357;
+}
+
+.icon-right {
+  margin-left: auto;
+  --button-size: calc(var(--nav-size) * 0.5);
+  width: var(--button-size);
+  height: var(--button-size);
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-right svg {
+  fill: var(--text-color);
+  width: 20px;
+  height: 20px;
+}
+
+.menu-moveRight {
+  width: 300px;
+}
+.menu-moveLeft {
+  width: 300px;
+}
+
+.menu-moveRight.menu-enter {
+  position: absolute;
+  transform: translateX(-110%);
+}
+.menu-moveRight.menu-enter-active {
+  transform: translateX(0%);
+  transition: all var(--speed) ease;
+}
+.menu-moveRight.menu-exit {
+  position: absolute;
+  transform: translateX(0%);
+}
+.menu-moveRight.menu-exit-active {
+  transform: translateX(110%);
+  transition: all var(--speed) ease;
+}
+
+.menu-moveLeft.menu-enter {
+  position: absolute;
+  transform: translateX(110%);
+}
+.menu-moveLeft.menu-enter-active {
+  transform: translateX(0%);
+  transition: all var(--speed) ease;
+}
+.menu-moveLeft.menu-exit {
+  position: absolute;
+  transform: translateX(0%);
+}
+.menu-moveLeft.menu-exit-active {
+  transform: translateX(-110%);
+  transition: all var(--speed) ease;
+}
