@@ -1,0 +1,17 @@
+.game-container {
+  width: 100%;
+  height: calc(100vh - var(--nav-size) - 1px);
+  overflow: hidden;
+}
+.game-table {
+  border-spacing: 0;
+  margin: auto;
+}
+.game-table td {
+  text-align: center;
+  padding: 0;
+}
+.playerIcon {
+  width: 90%;
+  height: 90%;
+}

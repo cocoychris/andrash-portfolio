@@ -1,6 +1,6 @@
 import { ReactElement, ReactNode, useState, useEffect, useRef } from "react";
 import { CSSTransition } from "react-transition-group";
-import "./DropdownMenu.css";
+import "./index.css";
 import SubMenu, { SubMenuProps } from "./SubMenu";
 import { ItemData } from "./ItemData";
 

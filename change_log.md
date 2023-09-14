@@ -1,11 +1,15 @@
 # Change Log of this version
 
-Dropdown menu component re-designed and made reusable.
+Game View created.
 
 ## Frontend
 
-- Dropdown menu is now a reusable component. It will generate multi-level menu UI according to provided data.
-- RWD: Dropdown menu will not exceed the left-bound of viewport.
+- Game View created.
+  - Basic game map rendering functionality implemented.
+  - Camera panning transition implemented using tweenjs.
+- Code rearranged.
+  - Dropdown menu packed as a component.
+  - Navbar related codes are moved from App file to Navbar file.
 
 ## Backend
 

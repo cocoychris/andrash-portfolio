@@ -2,23 +2,25 @@ import { ReactNode, useState } from "react";
 
 interface Props {
   icon: ReactNode;
+  id: string;
+  currentID: string;
+  onClick: (id: string) => void;
   children?: ReactNode;
 }
 
 export default function NavItem(props: Props) {
-  const [open, setOpen] = useState(false);
   return (
     <li className="nav-item">
       <a
         href="#"
         className="icon-button"
         onClick={() => {
-          setOpen(!open);
+          props.onClick(props.id);
         }}
       >
         {props.icon}
       </a>
-      {open && props.children}
+      {props.currentID == props.id && props.children}
     </li>
   );
 }
