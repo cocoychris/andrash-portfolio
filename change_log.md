@@ -1,15 +1,14 @@
 # Change Log of this version
 
-Game View created.
+GameView: Camera movement on both X and Y axes.
 
 ## Frontend
 
-- Game View created.
-  - Basic game map rendering functionality implemented.
-  - Camera panning transition implemented using tweenjs.
-- Code rearranged.
-  - Dropdown menu packed as a component.
-  - Navbar related codes are moved from App file to Navbar file.
+- GameView now covers the entire page/view port.
+- GameView now able to perform camera panning on both X and Y axes.
+- Fullscreen feature added.
+- Moving Navbar UI moved to the left. CSS appearance changed.
+- SubMenu React syntax corrected.
 
 ## Backend
 

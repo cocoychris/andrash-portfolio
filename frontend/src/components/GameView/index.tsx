@@ -13,7 +13,7 @@ interface MapData {
   tileDataArray: Array<Array<TileData>>;
 }
 
-interface TileData {
+export interface TileData {
   bgColor: string;
 }
 
@@ -30,16 +30,14 @@ interface PlayerData {
   iconStyle?: object;
 }
 
-const MAX_VIEW_WIDTH = 700;
-const DEFAULT_COL_COUNT = 7;
-const NAV_BAR_HEIGHT = 60;
-const EASE_SPEED = 250;
+const DEFAULT_CELL_SIZE = 120;
+const EASE_SPEED = 400;
 
 export default function GameView() {
   const mapData: MapData = map;
   const divRef = useRef<HTMLDivElement>(null);
-  const player1 = useRef<PlayerData>({ ...map.player1 });
-  const player2 = useRef<PlayerData>({ ...map.player2 });
+  const [player1, setPlayer1] = useState<PlayerData>({ ...map.player1 });
+  const [player2, setPlayer2] = useState<PlayerData>({ ...map.player2 });
   const [winHeight, setWinHeight] = useState(window.innerHeight);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [renderY, setRenderY] = useState<number>(0);
@@ -47,13 +45,18 @@ export default function GameView() {
   const renderOptions = useRef({
     cellSize: 0,
     renderRowCount: 0,
+    renderColCount: 0,
+    minRenderX: 0,
+    minRenderY: 0,
     maxRenderY: 0,
-    centerRowOffset: 0,
+    maxRenderX: 0,
+    renderCenterY: 0,
+    renderCenterX: 0,
   });
 
   updateRenderOptions();
 
-  player1.current.iconStyle = { fill: "#ffffff" };
+  player1.iconStyle = { fill: "#ffffff" };
 
   useEffect(() => {
     //Handle Resize
@@ -75,53 +78,70 @@ export default function GameView() {
     if (!divRef.current) {
       return;
     }
+    divRef.current.scrollLeft =
+      (renderX - Math.floor(renderX)) * renderOptions.current.cellSize;
     divRef.current.scrollTop =
       (renderY - Math.floor(renderY)) * renderOptions.current.cellSize;
-  }, [renderY]);
+  }, [renderX, renderY]);
+
+  useEffect(() => {
+    scrollTo(player1.col, player1.row);
+  }, [winWidth, winHeight]);
 
   function updateRenderOptions() {
     let options = renderOptions.current;
-    options.cellSize = Math.floor(
-      Math.min(winWidth, MAX_VIEW_WIDTH) / DEFAULT_COL_COUNT
-    );
-    options.renderRowCount =
-      Math.ceil((winHeight - NAV_BAR_HEIGHT) / options.cellSize) + 1;
-    options.maxRenderY = map.row - options.renderRowCount + 3;
-    options.centerRowOffset =
-      Math.floor((options.renderRowCount - 1) * 0.5) - 1;
+    options.cellSize = DEFAULT_CELL_SIZE;
+    options.renderRowCount = Math.ceil(winHeight / options.cellSize) + 1;
+    options.renderColCount = Math.ceil(winWidth / options.cellSize) + 1;
+    options.maxRenderX = map.col - options.renderColCount + 1;
+    options.maxRenderY = map.row - options.renderRowCount + 1;
+    options.renderCenterX = (winWidth / options.cellSize - 1) * 0.5;
+    options.renderCenterY = (winHeight / options.cellSize - 1) * 0.5;
   }
 
   function gameRuntime() {
     update();
   }
 
-  function scrollTo(row: number) {
+  function scrollTo(col: number, row: number) {
     let start = {
+      x: renderX,
       y: renderY,
     };
     let end = {
+      x: Math.max(
+        Math.min(
+          col - renderOptions.current.renderCenterX,
+          renderOptions.current.maxRenderX
+        ),
+        0
+      ),
       y: Math.max(
         Math.min(
-          row - renderOptions.current.centerRowOffset,
+          row - renderOptions.current.renderCenterY,
           renderOptions.current.maxRenderY
         ),
         0
       ),
     };
     let tween = new Tween(start)
-      .to(end, Math.abs(end.y - start.y) * EASE_SPEED)
+      .to(end, EASE_SPEED)
       .easing(Easing.Quadratic.InOut)
       .onUpdate((updateObj) => {
         setRenderY(updateObj.y);
-      })
-      .onComplete(() => {
-        player1.current.row = end.y + renderOptions.current.centerRowOffset;
+        setRenderX(updateObj.x);
       });
     tween.start();
   }
 
-  function onCellClick(row: number, col: number) {
-    scrollTo(row);
+  function onCellClick(col: number, row: number) {
+    let playerData: PlayerData = {
+      ...player1,
+      col: Math.min(Math.max(col, 1), map.col - 2),
+      row: Math.min(Math.max(row, 1), map.row - 2),
+    };
+    setPlayer1(playerData);
+    scrollTo(playerData.col, playerData.row);
   }
 
   let tdStyle = {
@@ -135,7 +155,7 @@ export default function GameView() {
   let offsetRow = Math.floor(renderY);
   for (let row = 0; row < renderOptions.current.renderRowCount; row++) {
     renderDataArray[row] = new Array<RenderData>();
-    for (let col = 0; col < DEFAULT_COL_COUNT; col++) {
+    for (let col = 0; col < renderOptions.current.renderColCount; col++) {
       let mapCol = col + offsetCol;
       let mapRow = row + offsetRow;
       let tileData = mapData.tileDataArray[mapRow]
@@ -164,24 +184,24 @@ export default function GameView() {
               }
               let playerNode = null;
               if (
-                player1.current.row == renderData.row &&
-                player1.current.col == renderData.col
+                player1.row == renderData.row &&
+                player1.col == renderData.col
               ) {
                 playerNode = (
                   <PersonIcon
                     className="playerIcon"
-                    style={player1.current.iconStyle}
+                    style={player1.iconStyle}
                   />
                 );
               }
               if (
-                player2.current.row == renderData.row &&
-                player2.current.col == renderData.col
+                player2.row == renderData.row &&
+                player2.col == renderData.col
               ) {
                 playerNode = (
                   <PersonIcon
                     className="playerIcon"
-                    style={player2.current.iconStyle}
+                    style={player2.iconStyle}
                   />
                 );
               }
@@ -190,7 +210,7 @@ export default function GameView() {
                   key={key}
                   style={style}
                   onClick={() => {
-                    onCellClick(renderData.row, renderData.col);
+                    onCellClick(renderData.col, renderData.row);
                   }}
                 >
                   {playerNode || key}

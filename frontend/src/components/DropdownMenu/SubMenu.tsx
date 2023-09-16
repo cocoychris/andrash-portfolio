@@ -9,15 +9,19 @@ export interface SubMenuProps {
 export default function SubMenu(props: SubMenuProps) {
   const itemDataList = props.items;
 
-  return itemDataList.map((itemData, itemIndex) => {
-    return (
-      <MenuItem
-        item={itemData}
-        onSelect={() => {
-          props.onItemSelect(itemIndex, itemData);
-        }}
-        key={`${props.location}(${itemIndex})`}
-      />
-    );
-  });
+  return (
+    <>
+      {itemDataList.map((itemData, itemIndex) => {
+        return (
+          <MenuItem
+            item={itemData}
+            onSelect={() => {
+              props.onItemSelect(itemIndex, itemData);
+            }}
+            key={`${props.location}(${itemIndex})`}
+          />
+        );
+      })}
+    </>
+  );
 }

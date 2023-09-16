@@ -1,39 +1,69 @@
 .dropdown {
-  --bg: #242526;
-  --text-color: #dadce1;
+  --bg: rgba(215, 215, 215, 0.9);
+  --text-color: #555555;
   --nav-size: 60px;
-  --border: 1px solid #474a4d;
+  --border: 0px solid #ffffff;
   --border-radius: 8px;
   --speed: 400ms;
+  --menu-width: 300px;
 
   position: absolute;
-  top: 58px;
-  width: 300px;
+  top: 55px;
+  width: var(--menu-width);
   height: auto;
-  transform: translateX(-45%);
+  transform: translateX(50%);
   background-color: var(--bg);
   border: var(--border);
   border-radius: var(--border-radius);
-  padding: 1rem;
+  padding: 0.5rem;
   overflow: hidden;
   transition: height var(--speed) ease;
   margin-left: 0px;
 }
+.dropdown a {
+  color: var(--text-color);
+  text-decoration: none;
+}
 
-.menu-item {
+.dropdown .menu-item {
   height: 50px;
   display: flex;
   align-items: center;
   border-radius: var(--border-radius);
   transition: background var(--speed);
-  padding: 0.5rem;
+  padding: 0.2rem;
 }
 
-.menu-item:hover {
-  background-color: #525357;
+.dropdown .menu-item:hover {
+  background-color: #eeeeee;
 }
 
-.icon-right {
+.dropdown .icon-left {
+  --button-size: calc(var(--nav-size) * 0.5);
+  width: var(--button-size);
+  height: var(--button-size);
+  background-color: #eaeaea;
+  border-radius: 50%;
+  padding: 5px;
+  margin: 0px 10px 0px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 300ms;
+  box-shadow: 0px 0px 5px 3px rgba(0, 0, 0, 0.1);
+}
+.dropdown .menu-item:hover .icon-left {
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+.dropdown .icon-left svg {
+  fill: var(--text-color);
+  width: 20px;
+  height: 20px;
+}
+
+.dropdown .icon-right {
   margin-left: auto;
   --button-size: calc(var(--nav-size) * 0.5);
   width: var(--button-size);
@@ -43,17 +73,17 @@
   align-items: center;
   justify-content: center;
 }
-.icon-right svg {
+.dropdown .icon-right svg {
   fill: var(--text-color);
   width: 20px;
   height: 20px;
 }
 
 .menu-moveRight {
-  width: 300px;
+  width: var(--menu-width);
 }
 .menu-moveLeft {
-  width: 300px;
+  width: var(--menu-width);
 }
 
 .menu-moveRight.menu-enter {

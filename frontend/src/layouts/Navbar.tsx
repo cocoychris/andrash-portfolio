@@ -4,6 +4,7 @@ import { ReactComponent as MenuIcon } from "../assets/icons/menu-svgrepo-com.svg
 import { ReactComponent as BellIcon } from "../assets/icons/bell-svgrepo-com.svg";
 import DropdownMenu from "../components/DropdownMenu";
 import NavItem from "../layouts/NavItem";
+import screenfull from "screenfull";
 
 import { ReactComponent as RightIcon } from "../assets/icons/chevron-right-svgrepo-com.svg";
 import { ReactComponent as CommentIcon } from "../assets/icons/comment-svgrepo-com.svg";
@@ -13,9 +14,18 @@ import { ReactComponent as PersonIcon } from "../assets/icons/person-svgrepo-com
 
 export default function Navbar() {
   const [currentItemID, setCurrentItemID] = useState<string>("");
-
+  function openFullscreen() {
+    document.documentElement.requestFullscreen();
+  }
   function onItemClick(itemID: string) {
     setCurrentItemID(itemID == currentItemID ? "" : itemID);
+    if (itemID == "fullscreen" && screenfull.isEnabled) {
+      if (screenfull.isFullscreen) {
+        screenfull.exit();
+      } else {
+        screenfull.request();
+      }
+    }
   }
 
   const dropdownItems = [
@@ -92,19 +102,19 @@ export default function Navbar() {
     <nav className="navbar">
       <ul className="navbar-nav">
         <NavItem
-          id="A"
+          id="fullscreen"
+          icon="👍"
+          currentID={currentItemID}
+          onClick={onItemClick}
+        />
+        <NavItem
+          id="Menu1"
           icon="🥣"
           currentID={currentItemID}
           onClick={onItemClick}
         >
           <DropdownMenu items={dropdownItems} />
         </NavItem>
-        <NavItem
-          id="B"
-          icon="👍"
-          currentID={currentItemID}
-          onClick={onItemClick}
-        />
         <NavItem
           id="C"
           icon="🤩"

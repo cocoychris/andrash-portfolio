@@ -51,7 +51,7 @@ export default function DropdownMenu(props: Props) {
       enterMenu(itemIndex);
     }
   }
-  function renderMenu(location: string): JSX.Element {
+  function renderMenu(location: string): ReactNode {
     let items = props.items;
     let indexList = location.split(LOCATION_SEPARATOR);
     for (let level = 1; level < indexList.length; level++) {
@@ -80,17 +80,18 @@ export default function DropdownMenu(props: Props) {
     }
   }
 
-  //防止選單超出視窗左側邊界  Preventing the menu from exceeding the left border of the viewport.
+  //防止選單超出視窗邊界  Preventing the menu from exceeding the border of the viewport.
   window.addEventListener("resize", reposition);
   function reposition() {
     let dropdown = dropdownRef.current;
     if (!dropdown) {
       return;
     }
-    let minLeftPosition = dropdown.offsetWidth * 0.5; //依據選單寬度，自動計算與視窗左側邊界的距離
+    let minPosition = 480; //依據選單寬度，自動計算與視窗左側邊界的距離
     dropdown.style.left = "auto";
-    if (dropdown.offsetLeft < minLeftPosition) {
-      dropdown.style.left = `${minLeftPosition}px`;
+    let offsetRight = window.innerWidth - dropdown.offsetLeft;
+    if (offsetRight < minPosition) {
+      dropdown.style.left = `${window.innerWidth - minPosition}px`;
     }
   }
   //渲染 HTML 物件  Rendering HTML Elements

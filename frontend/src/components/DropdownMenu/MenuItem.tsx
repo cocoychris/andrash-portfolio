@@ -17,7 +17,7 @@ export default function MenuItem(props: Props) {
         props.onSelect && props.onSelect();
       }}
     >
-      <span className="icon-button">{item.leftIcon}</span>
+      <span className="icon-left">{item.leftIcon}</span>
       {item.label}
       <span className="icon-right">{item.rightIcon}</span>
     </a>
