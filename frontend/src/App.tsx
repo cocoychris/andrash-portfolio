@@ -2,7 +2,21 @@ import { ReactNode, useState } from "react";
 import Alert from "./components/Alert";
 import GameView from "./components/GameView";
 import Navbar from "./layouts/Navbar";
+import mapData from "./data/mapData";
+import PlayerManager from "./lib/PlayerManager";
+import GameMap from "./lib/GameMap";
 import "./App.css";
+
+const gameMap: GameMap = new GameMap(mapData);
+const playerManager: PlayerManager = new PlayerManager(gameMap);
+const UPDATE_DELAY_MS = 600;
+
+let init = function () {
+  setInterval(() => {
+    playerManager.update();
+  }, UPDATE_DELAY_MS);
+};
+init();
 
 function App() {
   const [alertVisible, setAlertVisible] = useState(false);
@@ -30,7 +44,7 @@ function App() {
       {renderAlert()}
       <Navbar />
       <div className="content">
-        <GameView />
+        <GameView mapData={mapData} playerManager={playerManager} />
       </div>
     </>
   );

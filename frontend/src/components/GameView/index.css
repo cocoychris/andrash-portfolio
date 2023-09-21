@@ -11,12 +11,80 @@
 }
 
 .game-table td {
+  /* position: relative; */
   text-align: center;
   padding: 0;
   margin: 0;
   overflow: hidden;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 .playerIcon {
-  width: 90%;
-  height: 90%;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.playerDiv {
+  --speed: 500ms;
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin-top: -50%;
+  margin-bottom: -100%;
+  width: 100%;
+  height: 100%;
+  transition: translate var(--speed) ease-out;
+}
+.playerDiv.position-left {
+  translate: -100% 0%;
+}
+.playerDiv.position-left-up {
+  translate: -100% -100%;
+}
+.playerDiv.position-left-down {
+  translate: -100% 100%;
+}
+.playerDiv.position-right {
+  translate: 100% 0%;
+}
+.playerDiv.position-right-up {
+  translate: 100% -100%;
+}
+.playerDiv.position-right-down {
+  translate: 100% 100%;
+}
+.playerDiv.position-up {
+  translate: 0% -100%;
+}
+.playerDiv.position-down {
+  translate: 0% 100%;
+}
+.playerDiv.position-center {
+  translate: 0% 0%;
+}
+
+.game-table td > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  margin-top: -50%;
+  margin-bottom: -100%;
+}
+
+svg.objSVG {
+  z-index: 1;
+}
+svg.fgSVG {
+  z-index: 4;
+}
+
+svg.targetSVG {
+  z-index: 3;
+  fill: #ff3333;
+  transition: opacity 500ms ease;
+  opacity: 1;
+}
+svg.targetSVG.fade-out {
+  opacity: 0;
 }

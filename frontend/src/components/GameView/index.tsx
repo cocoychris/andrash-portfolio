@@ -1,62 +1,43 @@
-import React, { ReactNode, useRef, useEffect, useState } from "react";
-import "./index.css";
-import map from "./map";
+import { ReactNode, useRef, useEffect, useState } from "react";
 import { Easing, Tween, update } from "@tweenjs/tween.js";
+import PlayerDisplay from "./PlayerDisplay";
+import Player from "../../lib/Player";
+import { IMapData, IPosition, IRenderData } from "../../lib/interface";
+import PlayerManager from "../../lib/PlayerManager";
+import "./index.css";
+import Position from "../../lib/Position";
+import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
 
-import { ReactComponent as PersonIcon } from "../../assets/icons/person-svgrepo-com.svg";
+const DEFAULT_CELL_SIZE = 100;
+const EASE_SPEED = 500;
+const renderProps = {
+  renderX: 0,
+  renderY: 0,
+  cellSize: 0,
+  renderRowCount: 0,
+  renderColCount: 0,
+  minRenderX: 0,
+  minRenderY: 0,
+  maxRenderY: 0,
+  maxRenderX: 0,
+  renderCenterY: 0,
+  renderCenterX: 0,
+};
 
-interface MapData {
-  player1: PlayerData;
-  player2: PlayerData;
-  col: number;
-  row: number;
-  tileDataArray: Array<Array<TileData>>;
+interface Props {
+  mapData: IMapData;
+  playerManager: PlayerManager;
 }
 
-export interface TileData {
-  bgColor: string;
-}
-
-interface RenderData {
-  col: number;
-  row: number;
-  tileData: TileData | null;
-}
-
-interface PlayerData {
-  name: string;
-  row: number;
-  col: number;
-  iconStyle?: object;
-}
-
-const DEFAULT_CELL_SIZE = 120;
-const EASE_SPEED = 400;
-
-export default function GameView() {
-  const mapData: MapData = map;
+export default function GameView({ mapData, playerManager }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
-  const [player1, setPlayer1] = useState<PlayerData>({ ...map.player1 });
-  const [player2, setPlayer2] = useState<PlayerData>({ ...map.player2 });
   const [winHeight, setWinHeight] = useState(window.innerHeight);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
-  const [renderY, setRenderY] = useState<number>(0);
-  const [renderX, setRenderX] = useState<number>(0);
-  const renderOptions = useRef({
-    cellSize: 0,
-    renderRowCount: 0,
-    renderColCount: 0,
-    minRenderX: 0,
-    minRenderY: 0,
-    maxRenderY: 0,
-    maxRenderX: 0,
-    renderCenterY: 0,
-    renderCenterX: 0,
-  });
+  const [renderRow, setRenderRow] = useState<number>(0);
+  const [renderCol, setRenderCol] = useState<number>(0);
+  const [timeStamp, setTimeStamp] = useState<number>(0);
 
-  updateRenderOptions();
-
-  player1.iconStyle = { fill: "#ffffff" };
+  updateRenderProps();
 
   useEffect(() => {
     //Handle Resize
@@ -68,158 +49,216 @@ export default function GameView() {
     let id = setInterval(() => {
       gameRuntime();
     }, 25);
+
+    //update
+    let player = playerManager.getPlayer(0);
+    if (!player) {
+      console.warn(`Player (index = 0) not found.`);
+      return;
+    }
+
+    playerManager.onUpdate = () => {
+      forceRerender();
+      if (player) {
+        scrollTo(player);
+      }
+    };
+
+    player.onTargetUpdate = () => {
+      forceRerender();
+    };
+
     return () => {
       clearInterval(id);
     };
   }, []);
 
-  //Update Y scrolling
   useEffect(() => {
-    if (!divRef.current) {
-      return;
-    }
-    divRef.current.scrollLeft =
-      (renderX - Math.floor(renderX)) * renderOptions.current.cellSize;
-    divRef.current.scrollTop =
-      (renderY - Math.floor(renderY)) * renderOptions.current.cellSize;
-  }, [renderX, renderY]);
+    window.requestAnimationFrame(() => {
+      updateDivScroll();
+    });
+  });
 
   useEffect(() => {
-    scrollTo(player1.col, player1.row);
+    let player = playerManager.getPlayer(0);
+    if (player) {
+      scrollTo(player);
+    }
   }, [winWidth, winHeight]);
 
-  function updateRenderOptions() {
-    let options = renderOptions.current;
-    options.cellSize = DEFAULT_CELL_SIZE;
-    options.renderRowCount = Math.ceil(winHeight / options.cellSize) + 1;
-    options.renderColCount = Math.ceil(winWidth / options.cellSize) + 1;
-    options.maxRenderX = map.col - options.renderColCount + 1;
-    options.maxRenderY = map.row - options.renderRowCount + 1;
-    options.renderCenterX = (winWidth / options.cellSize - 1) * 0.5;
-    options.renderCenterY = (winHeight / options.cellSize - 1) * 0.5;
+  function forceRerender() {
+    setTimeStamp(Date.now());
+  }
+
+  function updateRenderProps() {
+    renderProps.cellSize = DEFAULT_CELL_SIZE;
+    renderProps.renderRowCount =
+      Math.ceil(winHeight / renderProps.cellSize) + 1;
+    renderProps.renderColCount = Math.ceil(winWidth / renderProps.cellSize) + 1;
+    renderProps.maxRenderX = mapData.colCount - renderProps.renderColCount + 1;
+    renderProps.maxRenderY = mapData.rowCount - renderProps.renderRowCount + 1;
+    renderProps.renderCenterX = (winWidth / renderProps.cellSize - 1) * 0.5;
+    renderProps.renderCenterY = (winHeight / renderProps.cellSize - 1) * 0.5;
   }
 
   function gameRuntime() {
     update();
   }
 
-  function scrollTo(col: number, row: number) {
+  function scrollTo(position: IPosition) {
+    const { col, row } = position;
+
     let start = {
-      x: renderX,
-      y: renderY,
+      x: renderProps.renderX,
+      y: renderProps.renderY,
     };
     let end = {
       x: Math.max(
-        Math.min(
-          col - renderOptions.current.renderCenterX,
-          renderOptions.current.maxRenderX
-        ),
+        Math.min(col - renderProps.renderCenterX, renderProps.maxRenderX),
         0
       ),
       y: Math.max(
-        Math.min(
-          row - renderOptions.current.renderCenterY,
-          renderOptions.current.maxRenderY
-        ),
+        Math.min(row - renderProps.renderCenterY, renderProps.maxRenderY),
         0
       ),
     };
     let tween = new Tween(start)
       .to(end, EASE_SPEED)
-      .easing(Easing.Quadratic.InOut)
+      .easing(Easing.Cubic.InOut)
       .onUpdate((updateObj) => {
-        setRenderY(updateObj.y);
-        setRenderX(updateObj.x);
+        renderProps.renderX = updateObj.x;
+        renderProps.renderY = updateObj.y;
+        let newCol = Math.floor(updateObj.x);
+        let newRow = Math.floor(updateObj.y);
+        setRenderCol(newCol);
+        setRenderRow(newRow);
+        updateDivScroll();
+        // window.requestAnimationFrame(() => {
+        // });
       });
     tween.start();
   }
 
+  function updateDivScroll() {
+    if (!divRef.current) {
+      return;
+    }
+    divRef.current.scrollLeft = Math.round(
+      (renderProps.renderX - Math.floor(renderProps.renderX)) *
+        renderProps.cellSize
+    );
+    divRef.current.scrollTop = Math.round(
+      (renderProps.renderY - Math.floor(renderProps.renderY)) *
+        renderProps.cellSize
+    );
+  }
+
   function onCellClick(col: number, row: number) {
-    let playerData: PlayerData = {
-      ...player1,
-      col: Math.min(Math.max(col, 1), map.col - 2),
-      row: Math.min(Math.max(row, 1), map.row - 2),
-    };
-    setPlayer1(playerData);
-    scrollTo(playerData.col, playerData.row);
+    let player = playerManager.getPlayer(0);
+    if (!player) {
+      return;
+    }
+    let max1 = { col: 1, row: 1 };
+    let min1 = { col: mapData.colCount - 2, row: mapData.rowCount - 2 };
+    player.target = new Position({ col, row }).max(max1).min(min1);
   }
 
   let tdStyle = {
-    width: `${renderOptions.current.cellSize}px`,
-    height: `${renderOptions.current.cellSize}px`,
-    background: "none",
+    width: `${renderProps.cellSize}px`,
+    height: `${renderProps.cellSize}px`,
+    backgroundColor: "none",
+    backgroundImage: "none",
   };
 
-  let renderDataArray: Array<Array<RenderData>> = [];
-  let offsetCol = Math.floor(renderX);
-  let offsetRow = Math.floor(renderY);
-  for (let row = 0; row < renderOptions.current.renderRowCount; row++) {
-    renderDataArray[row] = new Array<RenderData>();
-    for (let col = 0; col < renderOptions.current.renderColCount; col++) {
-      let mapCol = col + offsetCol;
-      let mapRow = row + offsetRow;
-      let tileData = mapData.tileDataArray[mapRow]
-        ? mapData.tileDataArray[mapRow][mapCol]
-        : null;
-      renderDataArray[row][col] = {
-        tileData,
-        col: mapCol,
-        row: mapRow,
-      };
+  function getRenderDataArray(): Array<Array<IRenderData>> {
+    let renderDataArray: Array<Array<IRenderData>> = [];
+    for (let row = 0; row < renderProps.renderRowCount; row++) {
+      renderDataArray[row] = new Array<IRenderData>();
+      for (let col = 0; col < renderProps.renderColCount; col++) {
+        let mapCol = col + renderCol;
+        let mapRow = row + renderRow;
+        let tileData = mapData.tileDataArray[mapRow]
+          ? mapData.tileDataArray[mapRow][mapCol]
+          : null;
+        renderDataArray[row][col] = {
+          tileData,
+          col: mapCol,
+          row: mapRow,
+        };
+      }
     }
+    return renderDataArray;
+  }
+
+  function renderTd(renderData: IRenderData) {
+    let key = `${renderData.col}-${renderData.row}`;
+    let style = { ...tdStyle };
+    let tdContent: Array<ReactNode> = [];
+    if (renderData.tileData) {
+      style.backgroundColor = renderData.tileData.bgColor;
+      if (renderData.tileData.bgImage) {
+        style.backgroundImage = `url("${renderData.tileData.bgImage}")`;
+      }
+      if (renderData.tileData.objSVG) {
+        const SVG = renderData.tileData.objSVG;
+        tdContent.push(<SVG key="objSVG" className="objSVG" />);
+      }
+      for (let i = 0; i < playerManager.playerCount; i++) {
+        const player = playerManager.getPlayer(i);
+        if (player) {
+          let isPrev = player.prevPosition.equals(renderData);
+          if (player.position.equals(renderData) || isPrev) {
+            tdContent.push(
+              <PlayerDisplay
+                player={player}
+                col={renderData.col}
+                row={renderData.row}
+                key={`player-${player.id}-${key}`}
+              />
+            );
+          }
+          if (player.target && player.target.equals(renderData)) {
+            let className = "targetSVG";
+            if (player.target.equals(player.position)) {
+              className += " fade-out";
+            }
+            tdContent.push(
+              <LocationIcon key="targetSVG" className={className} />
+            );
+          }
+        }
+      }
+      if (renderData.tileData.fgSVG) {
+        const SVG = renderData.tileData.fgSVG;
+        tdContent.push(<SVG key="fgSVG" className="fgSVG" />);
+      }
+      tdContent.push(key); //DEBUG
+    }
+    return (
+      <td
+        key={key}
+        style={style}
+        onClick={() => {
+          onCellClick(renderData.col, renderData.row);
+        }}
+      >
+        {tdContent}
+      </td>
+    );
+  }
+  function renderTr(rowRenderData: Array<IRenderData>) {
+    let rowKey = 0;
+    let rowContent = rowRenderData.map((renderData, index) => {
+      index == 0 && (rowKey = renderData.row);
+      return renderTd(renderData);
+    });
+    return <tr key={rowKey}>{rowContent}</tr>;
   }
 
   return (
     <div className="game-container" ref={divRef}>
       <table className="game-table">
-        <tbody>
-          {renderDataArray.map((rowRenderData: Array<RenderData>) => {
-            let rowKey = 0;
-            let rowContent = rowRenderData.map((renderData, index) => {
-              index == 0 && (rowKey = renderData.row);
-              let key = `${renderData.col}-${renderData.row}`;
-              let style = { ...tdStyle };
-              if (renderData.tileData) {
-                style.background = renderData.tileData.bgColor;
-              }
-              let playerNode = null;
-              if (
-                player1.row == renderData.row &&
-                player1.col == renderData.col
-              ) {
-                playerNode = (
-                  <PersonIcon
-                    className="playerIcon"
-                    style={player1.iconStyle}
-                  />
-                );
-              }
-              if (
-                player2.row == renderData.row &&
-                player2.col == renderData.col
-              ) {
-                playerNode = (
-                  <PersonIcon
-                    className="playerIcon"
-                    style={player2.iconStyle}
-                  />
-                );
-              }
-              return (
-                <td
-                  key={key}
-                  style={style}
-                  onClick={() => {
-                    onCellClick(renderData.col, renderData.row);
-                  }}
-                >
-                  {playerNode || key}
-                </td>
-              );
-            });
-            return <tr key={rowKey}>{rowContent}</tr>;
-          })}
-        </tbody>
+        <tbody>{getRenderDataArray().map(renderTr)}</tbody>
       </table>
     </div>
   );
