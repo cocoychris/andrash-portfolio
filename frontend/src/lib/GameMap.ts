@@ -1,77 +1,156 @@
-import Player from "./Player";
-import Position from "./Position";
-import { IMapData, IPlayerData, IPosition, ITileData } from "./interface";
+import Character, { ICharacterData } from "./Character";
+import DefLoader from "./DefLoader";
+import Game from "./Game";
+import { ITileDef } from "./IDefinition";
+import Position, { IPosition } from "./Position";
+import Tile, { ITileData } from "./Tile";
 
+export interface IMapData {
+  // The name of the game map.
+  name: string;
+  // An array of character data objects.
+  CharacterDataList: Array<ICharacterData>;
+  // The number of columns in the game map.
+  colCount: number;
+  // The number of rows in the game map.
+  rowCount: number;
+  // A 2D array of tile data objects.
+  tileDataArray: Array<Array<ITileData>>;
+}
+/**
+ * Represents a game map. A game map contains all the tiles and map information.
+ */
 export default class GameMap {
+  private _game: Game;
   private _data: IMapData;
+  private _tileArray: Array<Array<Tile>>;
+  private _tileDefLoader: DefLoader<ITileDef>;
 
+  /**
+   * Get name of the map
+   */
+  public get name(): string {
+    return this._data.name;
+  }
+  /**
+   * Get number of columns
+   */
   public get colCount(): number {
     return this._data.colCount;
   }
+  /**
+   * Get number of rows
+   */
   public get rowCount(): number {
     return this._data.rowCount;
   }
-
-  public get playerCount(): number {
-    return this._data.playerDataList.length;
+  /**
+   * Get number of Characters
+   */
+  public get characterCount(): number {
+    return this._data.CharacterDataList.length;
   }
-
-  constructor(data: IMapData) {
+  /**
+   * A tile definition loader that contains all tile definitions.
+   */
+  public get tileDefLoader(): DefLoader<ITileDef> {
+    return this._tileDefLoader;
+  }
+  /**
+   * Get the game object.
+   */
+  public get game(): Game {
+    return this._game;
+  }
+  /**
+   * Create a new map
+   * @param defLoader The loader for tile definition
+   * @param data The data for creating the map
+   */
+  constructor(game: Game, data: IMapData) {
+    this._game = game;
+    this._tileDefLoader = game.tileDefLoader;
     this._data = data;
+    this._tileArray = [];
+    for (let row = 0; row < this.rowCount; row++) {
+      let rowTiles = [];
+      for (let col = 0; col < this.colCount; col++) {
+        let tileData = this._data.tileDataArray[row][col];
+        let tile = new Tile(this, tileData);
+        rowTiles.push(tile);
+      }
+      this._tileArray.push(rowTiles);
+    }
   }
 
   /**
-   * Get a copy of the requested playerData
-   * @param index The player index
-   * @returns playerData or null if not exist.
+   * Get a copy of the requested CharacterData
+   * @param index The character index
+   * @returns CharacterData or null if not exist.
    */
-  public getPlayerData(index: number): IPlayerData | null {
-    let playerData = this._data.playerDataList[index];
-    return playerData ? { ...playerData } : null;
+  public getCharacterData(index: number): ICharacterData | null {
+    let CharacterData = this._data.CharacterDataList[index];
+    return CharacterData ? { ...CharacterData } : null;
   }
 
   /**
-   * Get a copy of the requested tileData
-   * @param position The position of the tileData
-   * @returns tileData or null if not exist.
+   * Get the tile at the position
+   * @param position The position of the tile
    */
-  public getTileData(position: IPosition): ITileData | null {
-    let rowData = this._data.tileDataArray[position.row];
-    if (!rowData) {
+  public getTile(position: IPosition): Tile | null {
+    let rowTiles = this._tileArray[position.row];
+    if (!rowTiles) {
       return null;
     }
-    let tileData = rowData[position.col];
-    if (!tileData) {
+    let tile = rowTiles[position.col];
+    if (!tile) {
       return null;
     }
-    return tileData ? { ...tileData } : null;
+    return tile;
+  }
+  /**
+   * Set the tile at the position
+   * @param position
+   * @param tileData
+   */
+  public setTile(position: IPosition, tileData: ITileData) {
+    if (!this.getTile(position)) {
+      return;
+    }
+    this._tileArray[position.row][position.col] = new Tile(this, tileData);
   }
 
+  /**
+   * Indicate if the position is walkable
+   * @param position The position of the tile
+   * @returns Will return false if the position is out of bound.
+   */
   public isWalkable(position: IPosition): boolean {
-    let rowData = this._data.tileDataArray[position.row];
-    if (!rowData) {
+    let tile = this.getTile(position);
+    if (!tile) {
       return false;
     }
-    let tileData = rowData[position.col];
-    if (!tileData) {
-      return false;
-    }
-    return tileData.walkable;
+    return tile.walkable;
   }
+
   /**
-   * Useing simpler logic to try get close to the target.
-   * This is NOT a path finding algorithm. But a way to keep a character moving.
-   * Note that there is no guarantee of reaching the target if there is no direct path (without obsticles) to it.
-   * Will avoid going back to the previous position to prevent walking back and forth indefinitely.
-   * @param player
+   * This function uses a simpler logic to try to get the character close to the target.
+   * It is not a pathfinding algorithm, but rather a way to keep the character moving.
+   * Note that there is no guarantee of reaching the target if there are obstacles in the way.
+   * The function will avoid going back to the previous position to prevent the character from walking back and forth indefinitely.
+   *
+   * @param character
    * @returns
    */
-  public getNextPosition(player: Player) {
-    if (!player.target) {
+  public getNextPosition(character: Character) {
+    if (!character.target) {
       return null;
     }
-    let diff = player.target.subtract(player.position);
-    let horizontalFirst = Math.abs(diff.col) > Math.abs(diff.row);
+    let diff = character.target.subtract(character.position);
+    let hDiff = Math.abs(diff.col);
+    let vDiff = Math.abs(diff.row);
+    let horizontalFirst =
+      hDiff > vDiff ? true : hDiff < vDiff ? false : Math.random() < 0.5;
     let nearest = {
       col:
         Math.max(-1, Math.min(1, diff.col)) || (Math.random() < 0.5 ? 1 : -1),
@@ -96,35 +175,39 @@ export default class GameMap {
     }
     for (let i = 0; i < offsetList.length; i++) {
       const offset = offsetList[i];
-      const position = player.position.add(offset);
-      if (this.isWalkable(position) && !player.prevPosition.equals(position)) {
+      const position = character.position.add(offset);
+      if (
+        this.isWalkable(position) &&
+        !character.prevPosition.equals(position)
+      ) {
         return position;
       }
     }
     //Try previous position
-    const position = player.prevPosition;
-    if (!player.position.equals(position) && this.isWalkable(position)) {
+    const position = character.prevPosition;
+    if (!character.position.equals(position) && this.isWalkable(position)) {
       return position;
     }
     return null;
   }
 
   /**
-   * Navigating from current position to target position.
-   * A good enough path finding algorithm.
-   * Able to generate an L-shaped path with a singal turn.
-   * Will fail to find the path if too far or too complicated (requires more than one turn to reach the target).
-   * @param current
-   * @param target
-   * @param horizontalFirst
-   * @returns An array of positions. indicating the path to the target. Will return an empty array if path not found.
+   * Navigates from the current position to the target position using a simple pathfinding algorithm.
+   * The algorithm generates an L-shaped path with a single turn, which is good enough for most cases.
+   * However, it may fail to find a path if the target is too far away or the map is too complicated (i.e., requires more than one turn to reach the target).
+   *
+   * @param current The current position of the character.
+   * @param target The target position to navigate to.
+   * @param horizontalFirst If true, the algorithm will try to move horizontally first before moving vertically.
+   * @param range The maximum number of steps to take in any direction. Default value is 10.
+   * @returns An array of positions indicating the path to the target. Returns null if path not found.
    */
   public navigate(
     current: Position,
     target: Position,
     horizontalFirst: boolean,
     range: number = 10
-  ): Array<Position> {
+  ): Array<Position> | null {
     let diff = target.subtract(current);
     let dirH: IPosition = { col: Math.max(-1, Math.min(1, diff.col)), row: 0 };
     let dirV: IPosition = { col: 0, row: Math.max(-1, Math.min(1, diff.row)) };
@@ -142,42 +225,49 @@ export default class GameMap {
   }
 
   /**
-   * Find target along specific direction and returns the path if it finds one.
-   * @param current Current position.
-   * @param target Target position.
-   * @param dir Heading direction for searching. dir.col & dir.row are the step size (Suggested value: 0 or 1 or -1).
-   * @param maxStep Will stop searching when maxStep reached.
-   * @param finderFunc Additional finder which will perform extra searching in each step.
-   * @returns An array of positions. indicating the path to the target. Will return an empty array if path not found.
+   * Finds a path to the target position along a specific direction.
+   * The function searches for a path by moving in the specified direction and checking if each position is walkable.
+   * If the target is reached or an obstacle is encountered, the function returns the path or null respectively.
+   * An optional finder function can be provided to perform extra searching in each step.
+   *
+   * @param current The current position of the character.
+   * @param target The target position to navigate to.
+   * @param dir The heading direction for searching. dir.col & dir.row are the step size (suggested value: 0, 1, or -1).
+   * @param maxStep The maximum number of steps to take in the specified direction. Default value is 10.
+   * @param finderFunc An additional finder function which will perform extra searching in each step. Default value is undefined.
+   * @returns An array of positions indicating the path to the target. Returns null if path not found or an obstacle is encountered.
    */
   public findInDir(
     current: Position,
     target: Position,
     dir: IPosition,
     maxStep: number = 10,
-    finderFunc?: (current: Position) => Array<Position>
-  ): Array<Position> {
+    finderFunc?: (current: Position) => Array<Position> | null
+  ): Array<Position> | null {
     if (dir.col == 0 && dir.row == 0) {
-      return [];
+      return null;
     }
     let position = current;
     let path: Array<Position> = [];
     for (let step = 1; step <= maxStep; step++) {
       position = position.add(dir);
       path.push(position);
+      //Obstacle Encountered
       if (!this.isWalkable(position)) {
-        break;
+        return null;
       }
+      //Path found
       if (position.equals(target)) {
         return path;
       }
       if (finderFunc) {
         let path2 = finderFunc(position);
-        if (path2.length > 0) {
+        if (path2) {
           return path.concat(path2);
         }
       }
     }
-    return [];
+    //Path not found
+    return null;
   }
 }

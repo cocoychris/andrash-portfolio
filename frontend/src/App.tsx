@@ -3,17 +3,26 @@ import Alert from "./components/Alert";
 import GameView from "./components/GameView";
 import Navbar from "./layouts/Navbar";
 import mapData from "./data/mapData";
-import PlayerManager from "./lib/PlayerManager";
+import Game, { IGameData } from "./lib/Game";
 import GameMap from "./lib/GameMap";
 import "./App.css";
+import tileDefGroup from "./data/tiles";
+import { ICharacterDef, ITileDef } from "./lib/IDefinition";
+import charaterDefGroup from "./data/characters";
+import itemDefGroup from "./data/items";
 
-const gameMap: GameMap = new GameMap(mapData);
-const playerManager: PlayerManager = new PlayerManager(gameMap);
+let gameData: IGameData = {
+  tileDefGroup,
+  charaterDefGroup,
+  itemDefGroup,
+  mapData,
+};
+const game: Game = new Game(gameData);
 const UPDATE_DELAY_MS = 600;
 
 let init = function () {
   setInterval(() => {
-    playerManager.update();
+    game.update();
   }, UPDATE_DELAY_MS);
 };
 init();
@@ -44,7 +53,7 @@ function App() {
       {renderAlert()}
       <Navbar />
       <div className="content">
-        <GameView mapData={mapData} playerManager={playerManager} />
+        <GameView game={game} />
       </div>
     </>
   );

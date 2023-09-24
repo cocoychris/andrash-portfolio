@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ReactComponent as PersonIcon } from "../../assets/icons/person-svgrepo-com.svg";
-import Player from "../../lib/Player";
+import Character from "../../lib/Character";
 
 interface Props {
-  player: Player;
+  character: Character;
   col: number;
   row: number;
 }
 
-const DEFAULT_CLASS_NAME = "playerDiv";
+const DEFAULT_CLASS_NAME = "CharacterDiv";
 
-export default function PlayerDisplay(props: Props) {
+export default function CharacterDisplay(props: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const iconStyle = { fill: "#ffffff" };
   const [className, setClassName] = useState(
@@ -19,8 +18,8 @@ export default function PlayerDisplay(props: Props) {
 
   useEffect(() => {
     setTimeout(() => {
-      let player = props.player;
-      let isCurrent = player.position.equals(props);
+      let character = props.character;
+      let isCurrent = character.position.equals(props);
       if (!ref.current) {
         return;
       }
@@ -31,19 +30,20 @@ export default function PlayerDisplay(props: Props) {
       }
     }, 30);
   });
+  let SVGImage = props.character.frameDef.svg;
   return (
     <div ref={ref} className={className}>
-      <PersonIcon key="personIcon" className="playerIcon" style={iconStyle} />
+      <SVGImage key="personIcon" className="CharacterIcon" style={iconStyle} />
     </div>
   );
 }
 
 function getStartPositionName(props: Props) {
-  let player: Player = props.player;
-  let isCurrent = player.position.equals(props);
-  let movement = player.movement;
+  let character: Character = props.character;
+  let isCurrent = character.position.equals(props);
+  let movement = character.movement;
   let suffixList = [];
-  if (isCurrent && player.isMoving) {
+  if (isCurrent && character.isMoving) {
     if (movement.col > 0) {
       suffixList.push("left");
     } else if (movement.col < 0) {
@@ -59,11 +59,11 @@ function getStartPositionName(props: Props) {
   return `position-${suffixList.join("-")}`;
 }
 function getEndPositionName(props: Props) {
-  let player: Player = props.player;
-  let isCurrent = player.position.equals(props);
-  let movement = player.movement;
+  let character: Character = props.character;
+  let isCurrent = character.position.equals(props);
+  let movement = character.movement;
   let suffixList = [];
-  if (!isCurrent && player.isMoving) {
+  if (!isCurrent && character.isMoving) {
     if (movement.col > 0) {
       suffixList.push("right");
     } else if (movement.col < 0) {

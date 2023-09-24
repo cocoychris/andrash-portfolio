@@ -19,12 +19,12 @@
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
-.playerIcon {
+.CharacterIcon {
   display: block;
   width: 100%;
   height: 100%;
 }
-.playerDiv {
+.CharacterDiv {
   --speed: 500ms;
   position: relative;
   z-index: 2;
@@ -35,35 +35,36 @@
   height: 100%;
   transition: translate var(--speed) ease-out;
 }
-.playerDiv.position-left {
+.CharacterDiv.position-left {
   translate: -100% 0%;
 }
-.playerDiv.position-left-up {
+.CharacterDiv.position-left-up {
   translate: -100% -100%;
 }
-.playerDiv.position-left-down {
+.CharacterDiv.position-left-down {
   translate: -100% 100%;
 }
-.playerDiv.position-right {
+.CharacterDiv.position-right {
   translate: 100% 0%;
 }
-.playerDiv.position-right-up {
+.CharacterDiv.position-right-up {
   translate: 100% -100%;
 }
-.playerDiv.position-right-down {
+.CharacterDiv.position-right-down {
   translate: 100% 100%;
 }
-.playerDiv.position-up {
+.CharacterDiv.position-up {
   translate: 0% -100%;
 }
-.playerDiv.position-down {
+.CharacterDiv.position-down {
   translate: 0% 100%;
 }
-.playerDiv.position-center {
+.CharacterDiv.position-center {
   translate: 0% 0%;
 }
 
-.game-table td > svg {
+.game-table td > svg,
+img {
   display: block;
   width: 100%;
   height: 100%;
@@ -72,15 +73,15 @@
   margin-bottom: -100%;
 }
 
-svg.objSVG {
+svg.itemSVG {
   z-index: 1;
 }
-svg.fgSVG {
-  z-index: 4;
+img.fgImage {
+  z-index: 5;
 }
 
 svg.targetSVG {
-  z-index: 3;
+  z-index: 11;
   fill: #ff3333;
   transition: opacity 500ms ease;
   opacity: 1;

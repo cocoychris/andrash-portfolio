@@ -1,19 +1,18 @@
-# Change Log of this version
+# Change Log of This Version
 
-Object-oriented programming (OOP) infrastructure created.
-New game fratures added. Few bugs fixed.
+Refactored the code to use OOP principles and added new features.
 
 ## Frontend
 
-- Fix: Player icon were stacking on top of the foreground image.
-- Fix: GameView glitchs while camera moving. (reduced by 60%)
-- Fix: Player moving transition not performed correctly.
-- Change: Player React component renamed as PlayerDisplay.
-- Change: All the interfaces are moved to the 'interface.ts' file.
-- Add: OOP Classes - GameMap, Player, PlayerManager, Position as data operator.
-- Add: Feature - Walkable property added to tileData. Player can not move to an unwalkable tile.
-- Add: Feature - Auto path finding. Setup a target and move to it autometically.
+- Changed: Replaced "Player" with "Character" for consistency.
+- Changed: Upgraded `PlayerManager` to `Game` to better reflect its functionality.
+- Added: `Tile` and `Item` classes to represent game objects.
+- Added: `GameEvent`, `CharacterEvent`, `TileEvent`, and `ItemEvent` classes to handle events.
+- Added: Definition files for characters, tiles, and items (see `src/data` folder). This avoids storing duplicate data for each tile of the map but only the tile type.
+- Added: `IDefinition` (and other related) interfaces to standardize the definition data of characters, tiles, and items.
+- Added: Frame switching feature - Characters and items can switch between frames to display different images at different states.
+- Used: GitHub Copilot to assist with programming and comment writing.
 
 ## Backend
 
-- none
+- None

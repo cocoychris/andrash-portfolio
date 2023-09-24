@@ -1,4 +1,7 @@
-import { IPosition } from "./interface";
+export interface IPosition {
+  col: number;
+  row: number;
+}
 
 export default class Position implements IPosition {
   protected _col: number = 0;

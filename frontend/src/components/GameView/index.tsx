@@ -1,12 +1,16 @@
 import { ReactNode, useRef, useEffect, useState } from "react";
 import { Easing, Tween, update } from "@tweenjs/tween.js";
-import PlayerDisplay from "./PlayerDisplay";
-import Player from "../../lib/Player";
-import { IMapData, IPosition, IRenderData } from "../../lib/interface";
-import PlayerManager from "../../lib/PlayerManager";
+import CharacterDisplay from "./CharacterDisplay";
+import { IPosition } from "../../lib/Position";
+import Game from "../../lib/Game";
 import "./index.css";
 import Position from "../../lib/Position";
 import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
+import Tile from "../../lib/Tile";
+import GameMap from "../../lib/GameMap";
+import GameEvent from "../../lib/events/GameEvent";
+import Character from "../../lib/Character";
+import CharacterEvent from "../../lib/events/CharacterEvent";
 
 const DEFAULT_CELL_SIZE = 100;
 const EASE_SPEED = 500;
@@ -24,12 +28,18 @@ const renderProps = {
   renderCenterX: 0,
 };
 
-interface Props {
-  mapData: IMapData;
-  playerManager: PlayerManager;
+export interface IRenderData extends IPosition {
+  col: number;
+  row: number;
+  tile: Tile | null;
 }
 
-export default function GameView({ mapData, playerManager }: Props) {
+interface Props {
+  game: Game;
+}
+
+export default function GameView({ game }: Props) {
+  const gameMap: GameMap = game.gameMap;
   const divRef = useRef<HTMLDivElement>(null);
   const [winHeight, setWinHeight] = useState(window.innerHeight);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -40,6 +50,7 @@ export default function GameView({ mapData, playerManager }: Props) {
   updateRenderProps();
 
   useEffect(() => {
+    console.log("GameView mount");
     //Handle Resize
     window.addEventListener("resize", () => {
       setWinWidth(window.innerWidth);
@@ -51,24 +62,29 @@ export default function GameView({ mapData, playerManager }: Props) {
     }, 25);
 
     //update
-    let player = playerManager.getPlayer(0);
-    if (!player) {
-      console.warn(`Player (index = 0) not found.`);
+    let character: Character = game.getCharacter(0) as Character;
+    if (!character) {
+      console.warn(`character (index = 0) not found.`);
       return;
     }
 
-    playerManager.onUpdate = () => {
+    function onGameUpdate() {
       forceRerender();
-      if (player) {
-        scrollTo(player);
+      if (character) {
+        scrollTo(character);
       }
-    };
+    }
+    game.addEventListener(GameEvent.DID_UPDATE, onGameUpdate);
 
-    player.onTargetUpdate = () => {
-      forceRerender();
-    };
+    character.addEventListener(CharacterEvent.TARGET_CHANGE, forceRerender);
 
     return () => {
+      console.log("GameView unmount");
+      game.removeEventListener(GameEvent.DID_UPDATE, onGameUpdate);
+      character.removeEventListener(
+        CharacterEvent.TARGET_CHANGE,
+        forceRerender
+      );
       clearInterval(id);
     };
   }, []);
@@ -80,9 +96,9 @@ export default function GameView({ mapData, playerManager }: Props) {
   });
 
   useEffect(() => {
-    let player = playerManager.getPlayer(0);
-    if (player) {
-      scrollTo(player);
+    let character = game.getCharacter(0);
+    if (character) {
+      scrollTo(character);
     }
   }, [winWidth, winHeight]);
 
@@ -95,8 +111,8 @@ export default function GameView({ mapData, playerManager }: Props) {
     renderProps.renderRowCount =
       Math.ceil(winHeight / renderProps.cellSize) + 1;
     renderProps.renderColCount = Math.ceil(winWidth / renderProps.cellSize) + 1;
-    renderProps.maxRenderX = mapData.colCount - renderProps.renderColCount + 1;
-    renderProps.maxRenderY = mapData.rowCount - renderProps.renderRowCount + 1;
+    renderProps.maxRenderX = gameMap.colCount - renderProps.renderColCount + 1;
+    renderProps.maxRenderY = gameMap.rowCount - renderProps.renderRowCount + 1;
     renderProps.renderCenterX = (winWidth / renderProps.cellSize - 1) * 0.5;
     renderProps.renderCenterY = (winHeight / renderProps.cellSize - 1) * 0.5;
   }
@@ -154,13 +170,13 @@ export default function GameView({ mapData, playerManager }: Props) {
   }
 
   function onCellClick(col: number, row: number) {
-    let player = playerManager.getPlayer(0);
-    if (!player) {
+    let character = game.getCharacter(0);
+    if (!character) {
       return;
     }
     let max1 = { col: 1, row: 1 };
-    let min1 = { col: mapData.colCount - 2, row: mapData.rowCount - 2 };
-    player.target = new Position({ col, row }).max(max1).min(min1);
+    let min1 = { col: gameMap.colCount - 2, row: gameMap.rowCount - 2 };
+    character.target = new Position({ col, row }).max(max1).min(min1);
   }
 
   let tdStyle = {
@@ -171,69 +187,75 @@ export default function GameView({ mapData, playerManager }: Props) {
   };
 
   function getRenderDataArray(): Array<Array<IRenderData>> {
-    let renderDataArray: Array<Array<IRenderData>> = [];
+    let renderTileArray: Array<Array<IRenderData>> = [];
     for (let row = 0; row < renderProps.renderRowCount; row++) {
-      renderDataArray[row] = new Array<IRenderData>();
+      renderTileArray[row] = new Array<IRenderData>();
       for (let col = 0; col < renderProps.renderColCount; col++) {
         let mapCol = col + renderCol;
         let mapRow = row + renderRow;
-        let tileData = mapData.tileDataArray[mapRow]
-          ? mapData.tileDataArray[mapRow][mapCol]
-          : null;
-        renderDataArray[row][col] = {
-          tileData,
+        let position = {
           col: mapCol,
           row: mapRow,
         };
+        renderTileArray[row][col] = {
+          ...position,
+          tile: gameMap.getTile(position),
+        };
       }
     }
-    return renderDataArray;
+    return renderTileArray;
   }
 
   function renderTd(renderData: IRenderData) {
+    let tile = renderData.tile as Tile;
+    if (!tile) {
+      return <td key="null"></td>;
+    }
     let key = `${renderData.col}-${renderData.row}`;
     let style = { ...tdStyle };
     let tdContent: Array<ReactNode> = [];
-    if (renderData.tileData) {
-      style.backgroundColor = renderData.tileData.bgColor;
-      if (renderData.tileData.bgImage) {
-        style.backgroundImage = `url("${renderData.tileData.bgImage}")`;
-      }
-      if (renderData.tileData.objSVG) {
-        const SVG = renderData.tileData.objSVG;
-        tdContent.push(<SVG key="objSVG" className="objSVG" />);
-      }
-      for (let i = 0; i < playerManager.playerCount; i++) {
-        const player = playerManager.getPlayer(i);
-        if (player) {
-          let isPrev = player.prevPosition.equals(renderData);
-          if (player.position.equals(renderData) || isPrev) {
-            tdContent.push(
-              <PlayerDisplay
-                player={player}
-                col={renderData.col}
-                row={renderData.row}
-                key={`player-${player.id}-${key}`}
-              />
-            );
+    tile.bgColor && (style.backgroundColor = tile.bgColor);
+    tile.bgImage && (style.backgroundImage = `url("${tile.bgImage}")`);
+
+    if (tile.item) {
+      const style = {
+        zIndex: tile.item.inFront ? 3 : 1,
+      };
+      const SVG = tile.item.frameDef.svg;
+      tdContent.push(<SVG key="itemSVG" className="itemSVG" style={style} />);
+    }
+
+    for (let i = 0; i < game.characterCount; i++) {
+      const character = game.getCharacter(i);
+      if (character) {
+        let isPrev = character.prevPosition.equals(renderData);
+        if (character.position.equals(renderData) || isPrev) {
+          tdContent.push(
+            <CharacterDisplay
+              character={character}
+              col={renderData.col}
+              row={renderData.row}
+              key={`character-${character.id}-${key}`}
+            />
+          );
+        }
+        if (character.target && character.target.equals(renderData)) {
+          let className = "targetSVG";
+          if (character.target.equals(character.position)) {
+            className += " fade-out";
           }
-          if (player.target && player.target.equals(renderData)) {
-            let className = "targetSVG";
-            if (player.target.equals(player.position)) {
-              className += " fade-out";
-            }
-            tdContent.push(
-              <LocationIcon key="targetSVG" className={className} />
-            );
-          }
+          tdContent.push(
+            <LocationIcon key="targetSVG" className={className} />
+          );
         }
       }
-      if (renderData.tileData.fgSVG) {
-        const SVG = renderData.tileData.fgSVG;
-        tdContent.push(<SVG key="fgSVG" className="fgSVG" />);
-      }
-      tdContent.push(key); //DEBUG
     }
+    if (tile.fgImage) {
+      tdContent.push(
+        <img key="fgImage" className="fgImage" src={tile.fgImage} />
+      );
+    }
+    tdContent.push(key); //DEBUG
     return (
       <td
         key={key}
@@ -246,9 +268,9 @@ export default function GameView({ mapData, playerManager }: Props) {
       </td>
     );
   }
-  function renderTr(rowRenderData: Array<IRenderData>) {
+  function renderTr(rowDataArray: Array<IRenderData>) {
     let rowKey = 0;
-    let rowContent = rowRenderData.map((renderData, index) => {
+    let rowContent = rowDataArray.map((renderData, index) => {
       index == 0 && (rowKey = renderData.row);
       return renderTd(renderData);
     });
