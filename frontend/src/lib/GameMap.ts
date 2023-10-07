@@ -1,30 +1,27 @@
-import Character, { ICharacterData } from "./Character";
-import DefLoader from "./DefLoader";
+import Character from "./Character";
 import Game from "./Game";
 import { ITileDef } from "./IDefinition";
 import Position, { IPosition } from "./Position";
 import Tile, { ITileData } from "./Tile";
+import DataHolder from "./DataHolder";
+import DataHolderEvent from "./events/DataHolderEvent";
 
 export interface IMapData {
   // The name of the game map.
   name: string;
-  // An array of character data objects.
-  CharacterDataList: Array<ICharacterData>;
   // The number of columns in the game map.
   colCount: number;
   // The number of rows in the game map.
   rowCount: number;
   // A 2D array of tile data objects.
-  tileDataArray: Array<Array<ITileData>>;
+  tileData2DArray: Array<Array<ITileData | null>>;
 }
 /**
  * Represents a game map. A game map contains all the tiles and map information.
  */
-export default class GameMap {
+export default class GameMap extends DataHolder<IMapData> {
   private _game: Game;
-  private _data: IMapData;
-  private _tileArray: Array<Array<Tile>>;
-  private _tileDefLoader: DefLoader<ITileDef>;
+  private _tile2DArray: Array<Array<Tile>>;
 
   /**
    * Get name of the map
@@ -45,18 +42,6 @@ export default class GameMap {
     return this._data.rowCount;
   }
   /**
-   * Get number of Characters
-   */
-  public get characterCount(): number {
-    return this._data.CharacterDataList.length;
-  }
-  /**
-   * A tile definition loader that contains all tile definitions.
-   */
-  public get tileDefLoader(): DefLoader<ITileDef> {
-    return this._tileDefLoader;
-  }
-  /**
    * Get the game object.
    */
   public get game(): Game {
@@ -68,29 +53,42 @@ export default class GameMap {
    * @param data The data for creating the map
    */
   constructor(game: Game, data: IMapData) {
+    super(data);
     this._game = game;
-    this._tileDefLoader = game.tileDefLoader;
-    this._data = data;
-    this._tileArray = [];
+    this._tile2DArray = [];
+  }
+  /**
+   * Initialize the map.
+   * Will create tile instances for all the data in the GameMap.
+   * Also set up event listeners for data holder events.
+   * Please call this method after creating a new GameMap instance and before using it.
+   */
+  public init(): void {
+    super.init();
+    // Generate tiles
     for (let row = 0; row < this.rowCount; row++) {
       let rowTiles = [];
       for (let col = 0; col < this.colCount; col++) {
-        let tileData = this._data.tileDataArray[row][col];
+        let tileData = this._data.tileData2DArray[row][col];
+        if (!tileData) {
+          throw new Error(`Tile data not found at (${col}, ${row})`);
+        }
         let tile = new Tile(this, tileData);
         rowTiles.push(tile);
       }
-      this._tileArray.push(rowTiles);
+      this._tile2DArray.push(rowTiles);
     }
-  }
-
-  /**
-   * Get a copy of the requested CharacterData
-   * @param index The character index
-   * @returns CharacterData or null if not exist.
-   */
-  public getCharacterData(index: number): ICharacterData | null {
-    let CharacterData = this._data.CharacterDataList[index];
-    return CharacterData ? { ...CharacterData } : null;
+    // Initialize tiles
+    this._tile2DArray.forEach((rowTiles) => {
+      rowTiles.forEach((tile) => tile.init());
+    });
+    // Set up event listeners
+    this.addEventListener(DataHolderEvent.WILL_GET_UPDATE, () => {
+      this._getTileUpdates();
+    });
+    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, () => {
+      this._setTileUpdates();
+    });
   }
 
   /**
@@ -98,7 +96,11 @@ export default class GameMap {
    * @param position The position of the tile
    */
   public getTile(position: IPosition): Tile | null {
-    let rowTiles = this._tileArray[position.row];
+    this.checkInit();
+    if (!this.isInRange(position)) {
+      return null;
+    }
+    let rowTiles = this._tile2DArray[position.row];
     if (!rowTiles) {
       return null;
     }
@@ -108,17 +110,6 @@ export default class GameMap {
     }
     return tile;
   }
-  /**
-   * Set the tile at the position
-   * @param position
-   * @param tileData
-   */
-  public setTile(position: IPosition, tileData: ITileData) {
-    if (!this.getTile(position)) {
-      return;
-    }
-    this._tileArray[position.row][position.col] = new Tile(this, tileData);
-  }
 
   /**
    * Indicate if the position is walkable
@@ -126,11 +117,29 @@ export default class GameMap {
    * @returns Will return false if the position is out of bound.
    */
   public isWalkable(position: IPosition): boolean {
+    this.checkInit();
+    if (!this.isInRange(position)) {
+      return false;
+    }
     let tile = this.getTile(position);
     if (!tile) {
       return false;
     }
     return tile.walkable;
+  }
+
+  /**
+   * Indicate if the position is in the map
+   * @param position The position of the tile
+   * @returns Will return false if the position is out of bound.
+   */
+  public isInRange(position: IPosition): boolean {
+    return (
+      position.col >= 0 &&
+      position.col < this.colCount &&
+      position.row >= 0 &&
+      position.row < this.rowCount
+    );
   }
 
   /**
@@ -142,7 +151,7 @@ export default class GameMap {
    * @param character
    * @returns
    */
-  public getNextPosition(character: Character) {
+  public findNext(character: Character): Position | null {
     if (!character.target) {
       return null;
     }
@@ -202,7 +211,7 @@ export default class GameMap {
    * @param range The maximum number of steps to take in any direction. Default value is 10.
    * @returns An array of positions indicating the path to the target. Returns null if path not found.
    */
-  public navigate(
+  public findPath(
     current: Position,
     target: Position,
     horizontalFirst: boolean,
@@ -269,5 +278,36 @@ export default class GameMap {
     }
     //Path not found
     return null;
+  }
+
+  private _getTileUpdates() {
+    let changed = false;
+    let tileData2DArray: Array<Array<ITileData | null>> = [];
+    this._tile2DArray.forEach((row, rowIndex) => {
+      let tileDataArray: Array<ITileData | null> = [];
+      tileData2DArray.push(tileDataArray);
+      row.forEach((tile, colIndex) => {
+        let tileData = tile.getUpdate();
+        tileDataArray[colIndex] = tileData;
+        if (tileData) {
+          changed = true;
+        }
+      });
+    });
+    if (changed) {
+      this._data.tileData2DArray = tileData2DArray;
+    }
+  }
+
+  private _setTileUpdates() {
+    this._data.tileData2DArray.forEach((row, rowIndex) => {
+      row.forEach((tileData, colIndex) => {
+        let tile = this.getTile({ col: colIndex, row: rowIndex });
+        if (!tile) {
+          return;
+        }
+        tile.setUpdate(tileData);
+      });
+    });
   }
 }

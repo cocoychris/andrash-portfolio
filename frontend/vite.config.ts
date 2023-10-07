@@ -13,6 +13,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": "http://localhost:8000",
+      "/socket.io": { target: "ws://localhost:8000", ws: true },
     },
   },
   preview: {

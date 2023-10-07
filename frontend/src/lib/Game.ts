@@ -1,13 +1,22 @@
 import GameMap, { IMapData } from "./GameMap";
-import Character, { ICharacterData } from "./Character";
-import Position, { IPosition } from "./Position";
-import GameEvent from "./events/GameEvent";
 import DefLoader from "./DefLoader";
 import { ICharacterDef, IDefGroup, IItemDef, ITileDef } from "./IDefinition";
-import CharacterEvent from "./events/CharacterEvent";
+import CharacterGroup from "./CharacterGroup";
+import { ICharacterData } from "./Character";
+
+import ItemGroup from "./ItemGroup";
+import { IGroupData } from "./Group";
+import { IItemData } from "./Item";
+import DataHolder from "./DataHolder";
+import DataHolderEvent from "./events/DataHolderEvent";
+import Position from "./Position";
 
 export interface IGameData {
-  mapData: IMapData;
+  characterDataDict: IGroupData<ICharacterData> | null;
+  itemDataDict: IGroupData<IItemData> | null;
+  mapData: IMapData | null;
+}
+export interface IGameDef {
   charaterDefGroup: IDefGroup<ICharacterDef>;
   tileDefGroup: IDefGroup<ITileDef>;
   itemDefGroup: IDefGroup<IItemDef>;
@@ -17,25 +26,31 @@ export interface IGameData {
  * Represents a game session. A game session contains all the game data and objects.
  * To restart a game, create a new Game instance.
  */
-export default class Game extends EventTarget {
-  private _characterList: Array<Character> = [];
-  private __new: boolean = false;
-  private _gameMap: GameMap;
+export default class Game extends DataHolder<IGameData> {
+  private _characterGroup: CharacterGroup;
+  private _itemGroup: ItemGroup;
+  private _map: GameMap;
   private _tileDefLoader: DefLoader<ITileDef>;
   private _characterDefLoader: DefLoader<ICharacterDef>;
   private _itemDefLoader: DefLoader<IItemDef>;
 
-  public get characterCount(): number {
-    return this._characterList.length;
-  }
-  public get _new(): boolean {
-    return this.__new;
-  }
   /**
    * Get the game map object that contains all the tiles and map information.
    */
-  public get gameMap(): GameMap {
-    return this._gameMap;
+  public get map(): GameMap {
+    return this._map;
+  }
+  /**
+   * Get the item manager that manages all the items.
+   */
+  public get itemGroup(): ItemGroup {
+    return this._itemGroup;
+  }
+  /**
+   * Get the character manager that manages all the characters.
+   */
+  public get characterGroup(): CharacterGroup {
+    return this._characterGroup;
   }
 
   /**
@@ -57,118 +72,67 @@ export default class Game extends EventTarget {
     return this._itemDefLoader;
   }
 
-  constructor(gameData: IGameData) {
-    super();
-    this._tileDefLoader = new DefLoader(gameData.tileDefGroup);
-    this._characterDefLoader = new DefLoader(gameData.charaterDefGroup);
-    this._itemDefLoader = new DefLoader(gameData.itemDefGroup);
-    this._gameMap = new GameMap(this, gameData.mapData);
-    //Add Characters form gameMap
-    for (let i = 0; i < this._gameMap.characterCount; i++) {
-      const CharacterData = this._gameMap.getCharacterData(i);
-      if (CharacterData) {
-        let character = this.newCharacter(CharacterData);
-        character.addEventListener(
-          CharacterEvent.NAVIGATING_STATE_CHANGE,
-          (event) => {
-            console.log("navigatingState", character.navigatingState);
-            if (
-              character.navigatingState == Character.NAVIGATING_STATE.TRYING
-            ) {
-              character.frameName = "search";
-            } else if (
-              character.navigatingState == Character.NAVIGATING_STATE.FOUND_PATH
-            ) {
-              character.frameName = "cart";
-            } else if (
-              character.navigatingState ==
-              Character.NAVIGATING_STATE.TARGET_REACHED
-            ) {
-              character.frameName = "gift";
-            } else {
-              character.frameName = "default";
-            }
-          }
-        );
-      }
+  constructor(gameDef: IGameDef, data: IGameData) {
+    super(data);
+    this._tileDefLoader = new DefLoader(gameDef.tileDefGroup);
+    this._characterDefLoader = new DefLoader(gameDef.charaterDefGroup);
+    this._itemDefLoader = new DefLoader(gameDef.itemDefGroup);
+    if (!this._data.mapData) {
+      throw new Error("Map data is required");
     }
+    if (!this._data.characterDataDict) {
+      throw new Error("Character data is required");
+    }
+    if (!this._data.itemDataDict) {
+      throw new Error("Item data is required");
+    }
+    this._map = new GameMap(this, this._data.mapData);
+    this._characterGroup = new CharacterGroup(
+      this,
+      this._data.characterDataDict
+    );
+    this._itemGroup = new ItemGroup(this, this._data.itemDataDict);
   }
   /**
-   * Create a character instance and have it managed by this Game.
-   * @param data Essential data for creating a new character object.
-   * @returns Created character instance.
+   * Initialize the game.
    */
-  newCharacter(data: ICharacterData): Character {
-    this.__new = true;
-    let character = new Character(this, data);
-    this.__new = false;
-    this._characterList.push(character);
-    return character;
+  public init() {
+    super.init();
+    // Initialize child objects
+    this._map.init();
+    this._characterGroup.init();
+    this._itemGroup.init();
+    // Set up event listeners
+    this.addEventListener(DataHolderEvent.WILL_GET_UPDATE, () => {
+      this._getChildUpdate();
+    });
+    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, () => {
+      this._setChildUpdate();
+    });
   }
 
-  getCharacter(index: number): Character | null {
-    return this._characterList[index] || null;
-  }
-  /**
-   * Update all the characters.
-   */
-  public update() {
-    this.dispatchEvent(new GameEvent(GameEvent.WILL_UPDATE));
-    //Moving character to the target
-    for (let i = 0; i < this._characterList.length; i++) {
-      const character = this._characterList[i];
-      this._moveCharacter(character, this.gameMap);
-    }
-    this.dispatchEvent(new GameEvent(GameEvent.DID_UPDATE));
-  }
+  private _getChildUpdate() {
+    // let d1 = this._map.getUpdate();
+    // console.log("mapData", d1);
+    // this._data.mapData = d1;
 
-  private _moveCharacter(character: Character, gameMap: GameMap) {
-    //No target
-    if (!character.target) {
-      character.navigatingState = Character.NAVIGATING_STATE.IDLE;
-      return;
-    }
-    //Target reached
-    if (character.position.equals(character.target)) {
-      character.target = null;
-      character.prevPosition = character.position;
-      character.navigatingState = Character.NAVIGATING_STATE.TARGET_REACHED;
-      return;
-    }
-    let diff = character.target.subtract(character.position);
-    //Navigate - First attempt
-    let horizontalFirst = Math.abs(diff.col) > Math.abs(diff.row);
-    let path = gameMap.navigate(
-      character.position,
-      character.target,
-      horizontalFirst
-    );
-    if (path && path.length > 0) {
-      character.move(path[0]);
-      character.navigatingState = Character.NAVIGATING_STATE.FOUND_PATH;
-      return;
-    }
-    //Navigate - Second attempt
-    path = gameMap.navigate(
-      character.position,
-      character.target,
-      !horizontalFirst //Different direction (vertical/horizontal)
-    );
-    if (path && path.length > 0) {
-      character.move(path[0]);
-      character.navigatingState = Character.NAVIGATING_STATE.FOUND_PATH;
-      return;
-    }
-    //Just move somewhere - No guarantee of reaching the target. But it's good to keep moving.
-    let position = gameMap.getNextPosition(character);
-    if (position) {
-      character.move(position);
-      character.navigatingState = Character.NAVIGATING_STATE.TRYING;
-      return;
-    }
-    //You are stucked! - No where to move, probably caged.
-    character.target = null;
-    character.navigatingState = Character.NAVIGATING_STATE.STUCK;
-    return;
+    // let d2 = this._characterGroup.getUpdate();
+    // console.log("characterDataDict", d2);
+    // this._data.characterDataDict = d2;
+
+    // let d3 = this._itemGroup.getUpdate();
+    // console.log("itemDataDict", d3);
+    // this._data.itemDataDict = d3;
+
+    this._data.mapData = this._map.getUpdate();
+    this._data.characterDataDict =
+      this._characterGroup.getUpdate() as IGroupData<ICharacterData>;
+    this._data.itemDataDict =
+      this._itemGroup.getUpdate() as IGroupData<IItemData>;
+  }
+  private _setChildUpdate() {
+    this._map.setUpdate(this._data.mapData);
+    this._characterGroup.setUpdate(this._data.characterDataDict);
+    this._itemGroup.setUpdate(this._data.itemDataDict);
   }
 }

@@ -65,4 +65,11 @@ export default class Position implements IPosition {
       row: Math.min(this._row, position.row),
     });
   }
+
+  toObject(): IPosition {
+    return { col: this._col, row: this._row };
+  }
+  toString(): string {
+    return `(${this._col},${this._row})`;
+  }
 }

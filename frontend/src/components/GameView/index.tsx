@@ -7,10 +7,9 @@ import "./index.css";
 import Position from "../../lib/Position";
 import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
 import Tile from "../../lib/Tile";
-import GameMap from "../../lib/GameMap";
-import GameEvent from "../../lib/events/GameEvent";
 import Character from "../../lib/Character";
-import CharacterEvent from "../../lib/events/CharacterEvent";
+import DataHolderEvent from "../../lib/events/DataHolderEvent";
+import Item from "../../lib/Item";
 
 const DEFAULT_CELL_SIZE = 100;
 const EASE_SPEED = 500;
@@ -28,10 +27,11 @@ const renderProps = {
   renderCenterX: 0,
 };
 
-export interface IRenderData extends IPosition {
-  col: number;
-  row: number;
+export interface IRenderData {
+  position: IPosition;
   tile: Tile | null;
+  characterList: Array<Character>;
+  itemList: Array<Item>;
 }
 
 interface Props {
@@ -39,13 +39,20 @@ interface Props {
 }
 
 export default function GameView({ game }: Props) {
-  const gameMap: GameMap = game.gameMap;
+  const { map, characterGroup, itemGroup } = game;
   const divRef = useRef<HTMLDivElement>(null);
   const [winHeight, setWinHeight] = useState(window.innerHeight);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [renderRow, setRenderRow] = useState<number>(0);
   const [renderCol, setRenderCol] = useState<number>(0);
   const [timeStamp, setTimeStamp] = useState<number>(0);
+  const [playerTarget, setPlayerTarget] = useState<Position | null>(null);
+
+  let playerCharacter: Character = characterGroup.get(0) as Character;
+  if (!playerCharacter) {
+    console.warn(`character (index = 0) not found.`);
+    return;
+  }
 
   updateRenderProps();
 
@@ -62,29 +69,15 @@ export default function GameView({ game }: Props) {
     }, 25);
 
     //update
-    let character: Character = game.getCharacter(0) as Character;
-    if (!character) {
-      console.warn(`character (index = 0) not found.`);
-      return;
-    }
-
     function onGameUpdate() {
       forceRerender();
-      if (character) {
-        scrollTo(character);
-      }
+      scrollTo(playerCharacter);
     }
-    game.addEventListener(GameEvent.DID_UPDATE, onGameUpdate);
-
-    character.addEventListener(CharacterEvent.TARGET_CHANGE, forceRerender);
+    game.addEventListener(DataHolderEvent.DID_SET_UPDATE, onGameUpdate);
 
     return () => {
       console.log("GameView unmount");
-      game.removeEventListener(GameEvent.DID_UPDATE, onGameUpdate);
-      character.removeEventListener(
-        CharacterEvent.TARGET_CHANGE,
-        forceRerender
-      );
+      game.removeEventListener(DataHolderEvent.DID_SET_UPDATE, onGameUpdate);
       clearInterval(id);
     };
   }, []);
@@ -96,7 +89,7 @@ export default function GameView({ game }: Props) {
   });
 
   useEffect(() => {
-    let character = game.getCharacter(0);
+    let character = characterGroup.get(0);
     if (character) {
       scrollTo(character);
     }
@@ -111,8 +104,8 @@ export default function GameView({ game }: Props) {
     renderProps.renderRowCount =
       Math.ceil(winHeight / renderProps.cellSize) + 1;
     renderProps.renderColCount = Math.ceil(winWidth / renderProps.cellSize) + 1;
-    renderProps.maxRenderX = gameMap.colCount - renderProps.renderColCount + 1;
-    renderProps.maxRenderY = gameMap.rowCount - renderProps.renderRowCount + 1;
+    renderProps.maxRenderX = map.colCount - renderProps.renderColCount + 1;
+    renderProps.maxRenderY = map.rowCount - renderProps.renderRowCount + 1;
     renderProps.renderCenterX = (winWidth / renderProps.cellSize - 1) * 0.5;
     renderProps.renderCenterY = (winHeight / renderProps.cellSize - 1) * 0.5;
   }
@@ -169,14 +162,12 @@ export default function GameView({ game }: Props) {
     );
   }
 
-  function onCellClick(col: number, row: number) {
-    let character = game.getCharacter(0);
-    if (!character) {
-      return;
-    }
+  function onCellClick(position: IPosition) {
+    console.log("onCellClick", position);
     let max1 = { col: 1, row: 1 };
-    let min1 = { col: gameMap.colCount - 2, row: gameMap.rowCount - 2 };
-    character.target = new Position({ col, row }).max(max1).min(min1);
+    let min1 = { col: map.colCount - 2, row: map.rowCount - 2 };
+    playerCharacter.target = new Position(position).max(max1).min(min1);
+    setPlayerTarget(playerCharacter.target);
   }
 
   let tdStyle = {
@@ -187,9 +178,9 @@ export default function GameView({ game }: Props) {
   };
 
   function getRenderDataArray(): Array<Array<IRenderData>> {
-    let renderTileArray: Array<Array<IRenderData>> = [];
+    let renderData2DArray: Array<Array<IRenderData>> = [];
     for (let row = 0; row < renderProps.renderRowCount; row++) {
-      renderTileArray[row] = new Array<IRenderData>();
+      renderData2DArray[row] = new Array<IRenderData>();
       for (let col = 0; col < renderProps.renderColCount; col++) {
         let mapCol = col + renderCol;
         let mapRow = row + renderRow;
@@ -197,59 +188,56 @@ export default function GameView({ game }: Props) {
           col: mapCol,
           row: mapRow,
         };
-        renderTileArray[row][col] = {
-          ...position,
-          tile: gameMap.getTile(position),
+        renderData2DArray[row][col] = {
+          position,
+          tile: map.getTile(position),
+          characterList: characterGroup.listAt(position),
+          itemList: itemGroup.listAt(position),
         };
       }
     }
-    return renderTileArray;
+    return renderData2DArray;
   }
 
   function renderTd(renderData: IRenderData) {
-    let tile = renderData.tile as Tile;
+    let { position, tile, itemList, characterList } = renderData;
+    // Render Empty Cell
     if (!tile) {
       return <td key="null"></td>;
     }
-    let key = `${renderData.col}-${renderData.row}`;
+    // Render Tile Background
+    let key = `${new Position(position).toString()}`;
     let style = { ...tdStyle };
     let tdContent: Array<ReactNode> = [];
     tile.bgColor && (style.backgroundColor = tile.bgColor);
     tile.bgImage && (style.backgroundImage = `url("${tile.bgImage}")`);
-
-    if (tile.item) {
+    // Render Items
+    itemList.forEach((item) => {
       const style = {
-        zIndex: tile.item.inFront ? 3 : 1,
+        zIndex: item.inFront ? 3 : 1,
       };
-      const SVG = tile.item.frameDef.svg;
+      const SVG = item.frameDef.svg;
       tdContent.push(<SVG key="itemSVG" className="itemSVG" style={style} />);
-    }
-
-    for (let i = 0; i < game.characterCount; i++) {
-      const character = game.getCharacter(i);
-      if (character) {
-        let isPrev = character.prevPosition.equals(renderData);
-        if (character.position.equals(renderData) || isPrev) {
-          tdContent.push(
-            <CharacterDisplay
-              character={character}
-              col={renderData.col}
-              row={renderData.row}
-              key={`character-${character.id}-${key}`}
-            />
-          );
-        }
-        if (character.target && character.target.equals(renderData)) {
-          let className = "targetSVG";
-          if (character.target.equals(character.position)) {
-            className += " fade-out";
-          }
-          tdContent.push(
-            <LocationIcon key="targetSVG" className={className} />
-          );
-        }
+    });
+    // Render Characters
+    characterList.forEach((character) => {
+      tdContent.push(
+        <CharacterDisplay
+          character={character}
+          col={position.col}
+          row={position.row}
+          key={`character-${character.id}-${key}`}
+        />
+      );
+    });
+    if (playerTarget?.equals(position)) {
+      let className = "targetSVG";
+      if (playerTarget?.equals(playerCharacter.position)) {
+        className += " fade-out";
       }
+      tdContent.push(<LocationIcon key="targetSVG" className={className} />);
     }
+    // Render Tile Foreground
     if (tile.fgImage) {
       tdContent.push(
         <img key="fgImage" className="fgImage" src={tile.fgImage} />
@@ -261,7 +249,7 @@ export default function GameView({ game }: Props) {
         key={key}
         style={style}
         onClick={() => {
-          onCellClick(renderData.col, renderData.row);
+          onCellClick(position);
         }}
       >
         {tdContent}
@@ -271,7 +259,7 @@ export default function GameView({ game }: Props) {
   function renderTr(rowDataArray: Array<IRenderData>) {
     let rowKey = 0;
     let rowContent = rowDataArray.map((renderData, index) => {
-      index == 0 && (rowKey = renderData.row);
+      index == 0 && (rowKey = renderData.position.row);
       return renderTd(renderData);
     });
     return <tr key={rowKey}>{rowContent}</tr>;

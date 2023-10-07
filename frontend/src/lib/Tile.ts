@@ -1,8 +1,7 @@
-import Item, { IItemData } from "./Item";
 import { ITileDef } from "../lib/IDefinition";
-import TileEvent from "./events/TileEvent";
-import ItemEvent from "./events/ItemEvent";
 import GameMap from "./GameMap";
+import DataHolder from "./DataHolder";
+import DataHolderEvent from "./events/DataHolderEvent";
 
 export interface ITileData {
   // Name of the tile definition (ITypeDef.name)
@@ -11,21 +10,25 @@ export interface ITileData {
   walkable?: boolean | null;
   // If null, use ITypeDef.bgColor
   bgColor?: string | null;
-  // Data for creating an Item object
-  itemData?: IItemData | null;
 }
 
 //Tile class
-export default class Tile extends EventTarget {
-  private _data: ITileData;
+export default class Tile extends DataHolder<ITileData> {
   private _tileDef: ITileDef;
-  private _item: Item | null = null;
+  private _map: GameMap;
   // private _position: Position;
   /**
    * Get type of the tile
    */
   public get type(): string {
-    return this._tileDef.name;
+    return this._data.type;
+  }
+
+  public set type(type: string) {
+    if (!this._map.game.tileDefLoader.getDef(type)) {
+      throw new Error(`Tile type ${type} not found`);
+    }
+    this._data.type = type;
   }
   /**
    * Get copy of tile definition
@@ -37,17 +40,25 @@ export default class Tile extends EventTarget {
    * Indicate if the tile is walkable
    */
   public get walkable(): boolean {
-    return this._data.walkable == null
-      ? this._tileDef.walkable
-      : this._data.walkable;
+    if (this._data.walkable != null) {
+      return this._data.walkable;
+    }
+    return this._tileDef.walkable;
+  }
+  public set walkable(walkable: boolean | null) {
+    this._data.walkable = walkable;
   }
   /**
    * Get background color
    */
   public get bgColor(): string | null {
-    return this._data.bgColor == null
-      ? this._tileDef.bgColor
-      : this._data.bgColor;
+    if (this._data.bgColor != null) {
+      return this._data.bgColor;
+    }
+    return this._tileDef.bgColor;
+  }
+  public set bgColor(bgColor: string | null) {
+    this._data.bgColor = bgColor;
   }
   /**
    * Get background image
@@ -61,52 +72,32 @@ export default class Tile extends EventTarget {
   public get fgImage(): string | null {
     return this._tileDef.fgImage;
   }
-  /**
-   * Get copy of data
-   */
-  public get data(): ITileData {
-    return { ...this._data };
-  }
-
-  public get item(): Item | null {
-    return this._item;
-  }
-
-  public set item(item: Item | null) {
-    if (this._item == item) {
-      return;
-    }
-    if (this._item) {
-      this._item.removeEventListener(ItemEvent.ADD, this._onItemAdd);
-      this._item.dispatchEvent(new ItemEvent(ItemEvent.REMOVE));
-      this.dispatchEvent(new TileEvent(TileEvent.ITEM_REMOVE, this._item));
-    }
-    this._item = item;
-    if (this._item) {
-      this.dispatchEvent(new TileEvent(TileEvent.ITEM_ADD, this._item));
-      this._item.dispatchEvent(new ItemEvent(ItemEvent.ADD));
-      this._item.addEventListener(ItemEvent.ADD, this._onItemAdd);
-    }
-    this.dispatchEvent(new TileEvent(TileEvent.ITEM_CHANGE, this._item));
-  }
 
   /**
    * Create a new tile
    * @param tileData
    */
-  constructor(gameMap: GameMap, tileData: ITileData) {
-    super();
-    this._data = tileData;
-    this._tileDef = gameMap.tileDefLoader.getDef(tileData.type);
-    if (!this._tileDef) {
-      throw new Error(`Tile type ${tileData.type} not found`);
-    }
-    if (this._data.itemData) {
-      this.item = new Item(gameMap.game, this._data.itemData);
-    }
+  constructor(map: GameMap, tileData: ITileData) {
+    super(tileData, true);
+    this._map = map;
+    this._tileDef = this._getTileDef();
+  }
+  /**
+   * Initialize the tile
+   */
+  public init(): void {
+    super.init();
+    //Set up event listeners
+    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, () => {
+      this._tileDef = this._getTileDef();
+    });
   }
 
-  private _onItemAdd = () => {
-    this.item = null;
-  };
+  private _getTileDef(): ITileDef {
+    let tileDef = this._map.game.tileDefLoader.getDef(this._data.type);
+    if (!tileDef) {
+      throw new Error(`Tile type ${this._data.type} not found`);
+    }
+    return tileDef;
+  }
 }

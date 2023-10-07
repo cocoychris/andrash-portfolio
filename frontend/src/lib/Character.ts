@@ -1,40 +1,46 @@
 import { ICharacterDef, ICharacterFrameDef } from "../lib/IDefinition";
+import CharacterGroup from "./CharacterGroup";
 import Game from "./Game";
 import Position, { IPosition } from "./Position";
+import { IIndexable, applyDefault } from "./data/util";
+import DataHolderEvent from "./events/DataHolderEvent";
+import Member from "./Member";
+import MemberEvent from "./events/MemberEvent";
 import CharacterEvent from "./events/CharacterEvent";
-
+import { IChangeSummary } from "./DataHolder";
 /**
  * Essential data for creating a new character object.
  */
-export interface ICharacterData extends IPosition {
-  id: number;
+export interface ICharacterData extends IIndexable {
   type: string;
+  position: IPosition;
+  prevPosition?: IPosition;
+  frameName?: string;
+  // target?: IPosition | null;
+  navState?: string;
 }
 
-const DEFAULT_FRAME_NAME = "default";
-const NAVIGATING_STATE = {
+const NAV_STATE = {
   IDLE: "idle",
   STUCK: "stuck",
   FOUND_PATH: "foundPath",
   TRYING: "trying",
   TARGET_REACHED: "targetReached",
 };
-Object.seal(NAVIGATING_STATE);
-const VALID_NAVIGATING_STATE = Object.values(NAVIGATING_STATE);
+Object.seal(NAV_STATE);
+const VALID_NAV_STATE = Object.values(NAV_STATE);
 
-export default class Character extends EventTarget implements IPosition {
-  public static readonly NAVIGATING_STATE = NAVIGATING_STATE;
+export default class Character
+  extends Member<CharacterGroup, ICharacterData>
+  implements IPosition
+{
+  public static readonly NAV_STATE = NAV_STATE;
+  public static readonly DEFAULT_FRAME_NAME = "default";
 
-  private _data: ICharacterData;
-  private _position: Position;
-  private _prevPosition: Position;
-  private _id: number = 0;
-  private _target: Position | null = null;
   private _game: Game;
-  private _frameName: string;
   private _def: ICharacterDef;
   private _frameDef: ICharacterFrameDef;
-  private _navigatingState: string = NAVIGATING_STATE.IDLE;
+  private _target: Position | null = null;
 
   /**
    * Get the type of the character.
@@ -42,93 +48,97 @@ export default class Character extends EventTarget implements IPosition {
   public get type(): string {
     return this._data.type;
   }
-  /**
-   * Get a copy of the data of the character.
-   * You can create a same new character with this data.
-   */
-  public get data(): ICharacterData {
-    return { ...this._data };
+  public set type(type: string) {
+    if (!this._game.characterDefLoader.getDef(type)) {
+      throw new Error(`Character type ${type} not found`);
+    }
+    this._data.type = type;
   }
-  /**
-   * Get a copy of the definition of the character.
-   */
-  public get def(): ICharacterDef {
-    return { ...this._def };
-  }
+
   /**
    * Get position of the character.
    */
   public get position(): Position {
-    return this._position.clone();
+    return new Position(this._data.position);
   }
-  /**
-   * Set position of the character. A shorthand for move().
-   * @event CharacterEvent.POSITION_CHANGE - Will be dispatched when the position is changed.
-   */
+
   public set position(position: Position) {
-    this.move(position);
+    if (!this._game.map.isInRange(position)) {
+      throw new Error(
+        `Position out of range: ${position.col} - ${position.row}`
+      );
+    }
+    if (!this._game.map.isWalkable(position)) {
+      throw new Error(
+        `Position is not walkable: ${position.col} - ${position.row}`
+      );
+    }
+    this._data.position = position.toObject();
   }
+
   /**
    * Get previous position of the character.
    */
   public get prevPosition(): Position {
-    return this._prevPosition.clone();
+    return new Position(this._data.prevPosition || this._data.position);
   }
-  /**
-   * Set previous position of the character.
-   */
+
   public set prevPosition(position: Position) {
-    this._prevPosition = position.clone();
+    if (!this._game.map.isInRange(position)) {
+      throw new Error(
+        `Position out of range: ${position.col} - ${position.row}`
+      );
+    }
+    if (!this._game.map.isWalkable(position)) {
+      throw new Error(
+        `Position is not walkable: ${position.col} - ${position.row}`
+      );
+    }
+    this._data.prevPosition = position.toObject();
   }
+
   /**
    * Get the target position of the character.
    */
   public get target(): Position | null {
-    return this._target && this._target.clone();
+    // let value = this.getStagedValue("target");
+    // return value ? new Position(value) : null;
+    return this._target ? this._target.clone() : null;
   }
-  /**
-   * Set the target position of the character.
-   * @event CharacterEvent.TARGET_CHANGE - Will be dispatched when the target is changed.
-   */
-  public set target(position: Position | null) {
-    this._target = position && position.clone();
-    this.dispatchEvent(new CharacterEvent(CharacterEvent.TARGET_CHANGE));
+
+  public set target(target: Position | null) {
+    if (target && !this._game.map.isInRange(target)) {
+      throw new Error(`Position out of range: ${target.col} - ${target.row}`);
+    }
+    //  this._data.target = target && target.toObject();
+    this._target = target ? target.clone() : null;
   }
-  /**
-   * Game instance that created this character.
-   */
-  public get game(): Game {
-    return this._game;
-  }
-  /**
-   * Get the unique id of the character.
-   */
-  public get id(): number {
-    return this._id;
-  }
+
   /**
    * Get the offset of the movement.
    */
   public get movement(): Position {
-    return this._position.subtract(this._prevPosition);
+    return new Position(this._data.position).subtract(
+      this.prevPosition as IPosition
+    );
   }
   /**
    * Indicate if the character is moving.
    */
   public get isMoving(): boolean {
-    return !this._position.equals(this._prevPosition);
+    return !this.prevPosition.equals(this._data.position);
   }
   /**
    * Shortcut for position.col
    */
   public get col(): number {
-    return this._position.col;
+    return this._data.position.col;
   }
   /**
    * Shortcut for position.row
    */
   public get row(): number {
-    return this._position.row;
+    return this._data.position.row;
   }
   /**
    * Get a copy of the definition of the current frame of the character.
@@ -140,97 +150,71 @@ export default class Character extends EventTarget implements IPosition {
    * Get the name of the current frame of the character.
    */
   public get frameName(): string {
-    return this._frameName;
+    return this._data.frameName as string;
   }
-  /**
-   * Set the name of the current frame of the character.
-   * This is a shorthand for goto().
-   * @event CharacterEvent.FRAME_CHANGE - Will be dispatched when the frame is changed.
-   */
-  public set frameName(value: string) {
-    this.goto(value);
+
+  public set frameName(frameName: string) {
+    this._getFrameDef(frameName); //Check if frameName is valid
+    this._data.frameName = frameName;
   }
+
   /**
    * Indicate the current state of the character when navigating.
-   * Use Character.NAVIGATING_STATE to compare.
+   * Use Character.NAV_STATE to compare.
    */
-  public get navigatingState(): string {
-    return this._navigatingState;
+  public get navState(): string {
+    return this._data.navState || NAV_STATE.IDLE;
   }
-  /**
-   * Use Character.NAVIGATING_STATE to assign.
-   * Assigning an unknown state will throw an error.
-   * @event CharacterEvent.NAVIGATING_STATE_CHANGE - Will be dispatched when the navigating state is changed.
-   * @example
-   * character.navigatingState = Character.NAVIGATING_STATE.IDLE;
-   */
-  public set navigatingState(value: string) {
-    if (this._navigatingState === value) {
-      return;
+  public set navState(navState: string) {
+    if (!VALID_NAV_STATE.includes(navState)) {
+      throw new Error(`Invalid navState: ${navState}`);
     }
-    if (!VALID_NAVIGATING_STATE.includes(value)) {
-      throw new Error(`Unknown navigating state: ${value}`);
-    }
-    this._navigatingState = value;
-    this.dispatchEvent(
-      new CharacterEvent(CharacterEvent.NAVIGATING_STATE_CHANGE)
-    );
+    this._data.navState = navState;
   }
 
   /**
    * Do not create a new Character instance with "new Character()" statement.
-   * Use Game.newCharacter() instead.
+   * Use CharacterGroup.new() instead.
    */
-  constructor(game: Game, data: ICharacterData) {
-    super();
-    if (!game._new) {
-      throw new Error(
-        `Creating a Character instance with "new Character()" statement is not supported. Please create it with Game.`
+  constructor(group: CharacterGroup, data: ICharacterData, id: number) {
+    data = applyDefault(data, {
+      frameName: Character.DEFAULT_FRAME_NAME,
+      navState: NAV_STATE.IDLE,
+    }) as ICharacterData;
+    super(group, data, id);
+    this._game = group.game;
+    this._def = this._game.characterDefLoader.getDef(this.type);
+    this._frameDef = this._getFrameDef(this.frameName);
+  }
+  /**
+   * Initialize the character.
+   */
+  public init(): void {
+    super.init();
+    //Set up event listeners
+    let onWillGetUpdate = (event: DataHolderEvent) => {
+      this._data.prevPosition = this._data.position;
+      this._navigate();
+    };
+    let onDidSetUpdate = (event: DataHolderEvent) => {
+      this._def = this._game.characterDefLoader.getDef(this.type);
+      this._frameDef = this._getFrameDef(this.frameName);
+      let changes = event.changes as IChangeSummary;
+      if (this.isMoving || changes.updateProps.includes("prevPosition")) {
+        this.dispatchEvent(new CharacterEvent(CharacterEvent.MOVE));
+      }
+    };
+    let onDestroy = (event: MemberEvent) => {
+      this.removeEventListener(
+        DataHolderEvent.WILL_GET_UPDATE,
+        onWillGetUpdate
       );
-    }
-    this._game = game;
-    this._data = data;
-    this._position = new Position(data);
-    this._prevPosition = new Position(data);
-    this._id = data.id;
-    this._def = game.characterDefLoader.getDef(data.type);
-    this._frameName = DEFAULT_FRAME_NAME;
-    this._frameDef = this._getFrameDef(this._frameName);
-  }
-
-  /**
-   * Move to desired position.
-   * The value of current position will be assigned as previous position.
-   * Will not move if desired position is not walkable.
-   * @param position
-   * @event CharacterEvent.POSITION_CHANGE - Will be dispatched when the position is changed.
-   * @returns The offset of the movement. Note that the movement.col and movement.row could both be 0 if not moved.
-   */
-  public move(position: IPosition): Position {
-    console.log(`Moving to ${position.col} - ${position.row} `);
-    this._prevPosition.set(this._position);
-    let tile = this.game.gameMap.getTile(position);
-    if (tile && tile.walkable) {
-      this._position.set(position);
-    } else {
-      console.log("NOT WALKABLE", position.col, position.row, tile);
-    }
-    this.dispatchEvent(new CharacterEvent(CharacterEvent.POSITION_CHANGE));
-    return this.movement;
-  }
-  /**
-   * Go to specified frame.
-   * @param frameName
-   * @event CharacterEvent.FRAME_CHANGE - Will be dispatched when the frame is changed.
-   * @returns
-   */
-  public goto(frameName: string) {
-    if (frameName === this._frameName) {
-      return;
-    }
-    this._frameName = frameName;
-    this._frameDef = this._getFrameDef(frameName);
-    this.dispatchEvent(new CharacterEvent(CharacterEvent.FRAME_CHANGE));
+      this.removeEventListener(DataHolderEvent.DID_SET_UPDATE, onDidSetUpdate);
+      this.removeEventListener(MemberEvent.DESTROY, onDestroy);
+    };
+    this.addEventListener(DataHolderEvent.WILL_GET_UPDATE, onWillGetUpdate);
+    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, onDidSetUpdate);
+    this.addEventListener(MemberEvent.DESTROY, onDestroy);
   }
 
   private _getFrameDef(frameName: string): ICharacterFrameDef {
@@ -239,5 +223,57 @@ export default class Character extends EventTarget implements IPosition {
       throw new Error(`Unknown frame name: ${frameName}`);
     }
     return frameDef;
+  }
+
+  private _navigate(): void {
+    let map = this._game.map;
+    //No target
+    if (!this.target) {
+      this.navState = Character.NAV_STATE.IDLE;
+      this.frameName = "default";
+      return;
+    }
+    //Target reached
+    if (this.position.equals(this.target)) {
+      this.target = null;
+      this.navState = Character.NAV_STATE.TARGET_REACHED;
+      this.frameName = "gift";
+      return;
+    }
+    let diff = this.target.subtract(this.position);
+    //Navigate - First attempt
+    let horizontalFirst = Math.abs(diff.col) > Math.abs(diff.row);
+    let path = map.findPath(this.position, this.target, horizontalFirst);
+    if (path && path.length > 0) {
+      this.navState = Character.NAV_STATE.FOUND_PATH;
+      this.frameName = "cart";
+      this.position = path[0];
+      return;
+    }
+    //Navigate - Second attempt
+    path = map.findPath(
+      this.position,
+      this.target,
+      !horizontalFirst //Different direction (vertical/horizontal)
+    );
+    if (path && path.length > 0) {
+      this.navState = Character.NAV_STATE.FOUND_PATH;
+      this.frameName = "cart";
+      this.position = path[0];
+      return;
+    }
+    //Just move somewhere - No guarantee of reaching the this.target. But it's good to keep moving.
+    let position = map.findNext(this);
+    if (position) {
+      this.navState = Character.NAV_STATE.TRYING;
+      this.frameName = "search";
+      this.position = position;
+      return;
+    }
+    //You are stucked! - No where to move, probably caged.
+    this.target = null;
+    this.navState = Character.NAV_STATE.STUCK;
+    this.frameName = "default";
+    return;
   }
 }
