@@ -1,47 +1,144 @@
-import EventDispatcher from "./EventDispatcher";
-import DataHolderEvent from "./events/DataHolderEvent";
+import Destroyable, { IDestroyEvent } from "./Destroyable";
 import { IIndexable } from "./data/util";
+import AnyEvent, { IEventType } from "./events/AnyEvent";
 
+/**
+ * Summary of the changes of the data.
+ */
 export interface IChangeSummary {
+  /**
+   * The properties that are added.
+   */
   addProps: Array<string>;
+  /**
+   * The properties that are updated.
+   */
   updateProps: Array<string>;
+  /**
+   * The properties that are removed.
+   */
   removeProps: Array<string>;
+  /**
+   * The properties that are unchanged.
+   */
   unchangeProps: Array<string>;
+  /**
+   * Indicate if any property is changed.
+   */
   isChanged: boolean;
 }
 
 /**
- * An object that can stage changes to its data until the changes are applied or dropped.
- * This class is abstract and should not be instantiated directly.
- * All changes are tracked and can be checked by calling isChanged().
- * Staged changes can be applied and become current data by calling apply().
+ * Will be triggered before the data is updated by calling DataHolder.getUpdate().
+ */
+export interface IWillGetUpdateEvent extends IEventType {
+  type: "willGetUpdate";
+}
+/**
+ * Will be triggered after the data is updated by calling DataHolder.getUpdate().
+ * @property changes: The changes that have been collected or sattled when the event is triggered.
+ */
+export interface IDidGetUpdateEvent extends IEventType {
+  type: "didGetUpdate";
+  data: {
+    changes: IChangeSummary;
+  };
+}
+/**
+ * Will be triggered before the data is updated by calling DataHolder.setUpdate().
+ */
+export interface IWillSetUpdateEvent extends IEventType {
+  type: "willSetUpdate";
+}
+/**
+ * Will be triggered after the data is updated by calling DataHolder.setUpdate().
+ */
+export interface IDidSetUpdateEvent extends IEventType {
+  type: "didSetUpdate";
+  data: {
+    changes: IChangeSummary;
+  };
+}
+/**
+ * Will be triggered before the data is applied by calling DataHolder.apply().
+ */
+export interface IWillApplyEvent extends IEventType {
+  type: "willApply";
+}
+/**
+ * Will be triggered after the data is applied by calling DataHolder.apply().
+ */
+export interface IDidApplyEvent extends IEventType {
+  type: "didApply";
+  data: {
+    changes: IChangeSummary;
+  };
+}
+/**
+ * Will be triggered before the data is dropped by calling DataHolder.drop().
+ */
+export interface IWillDropEvent extends IEventType {
+  type: "willDrop";
+}
+/**
+ * Will be triggered after the data is dropped by calling DataHolder.drop().
+ */
+export interface IDidDropEvent extends IEventType {
+  type: "didDrop";
+  data: {
+    changes: IChangeSummary;
+  };
+}
+/**
+ * The event that is triggered when one or more properties of the data is changed by calling DataHolder.setStagedData() or by setting a property of the staged data.
+ */
+export interface IDataChangeEvent extends IEventType {
+  type: "dataChange";
+}
+
+/**
+ * An object that holds data. All changes to the data are staged and can be applied or discarded.
+ *
+ * Set data by writing the properties of `dataHolder.data`, the changes will be staged, which means the current data will not be changed immediately.
+ * Get data by reading the properties of `dataHolder.data`, the current data will be returned.
+ * All changes are tracked and can be checked by calling isChanged(), this will show the difference between the current data and the staged data.
+ *
+ * The current data stays unchanged until `dataHolder.apply()` is called to apply the staged changes.
  * Staged changes can be discarded by calling drop().
  * Staged changes can be collected by calling getUpdate().
- * Current data can be updated by calling setUpdate().
+ * Current data can be updated with provided data by calling setUpdate().
  * These functions will trigger events that can be listened to.
- * @event DataHolderEvent.WILL_APPLY
- * @event DataHolderEvent.DID_APPLY
- * @event DataHolderEvent.WILL_DROP
- * @event DataHolderEvent.DID_DROP
- * @event DataHolderEvent.WILL_GET_UPDATE
- * @event DataHolderEvent.DID_GET_UPDATE
- * @event DataHolderEvent.WILL_SET_UPDATE
- * @event DataHolderEvent.DID_SET_UPDATE
- * @class DataHolder
+ *
+ * This class is abstract which means it is designed to be extended by subclasses and should not be instantiated directly.
+ * @author Andrash Yang
+ * cocoychris@gmail.com
+ * Nov, 2023
  */
 export default abstract class DataHolder<
   T extends IIndexable
-> extends EventDispatcher {
+> extends Destroyable {
+  /**
+   * The delay in milliseconds before the data change event is dispatched.
+   * All the data change events dispatched within the delay will be merged into one event.
+   * This is useful when the data change event is dispatched frequently.
+   * Set this to 0 to disable the delay.
+   * @default 0
+   */
+  public dataChangeEventDelay: number = 0;
+
   private _currentData: T;
   private _stagedData: T;
-  private _changedDict: IIndexable;
+  private _changedDict: { [key in keyof T]?: boolean };
   private _changeSummary: IChangeSummary | null;
   private _init: boolean = false;
+  private _handler: ProxyHandler<T>;
+  private _dataChangeEventTimeout: NodeJS.Timeout | null = null;
   /**
    * A handle for getting current data and setting staged data.
+   *
    * When setting a value to a property, the value will be set to the staged data. If the value is different from the current data, the staged data will be marked as changed.
    */
-  protected readonly _data: T;
+  protected readonly data: T;
   /**
    * Indicates if the group is initialized.
    */
@@ -58,24 +155,74 @@ export default abstract class DataHolder<
     this._stagedData = { ...data };
     this._changedDict = {};
     this._changeSummary = null;
-    this._data = new Proxy(this._stagedData, {
-      set: (target, property: keyof T, value) => {
+    // let objType: string = "Player"; // DEBUG
+    this._handler = {
+      set: (target: T, property: keyof T, value: any) => {
+        // this.constructor.name === objType && console.log("set", property, value); // DEBUG
         let currentValue = this._currentData[property];
         this._stagedData[property] = value;
-        this._changedDict[property] = currentValue !== value;
+        // Reflect.set(this._stagedData, property, value, this._stagedData);
+        let isChanged = currentValue !== value;
+        this._changedDict[property] = isChanged;
         this._changeSummary = null;
+        isChanged && this._dispatchDataChangeEvent();
         return true;
       },
-      get: (target, property) => {
+      get: (target: T, property: keyof T) => {
+        // this.constructor.name === objType && console.log("get", property); // DEBUG
         return this._currentData[property];
       },
-      deleteProperty: (target, property) => {
+      deleteProperty: (target: T, property: keyof T) => {
+        // this.constructor.name === objType && console.log("deleteProperty", property); // DEBUG
         let currentValue = this._currentData[property];
         delete this._stagedData[property];
-        this._changedDict[property] = currentValue !== undefined;
+        let isChanged = currentValue !== undefined;
+        this._changedDict[property] = isChanged;
         this._changeSummary = null;
+        isChanged && this._dispatchDataChangeEvent();
         return true;
       },
+      ownKeys: (target) => {
+        // this.constructor.name === objType && console.log("ownKeys"); // DEBUG
+        return Object.keys(this._currentData);
+      },
+      has: (target: T, property: keyof T) => {
+        // this.constructor.name === objType && console.log("has", property); // DEBUG
+        return property in this._currentData;
+      },
+      getOwnPropertyDescriptor: (target: T, property: keyof T) => {
+        // this.constructor.name === objType && console.log("getOwnPropertyDescriptor", property); // DEBUG
+        return Object.getOwnPropertyDescriptor(this._currentData, property);
+      },
+      defineProperty: (target: T, property: keyof T, descriptor: any) => {
+        // this.constructor.name === objType && console.log("defineProperty", property); // DEBUG
+        Object.defineProperty(this._currentData, property, descriptor);
+        return true;
+      },
+    };
+    this.data = new Proxy<T>({} as T, this._handler);
+
+    // Handle destroy event
+    this.on<IDestroyEvent>("destroy", () => {
+      this._handler.get = (t, p) => {
+        console.warn(
+          `Reading property (${String(p)}) of a destroyed DataHolder`
+        );
+      };
+      let destroyed = (t: T, p: string | symbol) => {
+        throw new Error(
+          `Writing or deleting property (${String(
+            p
+          )}) of a destroyed DataHolder`
+        );
+      };
+      this._handler.set = destroyed;
+      this._handler.deleteProperty = destroyed;
+      this._stagedData = null as any;
+      this._currentData = null as any;
+      if (this._dataChangeEventTimeout) {
+        clearTimeout(this._dataChangeEventTimeout);
+      }
     });
   }
   /**
@@ -101,12 +248,14 @@ export default abstract class DataHolder<
    *    this.init(); //Call init() in the constructor to set the initialized flag to true.
    * }
    */
-  public init(...args: any): void {
+  public init(...args: any): this {
+    this.checkDestroyed();
     if (this._init) {
       console.warn("Group is already initialized.");
-      return;
+      return this;
     }
     this._init = true;
+    return this;
   }
   /**
    * Get the staged value of a property.
@@ -114,6 +263,7 @@ export default abstract class DataHolder<
    * @returns
    */
   public getStagedValue(property: keyof T): T[keyof T] {
+    this.checkDestroyed();
     return this._stagedData[property];
   }
   /**
@@ -121,46 +271,61 @@ export default abstract class DataHolder<
    * @returns
    */
   public getStagedData(): T {
+    this.checkDestroyed();
     return { ...this._stagedData };
+  }
+  /**
+   * Set the staged data
+   * @param data
+   * @event DataHolderEvent.DATA_CHANGE The data change event will be dispatched after the data is set.
+   */
+  public setStagedData(data: Partial<T>) {
+    this.checkDestroyed();
+    this._stagedData = { ...this._stagedData, ...data };
+    this._clearChangeCache();
+    this._dispatchDataChangeEvent();
   }
   /**
    * Get a copy of the current data.
    */
   public getCurrentData(): T {
+    this.checkDestroyed();
     return { ...this._currentData };
   }
 
   /**
    * Apply all the staged changes to the current data.
    */
-  protected apply() {
+  public apply() {
+    this.checkDestroyed();
     if (!this.isChanged()) {
       return;
     }
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.WILL_APPLY));
+    this.emit<IWillApplyEvent>(new AnyEvent("willApply", null));
     // Update changes in case they have changed since the event was dispatched
     let changes = this.getChanges();
     // Apply
     this._currentData = { ...this._stagedData };
     this._clearChangeCache();
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.DID_APPLY, changes));
+    this.emit<IDidApplyEvent>(new AnyEvent("didApply", { changes }));
   }
 
   /**
    * Discard all the staged changes.
    * This will make staged data the identical to the current data.
    */
-  protected drop() {
+  public drop() {
+    this.checkDestroyed();
     if (!this.isChanged()) {
       return;
     }
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.WILL_DROP));
+    this.emit<IWillDropEvent>(new AnyEvent("willDrop", null));
     // Update changes in case they have changed since the event was dispatched
     let changes = this.getChanges();
     // Drop
     this._stagedData = { ...this._currentData };
     this._clearChangeCache();
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.DID_DROP, changes));
+    this.emit<IDidDropEvent>(new AnyEvent("didDrop", { changes }));
   }
 
   /**
@@ -171,13 +336,14 @@ export default abstract class DataHolder<
    * @returns
    */
   public getUpdate(): T | null {
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.WILL_GET_UPDATE));
+    this.checkDestroyed();
+    this.emit<IWillGetUpdateEvent>(new AnyEvent("willGetUpdate", null));
     let data = null;
     if (this.isChanged()) {
-      data = this.getStagedData();
+      data = { ...this._stagedData };
     }
-    this.dispatchEvent(
-      new DataHolderEvent(DataHolderEvent.DID_GET_UPDATE, this.getChanges())
+    this.emit<IDidGetUpdateEvent>(
+      new AnyEvent("didGetUpdate", { changes: this.getChanges() })
     );
     return data;
   }
@@ -192,7 +358,8 @@ export default abstract class DataHolder<
    * @event DataHolderEvent.DID_SET_UPDATE
    */
   public setUpdate(data: T | null): void {
-    this.dispatchEvent(new DataHolderEvent(DataHolderEvent.WILL_SET_UPDATE));
+    this.checkDestroyed();
+    this.emit<IWillSetUpdateEvent>(new AnyEvent("willSetUpdate", null));
     // Update changes in case they have changed since the event was dispatched
     let changes = this.getChanges(data);
     if (data) {
@@ -210,16 +377,15 @@ export default abstract class DataHolder<
       });
       this._clearChangeCache();
     }
-    this.dispatchEvent(
-      new DataHolderEvent(DataHolderEvent.DID_SET_UPDATE, changes)
-    );
+    this.emit<IDidSetUpdateEvent>(new AnyEvent("didSetUpdate", { changes }));
   }
+
   /**
    * Indicate if the staged data is different from the current data.
    * @param property The property to check. If not specified, check if any property is changed.
    * @returns
    */
-  protected isChanged(property?: string | symbol): boolean {
+  protected isChanged(property?: keyof T): boolean {
     //Check if a specific property is changed
     if (property !== undefined) {
       let isChanged = this._changedDict[property];
@@ -296,16 +462,16 @@ export default abstract class DataHolder<
     if (data == this._stagedData) {
       this._changeSummary = changeSummary;
       this._changedDict = {};
-      addProps.forEach((key) => {
+      addProps.forEach((key: keyof T) => {
         this._changedDict[key] = true;
       });
-      updateProps.forEach((key) => {
+      updateProps.forEach((key: keyof T) => {
         this._changedDict[key] = true;
       });
-      removeProps.forEach((key) => {
+      removeProps.forEach((key: keyof T) => {
         this._changedDict[key] = true;
       });
-      unchangeProps.forEach((key) => {
+      unchangeProps.forEach((key: keyof T) => {
         this._changedDict[key] = false;
       });
     }
@@ -321,20 +487,33 @@ export default abstract class DataHolder<
       throw new Error("DataHolder is not initialized");
     }
   }
-  private _getChangedData(): IIndexable | null {
-    let { isChanged, addProps, updateProps, unchangeProps } = this.getChanges();
-    if (!isChanged) {
-      return null;
+  /**
+   * Check if DataHolder is destroyed.
+   */
+  protected checkDestroyed() {
+    if (this.isDestroyed) {
+      throw new Error("Cannot access property of a destroyed DataHolder");
     }
-    let data: IIndexable = {};
-    [...addProps, ...updateProps, ...unchangeProps].forEach((key) => {
-      data[key] = this._stagedData[key];
-    });
-    return data;
   }
 
   private _clearChangeCache() {
     this._changedDict = {};
     this._changeSummary = null;
+  }
+
+  private _dispatchDataChangeEvent() {
+    // No delay
+    if (this.dataChangeEventDelay <= 0) {
+      this.emit<IDataChangeEvent>(new AnyEvent("dataChange", null));
+      return;
+    }
+    // With delay
+    if (this._dataChangeEventTimeout !== null) {
+      clearTimeout(this._dataChangeEventTimeout);
+    }
+    this._dataChangeEventTimeout = setTimeout(() => {
+      this._dataChangeEventTimeout = null;
+      this.emit<IDataChangeEvent>(new AnyEvent("dataChange", null));
+    }, this.dataChangeEventDelay);
   }
 }

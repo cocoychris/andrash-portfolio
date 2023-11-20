@@ -1,4 +1,10 @@
-import { ReactNode, useRef, useEffect, useState } from "react";
+import {
+  ReactNode,
+  useRef,
+  useEffect,
+  useState,
+  FunctionComponent,
+} from "react";
 import { Easing, Tween, update } from "@tweenjs/tween.js";
 import CharacterDisplay from "./CharacterDisplay";
 import { IPosition } from "../../lib/Position";
@@ -8,8 +14,10 @@ import Position from "../../lib/Position";
 import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
 import Tile from "../../lib/Tile";
 import Character from "../../lib/Character";
-import DataHolderEvent from "../../lib/events/DataHolderEvent";
 import Item from "../../lib/Item";
+import asset from "../../assets/gameDef/asset";
+import Player from "../../lib/Player";
+import { IDidSetUpdateEvent } from "../../lib/DataHolder";
 
 const DEFAULT_CELL_SIZE = 100;
 const EASE_SPEED = 500;
@@ -30,8 +38,6 @@ const renderProps = {
 export interface IRenderData {
   position: IPosition;
   tile: Tile | null;
-  characterList: Array<Character>;
-  itemList: Array<Item>;
 }
 
 interface Props {
@@ -39,7 +45,7 @@ interface Props {
 }
 
 export default function GameView({ game }: Props) {
-  const { map, characterGroup, itemGroup } = game;
+  // console.log("GameView", game.id);
   const divRef = useRef<HTMLDivElement>(null);
   const [winHeight, setWinHeight] = useState(window.innerHeight);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -47,12 +53,13 @@ export default function GameView({ game }: Props) {
   const [renderCol, setRenderCol] = useState<number>(0);
   const [timeStamp, setTimeStamp] = useState<number>(0);
   const [playerTarget, setPlayerTarget] = useState<Position | null>(null);
-
-  let playerCharacter: Character = characterGroup.get(0) as Character;
-  if (!playerCharacter) {
-    console.warn(`character (index = 0) not found.`);
-    return;
+  const { map, characterGroup, itemGroup } = game;
+  const playerID = game.playerGroup.mainPlayerID;
+  const player: Player = game.playerGroup.mainPlayer as Player;
+  if (!player) {
+    throw new Error(`player (id = ${playerID}) not found.`);
   }
+  let playerCharacter: Character = player.character;
 
   updateRenderProps();
 
@@ -73,11 +80,11 @@ export default function GameView({ game }: Props) {
       forceRerender();
       scrollTo(playerCharacter);
     }
-    game.addEventListener(DataHolderEvent.DID_SET_UPDATE, onGameUpdate);
-
+    game.on<IDidSetUpdateEvent>("didSetUpdate", onGameUpdate);
+    scrollTo(playerCharacter, 0);
     return () => {
       console.log("GameView unmount");
-      game.removeEventListener(DataHolderEvent.DID_SET_UPDATE, onGameUpdate);
+      game.off<IDidSetUpdateEvent>("didSetUpdate", onGameUpdate);
       clearInterval(id);
     };
   }, []);
@@ -89,9 +96,8 @@ export default function GameView({ game }: Props) {
   });
 
   useEffect(() => {
-    let character = characterGroup.get(0);
-    if (character) {
-      scrollTo(character);
+    if (playerCharacter) {
+      scrollTo(playerCharacter);
     }
   }, [winWidth, winHeight]);
 
@@ -114,7 +120,7 @@ export default function GameView({ game }: Props) {
     update();
   }
 
-  function scrollTo(position: IPosition) {
+  function scrollTo(position: IPosition, easeSpeed: number = -1) {
     const { col, row } = position;
 
     let start = {
@@ -131,20 +137,26 @@ export default function GameView({ game }: Props) {
         0
       ),
     };
+
+    let updateHandler = (updateObj: { x: number; y: number }) => {
+      renderProps.renderX = updateObj.x;
+      renderProps.renderY = updateObj.y;
+      let newCol = Math.floor(updateObj.x);
+      let newRow = Math.floor(updateObj.y);
+      setRenderCol(newCol);
+      setRenderRow(newRow);
+      updateDivScroll();
+      // window.requestAnimationFrame(() => {
+      // });
+    };
+    if (easeSpeed == 0) {
+      updateHandler(end);
+      return;
+    }
     let tween = new Tween(start)
-      .to(end, EASE_SPEED)
+      .to(end, easeSpeed < 0 ? EASE_SPEED : easeSpeed)
       .easing(Easing.Cubic.InOut)
-      .onUpdate((updateObj) => {
-        renderProps.renderX = updateObj.x;
-        renderProps.renderY = updateObj.y;
-        let newCol = Math.floor(updateObj.x);
-        let newRow = Math.floor(updateObj.y);
-        setRenderCol(newCol);
-        setRenderRow(newRow);
-        updateDivScroll();
-        // window.requestAnimationFrame(() => {
-        // });
-      });
+      .onUpdate(updateHandler);
     tween.start();
   }
 
@@ -152,22 +164,22 @@ export default function GameView({ game }: Props) {
     if (!divRef.current) {
       return;
     }
-    divRef.current.scrollLeft = Math.round(
+    divRef.current.scrollLeft =
       (renderProps.renderX - Math.floor(renderProps.renderX)) *
-        renderProps.cellSize
-    );
-    divRef.current.scrollTop = Math.round(
+      renderProps.cellSize;
+    divRef.current.scrollTop =
       (renderProps.renderY - Math.floor(renderProps.renderY)) *
-        renderProps.cellSize
-    );
+      renderProps.cellSize;
   }
 
   function onCellClick(position: IPosition) {
     console.log("onCellClick", position);
+    console.log("onCellClick", game.id);
     let max1 = { col: 1, row: 1 };
     let min1 = { col: map.colCount - 2, row: map.rowCount - 2 };
-    playerCharacter.target = new Position(position).max(max1).min(min1);
-    setPlayerTarget(playerCharacter.target);
+    let target = new Position(position).max(max1).min(min1);
+    player.target = target;
+    setPlayerTarget(target);
   }
 
   let tdStyle = {
@@ -191,8 +203,6 @@ export default function GameView({ game }: Props) {
         renderData2DArray[row][col] = {
           position,
           tile: map.getTile(position),
-          characterList: characterGroup.listAt(position),
-          itemList: itemGroup.listAt(position),
         };
       }
     }
@@ -200,33 +210,36 @@ export default function GameView({ game }: Props) {
   }
 
   function renderTd(renderData: IRenderData) {
-    let { position, tile, itemList, characterList } = renderData;
+    let { position, tile } = renderData;
+    let positionKey = `${new Position(position).toString()}`;
     // Render Empty Cell
     if (!tile) {
-      return <td key="null"></td>;
+      return <td key={positionKey}></td>;
     }
+    let { items, characters } = tile;
+    characters = characters.concat(tile.prevCharacters);
     // Render Tile Background
-    let key = `${new Position(position).toString()}`;
     let style = { ...tdStyle };
     let tdContent: Array<ReactNode> = [];
     tile.bgColor && (style.backgroundColor = tile.bgColor);
-    tile.bgImage && (style.backgroundImage = `url("${tile.bgImage}")`);
+    tile.bgImageID &&
+      (style.backgroundImage = `url("${asset.image(tile.bgImageID)}")`);
     // Render Items
-    itemList.forEach((item) => {
+    items.forEach((item) => {
       const style = {
         zIndex: item.inFront ? 3 : 1,
       };
-      const SVG = item.frameDef.svg;
+      const SVG = asset.svg(item.frameDef.svgID);
       tdContent.push(<SVG key="itemSVG" className="itemSVG" style={style} />);
     });
     // Render Characters
-    characterList.forEach((character) => {
+    characters.forEach((character) => {
       tdContent.push(
         <CharacterDisplay
           character={character}
           col={position.col}
           row={position.row}
-          key={`character-${character.id}-${key}`}
+          key={`character-${character.id}-${positionKey}`}
         />
       );
     });
@@ -238,15 +251,19 @@ export default function GameView({ game }: Props) {
       tdContent.push(<LocationIcon key="targetSVG" className={className} />);
     }
     // Render Tile Foreground
-    if (tile.fgImage) {
+    if (tile.fgImageID) {
       tdContent.push(
-        <img key="fgImage" className="fgImage" src={tile.fgImage} />
+        <img
+          key="fgImage"
+          className="fgImage"
+          src={asset.image(tile.fgImageID)}
+        />
       );
     }
-    tdContent.push(key); //DEBUG
+    tdContent.push(positionKey); //DEBUG
     return (
       <td
-        key={key}
+        key={positionKey}
         style={style}
         onClick={() => {
           onCellClick(position);

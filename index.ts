@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import APIServer from "./app/APIServer";
 import GameServer from "./app/GameServer";
 
 dotenv.config();

@@ -3,11 +3,24 @@ import CharacterGroup from "./CharacterGroup";
 import Game from "./Game";
 import Position, { IPosition } from "./Position";
 import { IIndexable, applyDefault } from "./data/util";
-import DataHolderEvent from "./events/DataHolderEvent";
 import Member from "./Member";
-import MemberEvent from "./events/MemberEvent";
-import CharacterEvent from "./events/CharacterEvent";
-import { IChangeSummary } from "./DataHolder";
+import {
+  IChangeSummary,
+  IDidSetUpdateEvent,
+  IWillGetUpdateEvent,
+} from "./DataHolder";
+import { IDestroyEvent } from "./Destroyable";
+import AnyEvent, { IEventType } from "./events/AnyEvent";
+import Tile from "./Tile";
+import Item from "./Item";
+
+export interface IMoveEvent extends IEventType {
+  type: "move";
+}
+export interface IStopEvent extends IEventType {
+  type: "stop";
+}
+
 /**
  * Essential data for creating a new character object.
  */
@@ -18,6 +31,8 @@ export interface ICharacterData extends IIndexable {
   frameName?: string;
   // target?: IPosition | null;
   navState?: string;
+  color?: string | null;
+  isEnabled?: boolean;
 }
 
 const NAV_STATE = {
@@ -27,7 +42,7 @@ const NAV_STATE = {
   TRYING: "trying",
   TARGET_REACHED: "targetReached",
 };
-Object.seal(NAV_STATE);
+Object.freeze(NAV_STATE);
 const VALID_NAV_STATE = Object.values(NAV_STATE);
 
 export default class Character
@@ -41,25 +56,28 @@ export default class Character
   private _def: ICharacterDef;
   private _frameDef: ICharacterFrameDef;
   private _target: Position | null = null;
+  private _isStopping: boolean = false;
+  private _currentTile: Tile | null = null;
+  private _prevTile: Tile | null = null;
 
   /**
    * Get the type of the character.
    */
   public get type(): string {
-    return this._data.type;
+    return this.data.type;
   }
   public set type(type: string) {
     if (!this._game.characterDefLoader.getDef(type)) {
       throw new Error(`Character type ${type} not found`);
     }
-    this._data.type = type;
+    this.data.type = type;
   }
 
   /**
    * Get position of the character.
    */
   public get position(): Position {
-    return new Position(this._data.position);
+    return new Position(this.data.position);
   }
 
   public set position(position: Position) {
@@ -73,36 +91,32 @@ export default class Character
         `Position is not walkable: ${position.col} - ${position.row}`
       );
     }
-    this._data.position = position.toObject();
+    this.data.position = position.toObject();
   }
 
   /**
    * Get previous position of the character.
    */
   public get prevPosition(): Position {
-    return new Position(this._data.prevPosition || this._data.position);
+    return new Position(this.data.prevPosition || this.data.position);
   }
-
-  public set prevPosition(position: Position) {
-    if (!this._game.map.isInRange(position)) {
-      throw new Error(
-        `Position out of range: ${position.col} - ${position.row}`
-      );
-    }
-    if (!this._game.map.isWalkable(position)) {
-      throw new Error(
-        `Position is not walkable: ${position.col} - ${position.row}`
-      );
-    }
-    this._data.prevPosition = position.toObject();
+  /**
+   * Get the current tile of the character.
+   */
+  public get currentTile(): Tile {
+    return this._currentTile as Tile;
+  }
+  /**
+   * Get the previous tile of the character.
+   */
+  public get prevTile(): Tile {
+    return this._prevTile || (this._currentTile as Tile);
   }
 
   /**
    * Get the target position of the character.
    */
   public get target(): Position | null {
-    // let value = this.getStagedValue("target");
-    // return value ? new Position(value) : null;
     return this._target ? this._target.clone() : null;
   }
 
@@ -110,7 +124,6 @@ export default class Character
     if (target && !this._game.map.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
-    //  this._data.target = target && target.toObject();
     this._target = target ? target.clone() : null;
   }
 
@@ -118,7 +131,7 @@ export default class Character
    * Get the offset of the movement.
    */
   public get movement(): Position {
-    return new Position(this._data.position).subtract(
+    return new Position(this.data.position).subtract(
       this.prevPosition as IPosition
     );
   }
@@ -126,19 +139,19 @@ export default class Character
    * Indicate if the character is moving.
    */
   public get isMoving(): boolean {
-    return !this.prevPosition.equals(this._data.position);
+    return !this.prevPosition.equals(this.data.position);
   }
   /**
    * Shortcut for position.col
    */
   public get col(): number {
-    return this._data.position.col;
+    return this.data.position.col;
   }
   /**
    * Shortcut for position.row
    */
   public get row(): number {
-    return this._data.position.row;
+    return this.data.position.row;
   }
   /**
    * Get a copy of the definition of the current frame of the character.
@@ -150,12 +163,12 @@ export default class Character
    * Get the name of the current frame of the character.
    */
   public get frameName(): string {
-    return this._data.frameName as string;
+    return this.data.frameName as string;
   }
 
   public set frameName(frameName: string) {
     this._getFrameDef(frameName); //Check if frameName is valid
-    this._data.frameName = frameName;
+    this.data.frameName = frameName;
   }
 
   /**
@@ -163,13 +176,32 @@ export default class Character
    * Use Character.NAV_STATE to compare.
    */
   public get navState(): string {
-    return this._data.navState || NAV_STATE.IDLE;
+    return this.data.navState || NAV_STATE.IDLE;
   }
   public set navState(navState: string) {
     if (!VALID_NAV_STATE.includes(navState)) {
       throw new Error(`Invalid navState: ${navState}`);
     }
-    this._data.navState = navState;
+    this.data.navState = navState;
+  }
+  /**
+   * Get the color of the character.
+   */
+  public get color(): string | null {
+    return this.data.color || null;
+  }
+  public set color(color: string | null) {
+    this.data.color = color;
+  }
+  /**
+   * Indicate if the character is enabled.
+   * Disabled character will be rendered differently.
+   */
+  public get isEnabled(): boolean {
+    return this.data.isEnabled || false;
+  }
+  public set isEnabled(isEnabled: boolean) {
+    this.data.isEnabled = isEnabled;
   }
 
   /**
@@ -189,32 +221,171 @@ export default class Character
   /**
    * Initialize the character.
    */
-  public init(): void {
+  public init(): this {
     super.init();
     //Set up event listeners
-    let onWillGetUpdate = (event: DataHolderEvent) => {
-      this._data.prevPosition = this._data.position;
+    let onWillGetUpdate = (event: AnyEvent<IWillGetUpdateEvent>) => {
+      this.data.prevPosition = this.data.position;
       this._navigate();
     };
-    let onDidSetUpdate = (event: DataHolderEvent) => {
+    let onDidSetUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
       this._def = this._game.characterDefLoader.getDef(this.type);
       this._frameDef = this._getFrameDef(this.frameName);
-      let changes = event.changes as IChangeSummary;
-      if (this.isMoving || changes.updateProps.includes("prevPosition")) {
-        this.dispatchEvent(new CharacterEvent(CharacterEvent.MOVE));
+      // let changes = event.data.changes as IChangeSummary;
+      // if (this.isMoving || changes.updateProps.includes("prevPosition")) {
+      if (this.isMoving) {
+        this._isStopping = false;
+        this._updateTile();
+        this.emit<IMoveEvent>(new AnyEvent("move", null));
+      } else if (!this._isStopping) {
+        this._isStopping = true;
+        this._updateTile();
+        this.emit<IStopEvent>(new AnyEvent("stop", null));
       }
     };
-    let onDestroy = (event: MemberEvent) => {
-      this.removeEventListener(
-        DataHolderEvent.WILL_GET_UPDATE,
-        onWillGetUpdate
+    this.on<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
+    this.on<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
+    this.once<IDestroyEvent>("destroy", () => {
+      this.off<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
+      this.off<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
+      this._currentTile?.internal.characters.delete(this);
+      this._prevTile?.internal.prevCharacters.delete(this);
+    });
+    // Register to tile
+    this._updateTile();
+    return this;
+  }
+  /**
+   * Get characters that this character is colliding with.
+   * @param character A specific character to check collision with. If not specified, check collision with all characters in the current tile.
+   * @returns return null if no collision. Otherwise, return an array of characters that this character is colliding with.
+   */
+  public hitCharacter(
+    target: Character | null = null
+  ): Array<Character> | null {
+    // No target
+    if (!target) {
+      // On the same tile
+      let list = this.currentTile.characters.filter(
+        (character) => character != this
       );
-      this.removeEventListener(DataHolderEvent.DID_SET_UPDATE, onDidSetUpdate);
-      this.removeEventListener(MemberEvent.DESTROY, onDestroy);
-    };
-    this.addEventListener(DataHolderEvent.WILL_GET_UPDATE, onWillGetUpdate);
-    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, onDidSetUpdate);
-    this.addEventListener(MemberEvent.DESTROY, onDestroy);
+      // Moved through each other
+      list = list.concat(
+        this.currentTile.prevCharacters.filter((character) => {
+          return (
+            character != this && character.position.equals(this.prevPosition)
+          );
+        })
+      );
+      return list.length > 0 ? list : null;
+    }
+    // Self
+    if (this === target) {
+      return null;
+    }
+    // Target on the same tile
+    if (target.position.equals(this.position)) {
+      return [target];
+    }
+    // Moved through each other
+    if (
+      this.prevPosition.equals(target.position) &&
+      target.prevPosition.equals(this.position)
+    ) {
+      return [target];
+    }
+    return null;
+  }
+  /**
+   * Get characters that this character is adjacent to.
+   * @param target A specific character to check adjacency with. If not specified, check adjacency with all characters in the adjacent tiles.
+   * @returns Return null if no adjacent character. Otherwise, return an array of characters that this character is adjacent to.
+   */
+  public adjacentCharacter(
+    target: Character | null = null
+  ): Array<Character> | null {
+    if (!target) {
+      let list: Array<Character> = [];
+      this.currentTile.adjacentTiles.forEach((tile) => {
+        list = list.concat(tile.characters);
+      });
+      // list = list.filter((character) => character != this); // Maybe not necessary
+      return list.length > 0 ? list : null;
+    }
+    for (let tile of this.currentTile.adjacentTiles) {
+      if (tile.internal.characters.has(target)) {
+        return [target];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get items that this character is colliding with.
+   * @param target A specific item to check collision with. If not specified, check collision with all items in the current tile.
+   * @returns Return null if no collision. Otherwise, return an array of items that this character is colliding with.
+   */
+  public hitItem(target: Item | null = null): Array<Item> | null {
+    // No target
+    if (!target) {
+      let list = this.currentTile.items;
+      return list.length > 0 ? list : null;
+    }
+    // Target on the same tile
+    if (this.currentTile.internal.items.has(target)) {
+      return [target];
+    }
+    return null;
+  }
+
+  /**
+   * Get items that this character is adjacent to.
+   * @param target A specific item to check adjacency with. If not specified, check adjacency with all items in the adjacent tiles.
+   * @returns Return null if no adjacent item. Otherwise, return an array of items that this character is adjacent to.
+   */
+  public adjacentItem(target: Item | null = null): Array<Item> | null {
+    if (!target) {
+      let list: Array<Item> = [];
+      this.currentTile.adjacentTiles.forEach((tile) => {
+        list = list.concat(tile.items);
+      });
+      return list.length > 0 ? list : null;
+    }
+    for (let tile of this.currentTile.adjacentTiles) {
+      if (tile.internal.items.has(target)) {
+        return [target];
+      }
+    }
+    return null;
+  }
+
+  private _updateTile(): void {
+    // Current tile
+    if (this.isMoving || !this._currentTile) {
+      if (this._currentTile) {
+        this._currentTile.internal.characters.delete(this);
+      }
+      this._currentTile = this._game.map.getTile(this.position);
+      if (!this._currentTile) {
+        throw new Error(
+          `Tile not found at ${this.position.col} - ${this.position.row}`
+        );
+      }
+      this._currentTile.internal.characters.add(this);
+    }
+    // Previous tile
+    if (this._prevTile) {
+      this._prevTile.internal.prevCharacters.delete(this);
+    }
+    this._prevTile = this._game.map.getTile(this.prevPosition);
+    if (!this._prevTile) {
+      throw new Error(
+        `Tile not found at ${this.prevPosition.col} - ${this.prevPosition.row}`
+      );
+    }
+    if (this._prevTile != this._currentTile) {
+      this._prevTile.internal.prevCharacters.add(this);
+    }
   }
 
   private _getFrameDef(frameName: string): ICharacterFrameDef {

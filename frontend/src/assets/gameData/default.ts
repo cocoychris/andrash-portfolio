@@ -1,15 +1,25 @@
-import { ITileData } from "../lib/Tile";
-import tiles from "./tiles";
-import items from "./items";
-import characters from "./characters";
-import { IGameData } from "../lib/Game";
+import { ITileData } from "../../lib/Tile";
+import tileDefPack from "../gameDef/tile";
+import itemDefPack from "../gameDef/item";
+import characterDefPack from "../gameDef/character";
+import { IGameData } from "../../lib/Game";
 
 //Get tileNames from tiles
-const tileNames: Array<string> = Object.keys(tiles);
-const itemNames: Array<string> = Object.keys(items);
-const characterNames: Array<string> = Object.keys(characters);
+const tileNames: Array<string> = Object.keys(tileDefPack);
+const itemNames: Array<string> = Object.keys(itemDefPack);
+const characterNames: Array<string> = Object.keys(characterDefPack);
 
 let gameData: IGameData = {
+  playerDataDict: {
+    0: {
+      characterID: 0,
+      color: "#ffff00",
+    },
+    1: {
+      characterID: 1,
+      color: "#00ffff",
+    },
+  },
   characterDataDict: {
     0: {
       type: "pac_man",
@@ -54,7 +64,8 @@ let gameData: IGameData = {
     },
   },
   mapData: {
-    name: "default",
+    id: "default",
+    name: "Default Map",
     colCount: 30,
     rowCount: 20,
     tileData2DArray: getTileDataArray(30, 20),

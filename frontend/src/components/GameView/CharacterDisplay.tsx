@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, FunctionComponent } from "react";
 import Character from "../../lib/Character";
+import ASSET_MAP from "../../assets/gameDef/asset";
 
 interface Props {
   character: Character;
@@ -11,7 +12,13 @@ const DEFAULT_CLASS_NAME = "CharacterDiv";
 
 export default function CharacterDisplay(props: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const iconStyle = { fill: "#ffffff" };
+  const iconStyle = { fill: props.character.color || "#ffffff" };
+  if (props.character.hitCharacter()) {
+    iconStyle.fill = "#ff0000";
+  }
+  if (props.character.hitItem()) {
+    iconStyle.fill = "#00ff00";
+  }
   const [className, setClassName] = useState(
     `${DEFAULT_CLASS_NAME} ${getStartPositionName(props)}`
   );
@@ -30,10 +37,10 @@ export default function CharacterDisplay(props: Props) {
       }
     }, 30);
   });
-  let SVGImage = props.character.frameDef.svg;
+  const SVG = ASSET_MAP.svg(props.character.frameDef.svgID);
   return (
     <div ref={ref} className={className}>
-      <SVGImage key="personIcon" className="CharacterIcon" style={iconStyle} />
+      <SVG key="CharacterIcon" className="CharacterIcon" style={iconStyle} />
     </div>
   );
 }

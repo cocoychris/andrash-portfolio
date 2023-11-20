@@ -1,8 +1,6 @@
 import Group from "./Group";
 import DataHolder from "./DataHolder";
-import MemberEvent from "./events/MemberEvent";
 import { IIndexable } from "./data/util";
-import DataHolderEvent from "./events/DataHolderEvent";
 
 /**
  * A member of a group.
@@ -15,7 +13,6 @@ export default abstract class Member<
 > extends DataHolder<TMemberData> {
   private _id: number;
   private _group: TGroup;
-  private _isDestroyed: boolean = false;
 
   /**
    * Group instance that created this group member.
@@ -30,17 +27,11 @@ export default abstract class Member<
     return this._id;
   }
   /**
-   * Indicate if the character is destroyed.
-   */
-  public get isDestroyed(): boolean {
-    return this._isDestroyed;
-  }
-  /**
    * Do not create a new Character instance with "new Character()" statement.
    * Use Group.new() instead.
    */
   constructor(group: TGroup, data: TMemberData, id: number) {
-    if (!group._new) {
+    if (!group["_new"]) {
       throw new Error(
         `Creating a new member instance with "new Member()" statement is not allowed. Use Group.new() instead.`
       );
@@ -50,24 +41,8 @@ export default abstract class Member<
     this._id = id;
   }
 
-  public init(...args: any): void {
+  public init(...args: any): this {
     super.init();
-    // this.addEventListener(
-    //   DataHolderEvent.DID_SET_UPDATE,
-    //   (event: DataHolderEvent) => {
-
-    //   }
-    // );
-  }
-  /**
-   * Destroy the character.
-   * @returns
-   */
-  public destroy() {
-    if (this._isDestroyed) {
-      return;
-    }
-    this._isDestroyed = true;
-    this.dispatchEvent(new MemberEvent(MemberEvent.DESTROY));
+    return this;
   }
 }

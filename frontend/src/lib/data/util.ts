@@ -17,7 +17,7 @@ export interface IIndexable {
   [key: string | symbol]: any;
 }
 /**
- * Apply default values to an object if the object does not have the property or the property is null.
+ * Apply default values to an object if the object property is undefined.
  * @param data Object to apply default values to.
  * @param defaultData Default values.
  * @returns A new object with default values applied.
@@ -27,12 +27,12 @@ export function applyDefault(
   defaultData: IIndexable
 ): IIndexable {
   data = { ...data };
-  for (let key in defaultData) {
-    //Will apply default value if the property is null or undefined.
-    if (data[key] == null) {
+  Object.keys(defaultData).forEach((key) => {
+    //Will apply default if value is undefined.
+    if (data[key] === undefined) {
       data[key] = defaultData[key];
     }
-  }
+  });
   return data;
 }
 
@@ -257,4 +257,49 @@ function getNewObject(obj: IIndexable) {
 
 function unbindNewObject(obj: IIndexable) {
   delete obj[OBJECT_BINDED_PROP_NAME];
+}
+/**
+ *
+ * Wraps a function with a timeout. The wrapped function will call `onSuccess` with the provided arguments if it completes before the timeout, or `onTimeout` if it does not.
+ * @param onSuccess The function to call if the wrapped function completes before the timeout.
+ * @param onTimeout The function to call if the wrapped function does not complete before the timeout.
+ * @param timeout The timeout in milliseconds.
+ * @returns A new function that wraps the provided function with the timeout.
+ */
+export function withTimeout(
+  onSuccess: Function,
+  onTimeout: Function,
+  timeout: number
+) {
+  let called = false;
+  const timer = setTimeout(() => {
+    if (called) return;
+    called = true;
+    onTimeout();
+  }, timeout);
+
+  return (...args: any[]) => {
+    if (called) return;
+    called = true;
+    clearTimeout(timer);
+    onSuccess(...args);
+  };
+}
+
+export function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export function filterObjectByKey(
+  obj: IIndexable,
+  keyList: Array<string>
+): IIndexable {
+  let newObj: IIndexable = {};
+  keyList.forEach((key) => {
+    if (obj[key] === undefined) {
+      return;
+    }
+    newObj[key] = obj[key];
+  });
+  return newObj;
 }

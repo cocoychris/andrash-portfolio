@@ -1,12 +1,17 @@
 import Character from "./Character";
 import Game from "./Game";
-import { ITileDef } from "./IDefinition";
 import Position, { IPosition } from "./Position";
 import Tile, { ITileData } from "./Tile";
-import DataHolder from "./DataHolder";
-import DataHolderEvent from "./events/DataHolderEvent";
+import DataHolder, {
+  IDidSetUpdateEvent,
+  IWillGetUpdateEvent,
+} from "./DataHolder";
+import Item from "./Item";
+import { IDidAddMemberEvent } from "./Group";
+import AnyEvent from "./events/AnyEvent";
 
 export interface IMapData {
+  id: string;
   // The name of the game map.
   name: string;
   // The number of columns in the game map.
@@ -22,24 +27,29 @@ export interface IMapData {
 export default class GameMap extends DataHolder<IMapData> {
   private _game: Game;
   private _tile2DArray: Array<Array<Tile>>;
-
+  /**
+   * Get the ID of the map
+   */
+  public get id(): string {
+    return this.data.id;
+  }
   /**
    * Get name of the map
    */
   public get name(): string {
-    return this._data.name;
+    return this.data.name;
   }
   /**
    * Get number of columns
    */
   public get colCount(): number {
-    return this._data.colCount;
+    return this.data.colCount;
   }
   /**
    * Get number of rows
    */
   public get rowCount(): number {
-    return this._data.rowCount;
+    return this.data.rowCount;
   }
   /**
    * Get the game object.
@@ -63,17 +73,17 @@ export default class GameMap extends DataHolder<IMapData> {
    * Also set up event listeners for data holder events.
    * Please call this method after creating a new GameMap instance and before using it.
    */
-  public init(): void {
+  public init(): this {
     super.init();
     // Generate tiles
     for (let row = 0; row < this.rowCount; row++) {
       let rowTiles = [];
       for (let col = 0; col < this.colCount; col++) {
-        let tileData = this._data.tileData2DArray[row][col];
+        let tileData = this.data.tileData2DArray[row][col];
         if (!tileData) {
           throw new Error(`Tile data not found at (${col}, ${row})`);
         }
-        let tile = new Tile(this, tileData);
+        let tile = new Tile(this, tileData, { col, row });
         rowTiles.push(tile);
       }
       this._tile2DArray.push(rowTiles);
@@ -82,13 +92,15 @@ export default class GameMap extends DataHolder<IMapData> {
     this._tile2DArray.forEach((rowTiles) => {
       rowTiles.forEach((tile) => tile.init());
     });
+
     // Set up event listeners
-    this.addEventListener(DataHolderEvent.WILL_GET_UPDATE, () => {
+    this.on<IWillGetUpdateEvent>("willGetUpdate", () => {
       this._getTileUpdates();
     });
-    this.addEventListener(DataHolderEvent.DID_SET_UPDATE, () => {
+    this.on<IDidSetUpdateEvent>("didSetUpdate", () => {
       this._setTileUpdates();
     });
+    return this;
   }
 
   /**
@@ -295,12 +307,12 @@ export default class GameMap extends DataHolder<IMapData> {
       });
     });
     if (changed) {
-      this._data.tileData2DArray = tileData2DArray;
+      this.data.tileData2DArray = tileData2DArray;
     }
   }
 
   private _setTileUpdates() {
-    this._data.tileData2DArray.forEach((row, rowIndex) => {
+    this.data.tileData2DArray.forEach((row, rowIndex) => {
       row.forEach((tileData, colIndex) => {
         let tile = this.getTile({ col: colIndex, row: rowIndex });
         if (!tile) {

@@ -1,4 +1,4 @@
-import IDefinition, { IDefGroup } from "./IDefinition";
+import IDefinition, { IDefPack } from "./IDefinition";
 
 // interface Dict<T> {
 //   [key: string]: T;
@@ -6,9 +6,9 @@ import IDefinition, { IDefGroup } from "./IDefinition";
 
 export default class DefLoader<T extends IDefinition> {
   // private _childDefLoaderDict: Dict<Dict<DefLoader<any>>>;
-  private _defGroup: IDefGroup<T>;
+  private _defGroup: IDefPack<T>;
 
-  constructor(defGroup: IDefGroup<T>) {
+  constructor(defGroup: IDefPack<T>) {
     this._defGroup = defGroup;
     // this._childDefLoaderDict = {};
   }
