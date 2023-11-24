@@ -245,7 +245,7 @@ function App() {
     console.log("runServerGame");
     try {
       popupOpen({ title: "Loading...", showCloseButton: false });
-      let game = await gameClient.loadGame({
+      await gameClient.loadGame({
         isLocalGame: false,
         tickInterval: undefined,
         mapID: mapID,
@@ -264,13 +264,13 @@ function App() {
     }
   }
 
-  async function runLocalGame() {
+  async function runLocalGame(mapID?: string) {
     console.log("runLocalGame");
     try {
       await gameClient.loadGame({
         isLocalGame: true,
         tickInterval: undefined,
-        mapID: undefined,
+        mapID,
       });
     } catch (error) {
       popupError("Failed to run game on local", (error as Error).message);
@@ -324,7 +324,11 @@ function App() {
         onRunLocalGame={runLocalGame}
         ref={popupRef}
       />
-      <NavbarLayout gameClient={gameClient} onRunServerGame={runServerGame} />
+      <NavbarLayout
+        gameClient={gameClient}
+        onRunServerGame={runServerGame}
+        onRunLocalGame={runLocalGame}
+      />
       <GameLayout gameClient={gameClient} />
     </>
   );

@@ -13,7 +13,7 @@ export default function GameLayout({ gameClient }: props) {
 
   useEffect(() => {
     let onNewGame = (event: AnyEvent<IDidNewGameEvent>) => {
-      console.log("GameLayout onNewGame");
+      console.log("GameLayout onNewGame", gameClient.game?.id);
       setGame(gameClient.game);
     };
     gameClient.on<IDidNewGameEvent>("didNewGame", onNewGame);
@@ -25,7 +25,7 @@ export default function GameLayout({ gameClient }: props) {
 
   return (
     <div className="gameLayout">
-      {game && !game.isDestroyed && <GameView game={game} />}
+      {game && !game.isDestroyed && <GameView key={game.id} game={game} />}
     </div>
   );
 }

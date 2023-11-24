@@ -22,15 +22,15 @@ export interface IIndexable {
  * @param defaultData Default values.
  * @returns A new object with default values applied.
  */
-export function applyDefault(
-  data: IIndexable,
-  defaultData: IIndexable
-): IIndexable {
+export function applyDefault<T extends IIndexable>(
+  data: T,
+  defaultData: Partial<T>
+): T {
   data = { ...data };
-  Object.keys(defaultData).forEach((key) => {
+  Object.keys(defaultData).forEach((key: keyof T) => {
     //Will apply default if value is undefined.
     if (data[key] === undefined) {
-      data[key] = defaultData[key];
+      data[key] = defaultData[key] as any;
     }
   });
   return data;

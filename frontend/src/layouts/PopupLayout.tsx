@@ -96,9 +96,7 @@ export default class PopupLayout extends React.Component<IProps> {
     ];
     let buttonLabels: Array<string> = ["Dismiss", "Reload", "New Game"];
     let buttonActions: Array<any> = [
-      () => {
-        this.close();
-      },
+      null,
       () => {
         window.location.reload();
       },

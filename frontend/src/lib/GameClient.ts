@@ -24,6 +24,7 @@ import itemDefPack from "../assets/gameDef/item";
 import { delay } from "./data/util";
 import { IDataChangeEvent } from "./DataHolder";
 import { IDestroyEvent } from "./Destroyable";
+import FruitNameGenerator from "./FruitNameGenerator";
 
 let DEFAULT_GAME_DEF: IGameDef = {
   charaterDefPack,
@@ -45,10 +46,10 @@ export interface IErrorEvent extends IEventType {
   };
 }
 
-export interface IWillNewGameEvent extends IEventType {
-  type: "willNewGame";
-  data: null;
-}
+// export interface IWillNewGameEvent extends IEventType {
+//   type: "willNewGame";
+//   data: null;
+// }
 export interface IDidNewGameEvent extends IEventType {
   type: "didNewGame";
   data: null;
@@ -62,9 +63,10 @@ const EVENT_RETRY_INTERVAL = 200;
  * Client that connects to the server and keeps local status synchronized with the server.
  */
 export default class GameClient extends AnyEventEmitter {
+  public static readonly DEFAULT_MAP_ID: string =
+    DEFAULT_GAME_DATA.mapData?.id || "default";
   private _game: Game | null = null;
   private _gameDef: IGameDef;
-  private _defaultGameData: IGameData;
   private _isLocalGame: boolean = false; // Whether the game is running in local without connecting to the server.
   private _isSyncing: boolean = false;
   private _localSession: LocalSession;
@@ -110,8 +112,6 @@ export default class GameClient extends AnyEventEmitter {
   /**
    * Initialize a new GameClient instance.
    * @param serverURL The URL of the game server.
-   * @param gameDef The definition pack for creating a game.
-   * @param DEFAULT_GAME_DATA The default game data for creating a game. Will be used if the server is not available or the game is local-hosted.
    */
   constructor(serverURL: string) {
     super();
@@ -123,7 +123,6 @@ export default class GameClient extends AnyEventEmitter {
       EVENT_RETRY_INTERVAL
     );
     this._gameDef = DEFAULT_GAME_DEF;
-    this._defaultGameData = DEFAULT_GAME_DATA;
     this._localSession = new LocalSession();
 
     this._transmitter.on<IConnectEvent>("connect", async (event) => {
@@ -235,15 +234,16 @@ export default class GameClient extends AnyEventEmitter {
    */
   public async loadGame(options: ILoadGameOptions): Promise<Game> {
     console.log("loadGame");
-    let isDefaultMap =
-      options.mapID == undefined ||
-      options.mapID == this._defaultGameData.mapData?.id;
-    //Loading default map from local
-    if (isDefaultMap && options.isLocalGame) {
+    // Loading default map from local
+    let loadPreviousGame = !options.mapID; // No mapID means load previous game
+    let isDefaultMap = options.mapID == GameClient.DEFAULT_MAP_ID;
+    if (options.isLocalGame && (loadPreviousGame || isDefaultMap)) {
       this._transmitter.disconnect();
       this._localSession.publicID = "";
       let newGameOptions = {
-        gameData: this._localSession.gameData || this._defaultGameData,
+        gameData:
+          (loadPreviousGame && this._localSession.gameData) ||
+          DEFAULT_GAME_DATA,
         isLocalGame: true,
         tickInterval: options.tickInterval,
         playerID: 0,
@@ -251,7 +251,7 @@ export default class GameClient extends AnyEventEmitter {
       console.log("Creating new local game...", newGameOptions);
       return await this._newGame(newGameOptions);
     }
-    //Loading specific map from server
+    // Loading other map from server
     if (!this._isAuthenticated) {
       throw new Error("Client not authenticated");
     }
@@ -315,6 +315,13 @@ export default class GameClient extends AnyEventEmitter {
     // Stop the game locally
     if (this.isLocalGame) {
       this._game.stop();
+      this.emit<IGameStopEvent>(
+        new AnyEvent("gameStop", {
+          type: "pause",
+          reason: "Local user paused the game",
+          waitingPlayerNames: [],
+        })
+      );
       return;
     }
     // Stop the game on the server
@@ -347,8 +354,8 @@ export default class GameClient extends AnyEventEmitter {
     playerID: number;
     tickNum?: number;
   }): Promise<Game> {
-    this.emit<IWillNewGameEvent>(new AnyEvent("willNewGame", null));
-    await delay(5); // Important: Wait for the event to be handled by the UI.
+    // this.emit<IWillNewGameEvent>(new AnyEvent("willNewGame", null));
+    await delay(50); // Important: Wait for the event to be handled by the UI.
     if (this._game) {
       this._game.destroy();
     }
@@ -364,6 +371,12 @@ export default class GameClient extends AnyEventEmitter {
     let player = this._game?.playerGroup.mainPlayer;
     if (!player) {
       throw new Error("Client main player not found");
+    }
+    // Assign local player
+    if (this._isLocalGame) {
+      player.isOccupied = true;
+      player.name = FruitNameGenerator.newName();
+      this._game.hostPlayerID = player.id;
     }
     player.dataChangeEventDelay = 10;
     player.on<IDataChangeEvent>("dataChange", this._onMainPlayerDataChange);

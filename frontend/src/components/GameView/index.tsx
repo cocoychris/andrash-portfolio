@@ -7,6 +7,7 @@ import Player from "../../lib/Player";
 import { IDidSetUpdateEvent } from "../../lib/DataHolder";
 import AnyEvent from "../../lib/events/AnyEvent";
 import MapView, { IPoint } from "./MapView";
+import { IIndexable } from "../../lib/data/util";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
 const EASE_DURATION = 500;
@@ -42,37 +43,55 @@ export default class GameView extends React.Component<IProps, IState> {
     }
     this._mainCharacter = this._mainPlayer.character;
     this._game = game;
-    this._onGameUpdate = this._onGameUpdate.bind(this);
-    this._onCharacterMove = this._onCharacterMove.bind(this);
     this._onViewClick = this._onViewClick.bind(this);
+    this._onCharacterUpdate = this._onCharacterUpdate.bind(this);
   }
 
-  private _onGameUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
+  private _onCharacterUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
     if (!event.data.changes.isChanged) {
       return;
     }
-    // Do something
-  }
-
-  private _onCharacterMove(event: AnyEvent<IMoveEvent>) {
-    // console.log("onCharacterMove");
-    this._mapView.ease(this._mainCharacter.position, EASE_DURATION, EASE_DELAY);
+    // console.log("onCharacterUpdate");
+    let positionDict: IIndexable = {};
+    this._game.characterGroup.forEach((character: Character) => {
+      positionDict[character.position.toString()] = character.position;
+      positionDict[character.prevPosition.toString()] = character.prevPosition;
+    });
+    Object.values(positionDict).forEach((position: Position) => {
+      this._mapView.updateTileDisplay(position);
+    });
+    if (this._mainCharacter.isMoving) {
+      this._mapView.ease(
+        this._mainCharacter.position,
+        EASE_DURATION,
+        EASE_DELAY
+      );
+    }
   }
 
   private _onViewClick(position: Position, point: IPoint) {
-    console.log("onViewClick", position, point);
+    // console.log("onViewClick", position, point);
+    // Clearing previous target
+    if (this._mainPlayer.target) {
+      this._mapView.updateTileDisplay(this._mainPlayer.target);
+    }
+    // Setting new target
     this._mainPlayer.target = position.floor();
     return true;
   }
 
   public componentDidMount() {
-    this._game.on<IDidSetUpdateEvent>("didSetUpdate", this._onGameUpdate);
-    this._mainCharacter.on<IMoveEvent>("move", this._onCharacterMove);
+    this._game.characterGroup.on<IDidSetUpdateEvent>(
+      "didSetUpdate",
+      this._onCharacterUpdate
+    );
   }
 
   public componentWillUnmount() {
-    this._game.off<IDidSetUpdateEvent>("didSetUpdate", this._onGameUpdate);
-    this._mainCharacter.off<IMoveEvent>("move", this._onCharacterMove);
+    this._game.characterGroup.off<IDidSetUpdateEvent>(
+      "didSetUpdate",
+      this._onCharacterUpdate
+    );
   }
 
   public render() {

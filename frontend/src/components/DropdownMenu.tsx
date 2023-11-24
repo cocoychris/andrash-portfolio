@@ -14,6 +14,7 @@ export interface IDropItemData {
   menuData?: Array<IDropItemData>;
   isEnabled?: boolean;
 }
+
 const DEFAULT_DATA: IDropItemData = {
   id: "",
   label: "",
@@ -30,66 +31,84 @@ export default function DropdownMenu(props: {
   onClose: () => void;
 }) {
   const { data: menuData, onClose } = props;
-  const [currentMenuData, setCurrentMenuData] =
-    useState<Array<IDropItemData>>(menuData); // "0" = Root
-  const [prevMenuData, setPrevMenuData] =
-    useState<Array<IDropItemData>>(menuData); // "0" = Root
+  const [currentMenuRoute, setCurrentMenuRoute] = useState<Array<string>>([]);
+  const [prevMenuRoute, setPrevMenuRoute] = useState<Array<string>>([]);
   //進入下一層選單或回到上層  Entering next level or back to previous level.
   const [isEntering, setIsEntering] = useState<boolean>(false);
   //在選單元件 A/B 之間交替切換 Swithing between SubMenu Component A & B
-  const [isMenuA, setIsMenuA] = useState<boolean>(true);
+  const [showMenuA, setShowMenuA] = useState<boolean>(true);
   //選單高度用於選單高度漸變動畫  Calculated dynamically for menu height transform animation.
   const [menuHeight, setMenuHeight] = useState<number | string>("");
   const menuARef = useRef<HTMLElement>(null);
   const menuBRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLElement>(null);
-  const [menuDataList, setMenuDataList] = useState<Array<Array<IDropItemData>>>(
-    [menuData]
-  );
+  const routeDataMap = getRouteDataMap(menuData);
 
+  function getRouteDataMap(
+    menuData: Array<IDropItemData>
+  ): Map<string, Array<IDropItemData>> {
+    let map: Map<string, Array<IDropItemData>> = new Map();
+    let exec = (idList: Array<string>, menuData: Array<IDropItemData>) => {
+      map.set(idList.join(LOCATION_SEPARATOR), menuData);
+      menuData.forEach((itemData) => {
+        if (!itemData.menuData || itemData.menuData.length === 0) {
+          return;
+        }
+        exec([...idList, itemData.id], itemData.menuData);
+      });
+    };
+    exec([], menuData);
+    return map;
+  }
+  function getMenuData(menuRoute: Array<string>): Array<IDropItemData> | null {
+    return routeDataMap.get(menuRoute.join(LOCATION_SEPARATOR)) || null;
+  }
   //選單跳轉控制函數們  Functions for menu nevigation
-  function gotoMenu(menuData: Array<IDropItemData>, isEntering: boolean) {
-    setPrevMenuData(currentMenuData);
-    setCurrentMenuData(menuData);
-    setIsEntering(isEntering);
-    setIsMenuA(!isMenuA);
-  }
-  function enterMenu(menuData: Array<IDropItemData>) {
-    setMenuDataList([...menuDataList, menuData]);
-    gotoMenu(menuData, true);
-  }
-  function exitMenu() {
-    let newMenuDataList = menuDataList.slice();
-    newMenuDataList.pop();
-    setMenuDataList(newMenuDataList);
-    if (newMenuDataList.length === 0) {
+  function gotoMenu(id: string | null) {
+    if (id === "") {
+      throw new Error("id can't be empty string");
+    }
+    let isEntering = id !== null;
+    let newMenuRoute: Array<string>;
+    if (isEntering) {
+      newMenuRoute = [...currentMenuRoute, id as string];
+    } else {
+      newMenuRoute = currentMenuRoute.slice(0, currentMenuRoute.length - 1);
+    }
+    let menuData = getMenuData(newMenuRoute);
+    if (!menuData) {
+      console.warn(
+        `Menu data not found for route: ${newMenuRoute.join(
+          LOCATION_SEPARATOR
+        )}`
+      );
       onClose();
       return;
     }
-    gotoMenu(newMenuDataList[newMenuDataList.length - 1], false);
+    setCurrentMenuRoute(newMenuRoute);
+    setPrevMenuRoute(currentMenuRoute);
+    setIsEntering(isEntering);
+    setShowMenuA(!showMenuA);
   }
-  function onItemSelect(data: IDropItemData) {
-    if (data.goBack) {
-      exitMenu();
+  function onItemSelect(itemData: IDropItemData) {
+    if (itemData.goBack) {
+      gotoMenu(null);
       return;
     }
-    if (data.menuData && data.menuData.length > 0) {
-      enterMenu(data.menuData);
+    if (itemData.menuData && itemData.menuData.length > 0) {
+      gotoMenu(itemData.id);
       return;
     }
     onClose();
   }
-  function renderMenu(menuData: Array<IDropItemData>): ReactNode {
-    return <SubMenu menuData={menuData} onItemSelect={onItemSelect} />;
-  }
 
   //更新選單高度，以便在切換選單時，漸變選單高度  Calculate & update menu height for transform animation.
   useEffect(() => {
-    calcHeight(isMenuA ? menuARef : menuBRef);
+    updateMenuHeight(showMenuA ? menuARef : menuBRef);
     reposition();
   }, []);
 
-  function calcHeight(ref: React.RefObject<HTMLElement>) {
+  function updateMenuHeight(ref: React.RefObject<HTMLElement>) {
     if (ref.current) {
       setMenuHeight(ref.current.offsetHeight);
     }
@@ -109,6 +128,13 @@ export default function DropdownMenu(props: {
       dropdown.style.left = `${window.innerWidth - minPosition}px`;
     }
   }
+  // Render Menu
+  let currentMenuData = getMenuData(currentMenuRoute);
+  let prevMenuData = getMenuData(prevMenuRoute);
+  if (!currentMenuData || !prevMenuData) {
+    onClose();
+    return null;
+  }
   //渲染 HTML 物件  Rendering HTML Elements
   return (
     <div
@@ -117,12 +143,12 @@ export default function DropdownMenu(props: {
       ref={dropdownRef as any}
     >
       <CSSTransition
-        in={isMenuA}
+        in={showMenuA}
         unmountOnExit
         timeout={400}
         classNames="menu"
         onEnter={() => {
-          calcHeight(menuARef);
+          updateMenuHeight(menuARef);
         }}
         nodeRef={menuARef}
       >
@@ -130,17 +156,24 @@ export default function DropdownMenu(props: {
           ref={menuARef as any}
           className={isEntering ? "menu-moveLeft" : "menu-moveRight"}
         >
-          {renderMenu(isMenuA ? currentMenuData : prevMenuData)}
+          <SubMenu
+            key="menuA"
+            menuData={showMenuA ? currentMenuData : prevMenuData}
+            onItemSelect={onItemSelect}
+            onUpdate={() => {
+              showMenuA && updateMenuHeight(menuARef);
+            }}
+          />
         </div>
       </CSSTransition>
 
       <CSSTransition
-        in={!isMenuA}
+        in={!showMenuA}
         unmountOnExit
         timeout={400}
         classNames="menu"
         onEnter={() => {
-          calcHeight(menuBRef);
+          updateMenuHeight(menuBRef);
         }}
         nodeRef={menuBRef}
       >
@@ -148,7 +181,14 @@ export default function DropdownMenu(props: {
           ref={menuBRef as any}
           className={isEntering ? "menu-moveLeft" : "menu-moveRight"}
         >
-          {renderMenu(!isMenuA ? currentMenuData : prevMenuData)}
+          <SubMenu
+            key="menuB"
+            menuData={!showMenuA ? currentMenuData : prevMenuData}
+            onItemSelect={onItemSelect}
+            onUpdate={() => {
+              !showMenuA && updateMenuHeight(menuBRef);
+            }}
+          />
         </div>
       </CSSTransition>
     </div>
@@ -157,18 +197,23 @@ export default function DropdownMenu(props: {
 
 function SubMenu(props: {
   menuData: Array<IDropItemData>;
-  onItemSelect: (data: IDropItemData) => void;
+  onItemSelect: (itemData: IDropItemData) => void;
+  onUpdate: () => void;
 }) {
   const { menuData, onItemSelect } = props;
   const [selectedID, setSelectedID] = useState<string | null>(null);
 
-  function onItemClick(data: IDropItemData) {
-    let { id, onClick } = data;
+  useEffect(() => {
+    props.onUpdate();
+  }, [menuData]);
+
+  function onItemClick(itemData: IDropItemData) {
+    let { id, onClick } = itemData;
     let select = onClick && onClick(id === selectedID);
     // Force selection
     if (select === true) {
       setSelectedID(id);
-      onItemSelect(data);
+      onItemSelect(itemData);
       return;
     }
     // Force deselection
@@ -181,41 +226,81 @@ function SubMenu(props: {
       setSelectedID(null);
     } else {
       setSelectedID(id);
-      onItemSelect(data);
+      onItemSelect(itemData);
     }
   }
+  let propsList: Array<IMenuItemProps> = menuData.map((data, index) => {
+    data = applyDefault(data, DEFAULT_DATA);
+    let props: IMenuItemProps = {
+      key: data.id,
+      data,
+      isSelected: data.id === selectedID,
+      onItemClick,
+      isEnabled: data.isEnabled as boolean,
+      isSelectable: Boolean(data.onClick || data.menuData || data.goBack),
+      connectPrev: false,
+      connectNext: false,
+    };
+    return props;
+  });
 
   return (
     <>
-      {menuData.map((data) => {
-        let id = data.id;
-        return (
-          <MenuItem
-            key={`${id}`}
-            data={data}
-            isSelected={id === selectedID}
-            onItemClick={onItemClick}
-          />
-        );
+      {propsList.map((props, index) => {
+        // Update connection info
+        let prevProps = propsList[index - 1];
+        let nextProps = propsList[index + 1];
+        props.connectPrev =
+          prevProps &&
+          props.isEnabled &&
+          !props.isSelectable &&
+          // Boolean(props.data.leftIcon) &&
+          prevProps.isEnabled &&
+          !prevProps.isSelectable;
+        // &&
+        // Boolean(prevProps.data.leftIcon);
+        props.connectNext =
+          nextProps &&
+          props.isEnabled &&
+          !props.isSelectable &&
+          // Boolean(props.data.leftIcon) &&
+          nextProps.isEnabled &&
+          !nextProps.isSelectable;
+        // &&
+        // Boolean(nextProps.data.leftIcon);
+        return <MenuItem {...props} />;
       })}
     </>
   );
 }
-
-function MenuItem(props: {
+interface IMenuItemProps {
+  key: string;
   data: IDropItemData;
   isSelected: boolean;
   onItemClick: (data: IDropItemData) => void;
-}) {
-  const { data, isSelected, onItemClick } = props;
-  const { isEnabled } = applyDefault(data, DEFAULT_DATA);
-  const isSelectable = data.onClick || data.menuData || data.goBack;
+  isEnabled: boolean;
+  isSelectable: boolean;
+  connectPrev: boolean;
+  connectNext: boolean;
+}
+function MenuItem(props: IMenuItemProps) {
+  const {
+    data,
+    isSelected,
+    onItemClick,
+    isEnabled,
+    isSelectable,
+    connectPrev,
+    connectNext,
+  } = props;
   let classList = [
     "menu-item",
     isEnabled ? "enabled" : "disabled",
     isSelected ? "selected" : "unselected",
     isSelectable ? "selectable" : "unselectable",
   ];
+  connectPrev && classList.push("connectPrev");
+  connectNext && classList.push("connectNext");
   return (
     <a
       href={isEnabled ? "#" : undefined}
@@ -227,7 +312,11 @@ function MenuItem(props: {
       }}
     >
       {data.leftIcon && <span className="icon-left">{data.leftIcon}</span>}
-      {data.label}
+      {data.leftIcon ? (
+        data.label
+      ) : (
+        <span className="standaloneText">{data.label}</span>
+      )}
       {data.rightIcon && <span className="icon-right">{data.rightIcon}</span>}
     </a>
   );

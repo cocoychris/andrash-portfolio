@@ -1,40 +1,57 @@
 .dropdown {
   --bg: rgba(215, 215, 215, 0.9);
-  --text-color: #444444;
-  --nav-size: 60px;
+  --textColor: #000000;
+  --navSize: 60px;
   --border: 0px solid #ffffff;
-  --border-radius: 8px;
-  --speed: 400ms;
-  --menu-width: 300px;
+  --borderRadius: 8px;
+  --transDuration: 400ms;
+  --menuWidth: 300px;
+  --itemHeight: 50px;
+  --borderThickness: 2px;
 
   position: absolute;
   top: 55px;
-  width: var(--menu-width);
+  width: var(--menuWidth);
   height: auto;
   transform: translateX(50%);
   background-color: var(--bg);
   border: var(--border);
-  border-radius: var(--border-radius);
+  border-radius: var(--borderRadius);
   padding: 0.5rem;
   overflow: hidden;
-  transition: height var(--speed) ease;
+  transition: height var(--transDuration) ease;
   margin-left: 0px;
   font-size: 20px;
 }
 .dropdown a {
-  color: var(--text-color);
+  color: var(--textColor);
   text-decoration: none;
 }
 
 .dropdown .menu-item {
-  height: 50px;
+  height: var(--itemHeight);
   display: flex;
   align-items: center;
-  border-radius: var(--border-radius);
+  border-radius: var(--borderRadius);
   transition: background-color 300ms;
   transition: filter 300ms;
   transition: opacity 300ms;
   padding: 0.2rem;
+}
+.dropdown .menu-item.enabled.unselectable.connectPrev {
+  border-top-left-radius: 0px;
+  border-top-right-radius: 0px;
+}
+.dropdown .menu-item.enabled.unselectable.connectNext {
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.dropdown .menu-item .standaloneText {
+  margin-left: 15px;
+}
+.dropdown .menu-item h2 {
+  font-size: 24px;
 }
 
 .dropdown .menu-item.enabled.selectable:hover,
@@ -44,7 +61,8 @@
 
 .dropdown .menu-item.enabled.unselectable {
   color: #000000;
-  background-color: #aaeeff;
+  /* background-color: #aaeeff; */
+  background-color: #ffffff;
   cursor: default;
 }
 .dropdown .menu-item.disabled {
@@ -55,7 +73,7 @@
 }
 
 .dropdown .icon-left {
-  --button-size: calc(var(--nav-size) * 0.5);
+  --button-size: calc(var(--navSize) * 0.5);
   width: var(--button-size);
   min-width: var(--button-size);
   height: var(--button-size);
@@ -82,14 +100,14 @@
 }
 
 .dropdown .icon-left svg {
-  fill: var(--text-color);
+  fill: var(--textColor);
   width: 20px;
   height: 20px;
 }
 
 .dropdown .icon-right {
   margin-left: auto;
-  --button-size: calc(var(--nav-size) * 0.5);
+  --button-size: calc(var(--navSize) * 0.5);
   width: var(--button-size);
   height: var(--button-size);
   padding: 5px;
@@ -98,16 +116,16 @@
   justify-content: center;
 }
 .dropdown .icon-right svg {
-  fill: var(--text-color);
+  fill: var(--textColor);
   width: 20px;
   height: 20px;
 }
 
 .menu-moveRight {
-  width: var(--menu-width);
+  width: var(--menuWidth);
 }
 .menu-moveLeft {
-  width: var(--menu-width);
+  width: var(--menuWidth);
 }
 
 .menu-moveRight.menu-enter {
@@ -116,7 +134,7 @@
 }
 .menu-moveRight.menu-enter-active {
   transform: translateX(0%);
-  transition: all var(--speed) ease;
+  transition: all var(--transDuration) ease;
 }
 .menu-moveRight.menu-exit {
   position: absolute;
@@ -124,7 +142,7 @@
 }
 .menu-moveRight.menu-exit-active {
   transform: translateX(110%);
-  transition: all var(--speed) ease;
+  transition: all var(--transDuration) ease;
 }
 
 .menu-moveLeft.menu-enter {
@@ -133,7 +151,7 @@
 }
 .menu-moveLeft.menu-enter-active {
   transform: translateX(0%);
-  transition: all var(--speed) ease;
+  transition: all var(--transDuration) ease;
 }
 .menu-moveLeft.menu-exit {
   position: absolute;
@@ -141,5 +159,5 @@
 }
 .menu-moveLeft.menu-exit-active {
   transform: translateX(-110%);
-  transition: all var(--speed) ease;
+  transition: all var(--transDuration) ease;
 }

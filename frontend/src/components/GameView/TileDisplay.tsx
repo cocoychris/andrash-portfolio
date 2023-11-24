@@ -1,13 +1,10 @@
 import { GridChildComponentProps } from "react-window";
 import React, { ReactNode } from "react";
 import Game from "../../lib/Game";
-import Character from "../../lib/Character";
 import Player from "../../lib/Player";
 import asset from "../../assets/gameDef/asset";
 import CharacterDisplay from "./CharacterDisplay";
 import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
-import { IDidSetUpdateEvent } from "../../lib/DataHolder";
-import AnyEvent from "../../lib/events/AnyEvent";
 
 export interface ITileDisplayProps extends GridChildComponentProps {
   game: Game;
@@ -17,33 +14,18 @@ const DEFAULT_CLASS_NAME = "tile";
 
 export default class TileDisplay extends React.Component<ITileDisplayProps> {
   private _game: Game;
-  private _mainPlayer: Player;
-  private _mainCharacter: Character;
 
   constructor(props: ITileDisplayProps) {
     super(props);
     const { game } = props;
     this._game = game;
-    this._mainPlayer = game.playerGroup.mainPlayer as Player;
-    this._mainCharacter = this._mainPlayer.character;
-    this._onGameUpdate = this._onGameUpdate.bind(this);
   }
 
-  public componentDidMount(): void {
-    this._game.on<IDidSetUpdateEvent>("didSetUpdate", this._onGameUpdate);
-  }
-
-  private _onGameUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
-    if (!event.data.changes.isChanged) {
-      return;
-    }
-    this.forceUpdate();
-  }
   public render() {
     const { columnIndex: col, rowIndex: row, style: _style } = this.props;
     let style = { ..._style };
-    const tile = this._game.map.getTile({ col, row });
     let debugDiv = <div key="debug" className="debug">{`${col},${row}`}</div>;
+    const tile = this._game.map.getTile({ col, row });
     // Render Empty Cell
     if (!tile) {
       return (
@@ -78,9 +60,11 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
     });
 
     // Render Target
-    if (this._mainPlayer.stagedTarget?.equals({ col, row })) {
+    let mainPlayer = this._game.playerGroup.mainPlayer as Player;
+    let mainCharacter = mainPlayer.character;
+    if (mainPlayer.stagedTarget?.equals({ col, row })) {
       let className = "targetSVG";
-      if (this._mainPlayer.stagedTarget.equals(this._mainCharacter.position)) {
+      if (mainPlayer.stagedTarget.equals(mainCharacter.position)) {
         className += " fade-out";
       }
       content.push(<LocationIcon key="targetSVG" className={className} />);

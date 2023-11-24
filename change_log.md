@@ -1,26 +1,20 @@
 # Change Log of This Version
 
-GameView redesigned & glitching issue fixed.
-Unnecessary rerendering of gameView, popup & navebar fixed.
+Patch for local game mode.
+Frontend GameView rendering mechanism improved.
+Several bug fixes.
 
 ## Backend
 
-- No change.
+- none
 
 ## Frontend
 
-- Updated: `GameView` redesigned using `react-window` to solve the glitching issue while scrolling.
-  - New features:
-    - The cell size of `GameView` now adapts to the size of the window, ensuring that there is always at least 5 cells visible in row and column.
-    - The position at the center of the viewport stays the same when the window is resized.
-- Added: Breaking `useOperator` custom hook into `NavbarLayout`, `GameLayout` and `PopupLayout` components so that `navbar`, `gameView` and `popup` can be rendered & updated independently.
-- Updated: `Popup` redesigned as React class component to provide `open()` and `close()` method to other components.
-
-## Known Bugs
-
-- Player display name undefined when starting a local game directly without connecting to the game server.
-
-## Future Improvements
-
-- Customizing Player menu options for local game mode.
-- The performance of `GameView` rendering can be improved to make it mobile friendly.
+- Updated: The GameView rendering mechanism has been improved for better performance. It now only updates:
+  - The tiles occupied by characters.
+  - The tiles where players set or remove the target beacon.
+- Updated: The Navbar & Dropdown Menu now update in real-time when users join or leave the room.
+- Fixed: An issue causing an infinite loop error when clicking the "Dismiss" button of the alert message has been resolved.
+- Fixed: The "Pause Game" and "New Game" features in the dropdown menu now function correctly in local game mode.
+- Updated: The "Game Players" menu has been adjusted for local game mode.
+- Updated: Adjacent unselectable items in the dropdown menu now form a single block.

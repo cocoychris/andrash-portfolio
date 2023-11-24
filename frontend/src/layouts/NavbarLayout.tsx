@@ -1,8 +1,5 @@
-import { ReactNode, useEffect, useState } from "react";
-import GameClient, {
-  IDidNewGameEvent,
-  IWillNewGameEvent,
-} from "../lib/GameClient";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import { IDropItemData } from "../components/DropdownMenu";
 import screenfull from "screenfull";
@@ -15,6 +12,8 @@ import { ReactComponent as LeftIcon } from "../assets/icons/chevron-left-svgrepo
 import { ReactComponent as PersonIcon } from "../assets/icons/person-svgrepo-com.svg";
 import { ReactComponent as PeopleIcon } from "../assets/icons/people-svgrepo-com.svg";
 import { ReactComponent as HomeIcon } from "../assets/icons/home-svgrepo-com.svg";
+import { ReactComponent as LinkIcon } from "../assets/icons/link-svgrepo-com.svg";
+import { ReactComponent as GiftIcon } from "../assets/icons/gift-svgrepo-com.svg";
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/DataHolder";
 import Game from "../lib/Game";
@@ -22,49 +21,48 @@ import Game from "../lib/Game";
 interface props {
   gameClient: GameClient;
   onRunServerGame: (mapID: string) => void;
+  onRunLocalGame: (mapID: string) => void;
 }
 
-export default function NavbarLayout({ gameClient, onRunServerGame }: props) {
+export default function NavbarLayout({
+  gameClient,
+  onRunServerGame,
+  onRunLocalGame,
+}: props) {
   const [game, setGame] = useState<Game | null>(gameClient.game);
-  const [playersMenuData, setPlayersMenuData] =
-    useState<Array<IDropItemData> | null>(getPlayersMenuData(gameClient));
+  const [_, forceUpdate] = useState<number>(0);
 
   useEffect(() => {
     let onPlayerGroupUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
       if (event.data.changes.isChanged) {
-        setPlayersMenuData(getPlayersMenuData(gameClient));
+        // console.log("NavbarLayout onPlayerGroupUpdate");
+        forceUpdate(Date.now());
       }
-    };
-    let onWillNewGame = (event: AnyEvent<IWillNewGameEvent>) => {
-      setGame(null);
-      setPlayersMenuData(null);
-      gameClient.game?.playerGroup.off<IDidSetUpdateEvent>(
-        "didSetUpdate",
-        onPlayerGroupUpdate
-      );
     };
     let onDidNewGame = (event: AnyEvent<IDidNewGameEvent>) => {
       setGame(gameClient.game);
-      setPlayersMenuData(getPlayersMenuData(gameClient));
       gameClient.game?.playerGroup.on<IDidSetUpdateEvent>(
         "didSetUpdate",
         onPlayerGroupUpdate
       );
     };
 
-    gameClient.on<IWillNewGameEvent>("willNewGame", onWillNewGame);
     gameClient.on<IDidNewGameEvent>("didNewGame", onDidNewGame);
     return () => {
-      gameClient.off<IWillNewGameEvent>("willNewGame", onWillNewGame);
       gameClient.off<IDidNewGameEvent>("didNewGame", onDidNewGame);
     };
   }, []);
 
-  // No Game
-  if (!game || !playersMenuData) {
-    return null;
-  }
+  return (
+    <Navbar data={getNavbarData(gameClient, onRunLocalGame, onRunServerGame)} />
+  );
+}
 
+function getNavbarData(
+  gameClient: GameClient,
+  onRunLocalGame: Function,
+  onRunServerGame: Function
+): Array<INavItemData> {
   // Update navbar
   let playerGroup = gameClient.game?.playerGroup;
   let hostPlayer = playerGroup?.hostPlayer;
@@ -73,7 +71,7 @@ export default function NavbarLayout({ gameClient, onRunServerGame }: props) {
   let navbarData: Array<INavItemData> = [
     {
       id: "fullscreen",
-      icon: "➕",
+      icon: "🖥️",
       onClick: () => {
         screenfull.toggle();
         return false;
@@ -83,18 +81,19 @@ export default function NavbarLayout({ gameClient, onRunServerGame }: props) {
     {
       id: "players",
       icon: <PeopleIcon />,
-      menuData: playersMenuData,
+      menuData: getPlayersMenuData(gameClient),
+      isEnabled: gameClient.game != null,
     },
     {
-      id: "menu",
-      icon: <MenuIcon />,
+      id: "GameMenu",
+      icon: "🕹️",
       menuData: [
         {
           id: "hello",
           label: (
-            <h3 style={{ paddingLeft: "15px", fontSize: "22px" }}>
+            <>
               Hello <b>{mainPlayer?.name}</b>!
-            </h3>
+            </>
           ),
         },
         {
@@ -119,7 +118,11 @@ export default function NavbarLayout({ gameClient, onRunServerGame }: props) {
           label: "New Game",
           leftIcon: "♟️",
           onClick: () => {
-            onRunServerGame("default"); //Specify mapID to start a new game
+            if (gameClient.isLocalGame) {
+              onRunLocalGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
+            } else {
+              onRunServerGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
+            }
             return true;
           },
           isEnabled: isHost,
@@ -153,9 +156,8 @@ export default function NavbarLayout({ gameClient, onRunServerGame }: props) {
       icon: <BellIcon />,
     },
   ];
-  return <Navbar data={navbarData} />;
+  return navbarData;
 }
-
 function getPlayersMenuData(
   gameClient: GameClient
 ): Array<IDropItemData> | null {
@@ -170,7 +172,7 @@ function getPlayersMenuData(
   let playerDataList: Array<IDropItemData> = [];
   playerDataList.push({
     id: "players",
-    label: <h3 style={{ paddingLeft: "15px" }}>Game Players:</h3>,
+    label: <h3>Game Players</h3>,
   });
   playerDataList.push({
     id: "host",
@@ -180,6 +182,17 @@ function getPlayersMenuData(
     leftIcon: "🤴",
     isEnabled: hostPlayer?.isOccupied,
   });
+  // Local Game
+  if (gameClient.isLocalGame) {
+    playerDataList.push({
+      id: "local",
+      label: "Multiplayer is not available in local game.",
+      leftIcon: "🚫",
+      isEnabled: false,
+    });
+    return playerDataList;
+  }
+  // Online Game
   let playerAvailable = false;
   playerDataList = playerDataList.concat(
     playerList
@@ -201,17 +214,55 @@ function getPlayersMenuData(
   if (playerAvailable) {
     playerDataList.push({
       id: "join",
-      label: <>Invite your friend to this world!</>,
+      label: "Invite your friend to join this room!",
       leftIcon: "⚽",
       rightIcon: <RightIcon />,
       menuData: [
         {
+          id: "0",
+          label: <h2>Step 1</h2>,
+        },
+        {
           id: "1",
-          label: <>Just share the URL of this page with your friend!</>,
-          leftIcon: "☝️",
+          label: "Copy the invitation link",
+          leftIcon: <LinkIcon />,
+          menuData: [
+            {
+              id: "0",
+              leftIcon: "✔️",
+              label: "Link copied!",
+            },
+            {
+              id: "1",
+              label: <h2>Step 2</h2>,
+            },
+            {
+              id: "2",
+              label: "Share it with your friend!",
+              leftIcon: "🧑‍🤝‍🧑",
+            },
+            {
+              id: "3",
+              label: "OK",
+              leftIcon: "😊",
+              onClick: () => {
+                return true;
+              },
+            },
+          ],
+        },
+        {
+          id: "2",
+          label: "Back",
+          leftIcon: <LeftIcon />,
           goBack: true,
         },
       ],
+      onClick: () => {
+        // Copy current URL to clipboard
+        navigator.clipboard.writeText(window.location.href);
+        return true;
+      },
     });
   }
   return playerDataList;

@@ -13,6 +13,7 @@ import DataHolder, {
 } from "./DataHolder";
 import { IPlayerData } from "./Player";
 import PlayerGroup from "./PlayerGroup";
+import { cloneObject } from "./data/util";
 
 export interface IGameData {
   id?: string;
@@ -119,7 +120,7 @@ export default class Game extends DataHolder<IGameData> {
   }
 
   constructor(gameDef: IGameDef, data: IGameData) {
-    data = { ...data };
+    data = cloneObject(data);
     !data.id && (data.id = _generateGameID());
     data.hostPlayerID === undefined && (data.hostPlayerID = -1);
     super(data);

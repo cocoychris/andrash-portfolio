@@ -1,45 +1,67 @@
 import DropdownMenu, { IDropItemData } from "./DropdownMenu";
-import { ReactNode, useState } from "react";
+import React, { ReactNode, RefObject } from "react";
 import "./Navbar.css";
 import { applyDefault } from "../lib/data/util";
 
-export default function Navbar(props: { data: Array<INavItemData> }) {
-  const { data: itemDataList } = props;
-  const [selectedID, setSelectedID] = useState<string | null>(null);
+interface IProps {
+  data: Array<INavItemData>;
+}
+interface IState {
+  selectedID: string | null;
+}
 
-  function onItemClick(itemID: string, onClick: INavItemData["onClick"]) {
-    let select = onClick && onClick(itemID === selectedID);
+export default class Navbar extends React.Component<IProps, IState> {
+  private itemRefDict: { [id: string]: RefObject<NavItem> } = {};
+
+  constructor(props: IProps) {
+    super(props);
+    this.state = {
+      selectedID: null,
+    };
+    this._onItemClick = this._onItemClick.bind(this);
+  }
+
+  private _onItemClick(itemID: string, onClick: INavItemData["onClick"]) {
+    let select = onClick && onClick(itemID === this.state.selectedID);
     // Force selection
     if (select === true) {
-      setSelectedID(itemID);
+      this.setState({ selectedID: itemID });
       return;
     }
     // Force deselection
     if (select === false) {
-      itemID === selectedID && setSelectedID(null);
+      itemID === this.state.selectedID && this.setState({ selectedID: null });
       return;
     }
     // Toggle selection
-    setSelectedID(itemID === selectedID ? null : itemID);
+    this.setState({
+      selectedID: itemID === this.state.selectedID ? null : itemID,
+    });
   }
 
-  return (
-    <nav className="navbar">
-      <ul className="navbar-nav">
-        {itemDataList.map((navItemData) => {
-          let id = navItemData.id;
-          return (
-            <NavItem
-              key={id}
-              data={navItemData}
-              isSelected={id === selectedID}
-              onItemClick={onItemClick}
-            />
-          );
-        })}
-      </ul>
-    </nav>
-  );
+  public render(): React.ReactNode {
+    return (
+      <nav className="navbar">
+        <ul className="navbar-nav">
+          {this.props.data.map((navItemData) => {
+            let id = navItemData.id;
+            if (!this.itemRefDict[id]) {
+              this.itemRefDict[id] = React.createRef<NavItem>();
+            }
+            return (
+              <NavItem
+                key={id}
+                data={navItemData}
+                isSelected={id === this.state.selectedID}
+                onItemClick={this._onItemClick}
+                ref={this.itemRefDict[id]}
+              />
+            );
+          })}
+        </ul>
+      </nav>
+    );
+  }
 }
 
 export interface INavItemData {
@@ -47,7 +69,7 @@ export interface INavItemData {
   icon: ReactNode;
   onClick?: (isSelected: boolean) => void | boolean; // boolean: true = force select, false = force deselect, undefined = toggle
   isEnabled?: boolean;
-  menuData?: Array<IDropItemData>;
+  menuData?: Array<IDropItemData> | null;
 }
 
 const DEFAULT_DATA: INavItemData = {
@@ -58,42 +80,46 @@ const DEFAULT_DATA: INavItemData = {
   menuData: undefined,
 };
 
-export function NavItem(props: {
+interface INavItemProps {
   data: INavItemData;
   isSelected: boolean;
   onItemClick: (id: string, onClick: INavItemData["onClick"]) => void;
-}) {
-  const { data, isSelected, onItemClick } = props;
-  const { id, icon, onClick, menuData, isEnabled } = applyDefault(
-    data,
-    DEFAULT_DATA
-  );
-  let classList = [
-    "icon-button",
-    isEnabled ? "enabled" : "disabled",
-    isSelected ? "selected" : "unselected",
-  ];
-  return (
-    <li className="nav-item">
-      <a
-        href="#"
-        className={classList.join(" ")}
-        onClick={() => {
-          if (isEnabled) {
-            onItemClick(id, onClick);
-          }
-        }}
-      >
-        {icon}
-      </a>
-      {menuData && isSelected && (
-        <DropdownMenu
-          data={menuData}
-          onClose={() => {
-            onItemClick(id, () => false);
+}
+
+export class NavItem extends React.Component<INavItemProps> {
+  public render(): React.ReactNode {
+    const { data, isSelected, onItemClick } = this.props;
+    const { id, icon, onClick, menuData, isEnabled } = applyDefault(
+      data,
+      DEFAULT_DATA
+    );
+    let classList = [
+      "icon-button",
+      isEnabled ? "enabled" : "disabled",
+      isSelected ? "selected" : "unselected",
+    ];
+    return (
+      <li className="nav-item">
+        <a
+          href="#"
+          className={classList.join(" ")}
+          onClick={() => {
+            if (isEnabled) {
+              onItemClick(id, onClick);
+            }
           }}
-        />
-      )}
-    </li>
-  );
+        >
+          {icon}
+        </a>
+        {menuData && isSelected && (
+          <DropdownMenu
+            data={menuData}
+            onClose={() => {
+              onItemClick(id, () => false);
+            }}
+          />
+        )}
+      </li>
+    );
+  }
 }
