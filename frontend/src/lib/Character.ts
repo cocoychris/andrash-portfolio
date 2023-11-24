@@ -80,7 +80,7 @@ export default class Character
     return new Position(this.data.position);
   }
 
-  public set position(position: Position) {
+  public set position(position: IPosition) {
     if (!this._game.map.isInRange(position)) {
       throw new Error(
         `Position out of range: ${position.col} - ${position.row}`
@@ -91,7 +91,7 @@ export default class Character
         `Position is not walkable: ${position.col} - ${position.row}`
       );
     }
-    this.data.position = position.toObject();
+    this.data.position = { col: position.col, row: position.row };
   }
 
   /**
@@ -120,11 +120,11 @@ export default class Character
     return this._target ? this._target.clone() : null;
   }
 
-  public set target(target: Position | null) {
+  public set target(target: IPosition | null) {
     if (target && !this._game.map.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
-    this._target = target ? target.clone() : null;
+    this._target = target ? new Position(target) : null;
   }
 
   /**

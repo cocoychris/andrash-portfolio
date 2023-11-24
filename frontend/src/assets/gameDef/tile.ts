@@ -7,12 +7,6 @@ const tiles: IDefPack<ITileDef> = {
     fgImageID: null,
     walkable: true,
   },
-  empty_blocked: {
-    bgColor: null,
-    bgImageID: "CloseIcon",
-    fgImageID: null,
-    walkable: false,
-  },
   test1: {
     bgColor: "#ffffff",
     bgImageID: "TestSVG",

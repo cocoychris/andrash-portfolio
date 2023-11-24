@@ -288,5 +288,5 @@ function _generateGameID(): string {
   gameNum++;
   return `G${gameNum}-${Math.floor(Math.random() * 36 * 36).toString(
     36
-  )}${Date.now().toString(36)}}`;
+  )}${Date.now().toString(36)}`;
 }

@@ -87,7 +87,7 @@ export default class Item
   public get position(): Position {
     return new Position(this.data.position);
   }
-  public set position(position: Position) {
+  public set position(position: IPosition) {
     if (
       position.row < 0 ||
       position.row >= this._game.map.rowCount ||
@@ -98,7 +98,7 @@ export default class Item
         `Position out of range: ${position.col} - ${position.row}`
       );
     }
-    this.data.position = position.toObject();
+    this.data.position = { col: position.col, row: position.row };
   }
 
   /**

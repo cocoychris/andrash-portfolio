@@ -13,6 +13,7 @@ dist-ssr
 *.local
 old
 references
+*.old
 
 # Editor directories and files
 .vscode/*

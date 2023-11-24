@@ -14,10 +14,10 @@ export default class Position implements IPosition {
     return this._row;
   }
   public set col(value: number) {
-    this._col = Math.floor(value);
+    this._col = value;
   }
   public set row(value: number) {
-    this._row = Math.floor(value);
+    this._row = value;
   }
 
   constructor(position?: IPosition) {
@@ -25,8 +25,8 @@ export default class Position implements IPosition {
   }
 
   set(position: IPosition): Position {
-    this._col = Math.floor(position.col);
-    this._row = Math.floor(position.row);
+    this._col = position.col;
+    this._row = position.row;
     return this;
   }
 
@@ -63,6 +63,13 @@ export default class Position implements IPosition {
     return new Position({
       col: Math.min(this._col, position.col),
       row: Math.min(this._row, position.row),
+    });
+  }
+
+  floor(): Position {
+    return new Position({
+      col: Math.floor(this._col),
+      row: Math.floor(this._row),
     });
   }
 

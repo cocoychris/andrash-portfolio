@@ -1,17 +1,10 @@
-.game-container {
-  width: calc(100vw);
-  height: calc(100vh);
-  overflow: hidden;
-  table-layout: fixed;
-}
-.game-table {
+.mapView {
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
 }
 
-.game-table td {
-  /* position: relative; */
+.mapView .tile {
   text-align: center;
   padding: 0;
   margin: 0;
@@ -19,6 +12,15 @@
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
+
+.mapView .tile div.debug {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  display: block;
+}
+
 .CharacterIcon {
   display: block;
   width: 100%;
@@ -26,11 +28,11 @@
 }
 .CharacterDiv {
   --speed: 500ms;
-  position: relative;
+  position: absolute;
   z-index: 2;
   display: block;
-  margin-top: -50%;
-  margin-bottom: -100%;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   transition: translate var(--speed) ease-out;
@@ -63,14 +65,14 @@
   translate: 0% 0%;
 }
 
-.game-table td > svg,
+.mapView .tile > svg,
 img {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 100%;
   height: 100%;
-  position: relative;
-  margin-top: -50%;
-  margin-bottom: -100%;
 }
 
 svg.itemSVG {
@@ -81,6 +83,9 @@ img.fgImage {
 }
 
 svg.targetSVG {
+  position: absolute;
+  top: -20%;
+  left: 0;
   z-index: 11;
   fill: #ff3333;
   transition: opacity 500ms ease;

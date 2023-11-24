@@ -1,31 +1,26 @@
 # Change Log of This Version
 
-Multiplayer online game framework built
+GameView redesigned & glitching issue fixed.
+Unnecessary rerendering of gameView, popup & navebar fixed.
 
 ## Backend
 
-- Added: Room management system.
-- Added: Player management system.
-- Added: Session management system.
+- No change.
 
-## Common
+## Frontend
 
-- Added:`AnyEventEmitter` event dispatching system.
-- Added:`Transmitter` a socket.io based client-server event dispatching system.
-- Updated:`DataHolder` replacing `EventDispatcher` with `AnyEventEmitter` as the base class.
-- Updated: Character & item collision detection system.
+- Updated: `GameView` redesigned using `react-window` to solve the glitching issue while scrolling.
+  - New features:
+    - The cell size of `GameView` now adapts to the size of the window, ensuring that there is always at least 5 cells visible in row and column.
+    - The position at the center of the viewport stays the same when the window is resized.
+- Added: Breaking `useOperator` custom hook into `NavbarLayout`, `GameLayout` and `PopupLayout` components so that `navbar`, `gameView` and `popup` can be rendered & updated independently.
+- Updated: `Popup` redesigned as React class component to provide `open()` and `close()` method to other components.
 
-## UI
+## Known Bugs
 
-- Added: Popup message box component.
-- Updated: Navbar component redesigned.
-- Updated: DropdownMenu component redesigned.
+- Player display name undefined when starting a local game directly without connecting to the game server.
 
-## Documentation
+## Future Improvements
 
-- Updated: `Server-Client_Communication_API.md`
-
-## Others
-
-- Removed: Unused util classes `Bindings`.
-- Removed: Files from old event dispatching system, such as `EventDispatcher`, `CharacterEvent`, `ItemEvent`, etc.
+- Customizing Player menu options for local game mode.
+- The performance of `GameView` rendering can be improved to make it mobile friendly.

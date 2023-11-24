@@ -73,11 +73,19 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
   public get target(): Position | null {
     return this.data.target ? new Position(this.data.target) : null;
   }
-  public set target(target: Position | null) {
+  public set target(target: IPosition | null) {
     if (target && !this.group.game.map.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
-    this.data.target = target ? target.toObject() : null;
+    this.data.target = target ? { col: target.col, row: target.row } : null;
+  }
+  /**
+   * The staged target position of the player.
+   */
+  public get stagedTarget(): Position | null {
+    return this.getStagedValue("target")
+      ? new Position(this.getStagedValue("target"))
+      : null;
   }
   /**
    * The character object that the player is using.

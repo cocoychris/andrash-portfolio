@@ -5,10 +5,11 @@ body {
   background-color: #000000;
 }
 
-div .gameArea {
+div .gameLayout {
   width: 100vw;
   height: 100vh;
   background-color: #224466;
+  overflow: hidden;
 }
 
 div .mdReader {

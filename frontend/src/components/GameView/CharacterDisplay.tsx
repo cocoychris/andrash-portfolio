@@ -1,87 +1,128 @@
-import { useEffect, useRef, useState, FunctionComponent } from "react";
-import Character from "../../lib/Character";
+import React, { useEffect, useRef, useState, FunctionComponent } from "react";
+import Character, { IFrameUpdateEvent, IMoveEvent } from "../../lib/Character";
 import ASSET_MAP from "../../assets/gameDef/asset";
+import { IPosition } from "../../lib/Position";
+import AnyEvent from "../../lib/events/AnyEvent";
+import { ICharacterFrameDef } from "../../lib/IDefinition";
 
-interface Props {
+interface IProps {
   character: Character;
-  col: number;
-  row: number;
+  position: IPosition;
+}
+interface IState {
+  className: string;
+  frameDef: ICharacterFrameDef;
 }
 
 const DEFAULT_CLASS_NAME = "CharacterDiv";
+const TRANSITION_DELAY = 16;
 
-export default function CharacterDisplay(props: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-  const iconStyle = { fill: props.character.color || "#ffffff" };
-  if (props.character.hitCharacter()) {
-    iconStyle.fill = "#ff0000";
-  }
-  if (props.character.hitItem()) {
-    iconStyle.fill = "#00ff00";
-  }
-  const [className, setClassName] = useState(
-    `${DEFAULT_CLASS_NAME} ${getStartPositionName(props)}`
-  );
+export default class CharacterDisplay extends React.Component<IProps, IState> {
+  private _ref = React.createRef<HTMLDivElement>();
+  private _character: Character;
+  private _position: IPosition;
+  private _timeoutID: NodeJS.Timeout | null = null;
 
-  useEffect(() => {
-    setTimeout(() => {
-      let character = props.character;
-      let isCurrent = character.position.equals(props);
-      if (!ref.current) {
-        return;
-      }
+  constructor(props: IProps) {
+    super(props);
+    this._character = this.props.character;
+    this._position = this.props.position;
+    this.state = {
+      className: `${DEFAULT_CLASS_NAME} ${this._getStartPositionName()}`,
+      frameDef: this._character.frameDef,
+    };
+    // this._onCharacterMove = this._onCharacterMove.bind(this);
+  }
+
+  public componentDidMount(): void {
+    // console.log("Mount", this._position);
+    let isCurrent = this._character.position.equals(this._position);
+    this._timeoutID = setTimeout(() => {
       if (isCurrent) {
-        setClassName(`${DEFAULT_CLASS_NAME} position-center`);
+        this.setState({ className: `${DEFAULT_CLASS_NAME} position-center` });
       } else {
-        setClassName(`${DEFAULT_CLASS_NAME} ${getEndPositionName(props)}`);
+        this.setState({
+          className: `${DEFAULT_CLASS_NAME} ${this._getEndPositionName()}`,
+        });
       }
-    }, 30);
-  });
-  const SVG = ASSET_MAP.svg(props.character.frameDef.svgID);
-  return (
-    <div ref={ref} className={className}>
-      <SVG key="CharacterIcon" className="CharacterIcon" style={iconStyle} />
-    </div>
-  );
-}
+      this._timeoutID = null;
+    }, TRANSITION_DELAY);
+    // this._character.once<IMoveEvent>("move", this._onCharacterMove);
+  }
 
-function getStartPositionName(props: Props) {
-  let character: Character = props.character;
-  let isCurrent = character.position.equals(props);
-  let movement = character.movement;
-  let suffixList = [];
-  if (isCurrent && character.isMoving) {
-    if (movement.col > 0) {
-      suffixList.push("left");
-    } else if (movement.col < 0) {
-      suffixList.push("right");
-    }
-    if (movement.row > 0) {
-      suffixList.push("up");
-    } else if (movement.row < 0) {
-      suffixList.push("down");
+  public componentWillUnmount(): void {
+    // console.log("Unmount", this._position);
+    // this._character.off<IMoveEvent>("move", this._onCharacterMove);
+    if (this._timeoutID) {
+      clearTimeout(this._timeoutID);
+      this._timeoutID = null;
     }
   }
-  suffixList.length == 0 && suffixList.push("center");
-  return `position-${suffixList.join("-")}`;
-}
-function getEndPositionName(props: Props) {
-  let character: Character = props.character;
-  let isCurrent = character.position.equals(props);
-  let movement = character.movement;
-  let suffixList = [];
-  if (!isCurrent && character.isMoving) {
-    if (movement.col > 0) {
-      suffixList.push("right");
-    } else if (movement.col < 0) {
-      suffixList.push("left");
+
+  // private _onCharacterMove(event: AnyEvent<IMoveEvent>) {
+  //   console.log("onCharacterMove", this._position);
+  //   this._timeoutID = setTimeout(() => {
+  //     this.setState({
+  //       className: `${DEFAULT_CLASS_NAME} ${this._getEndPositionName()}`,
+  //     });
+  //     this._timeoutID = null;
+  //   }, TRANSITION_DELAY);
+  // }
+
+  public render() {
+    const iconStyle = { fill: this._character.color || "#ffffff" };
+    if (this._character.hitCharacter()) {
+      iconStyle.fill = "#ff0000";
     }
-    if (movement.row > 0) {
-      suffixList.push("down");
-    } else if (movement.row < 0) {
-      suffixList.push("up");
+    if (this._character.hitItem()) {
+      iconStyle.fill = "#00ff00";
     }
+    const SVG = ASSET_MAP.svg(this._character.frameDef.svgID);
+    return (
+      <div ref={this._ref} className={this.state.className}>
+        <SVG key="CharacterIcon" className="CharacterIcon" style={iconStyle} />
+      </div>
+    );
   }
-  suffixList.length == 0 && suffixList.push("center");
-  return `position-${suffixList.join("-")}`;
+
+  private _getStartPositionName() {
+    let character: Character = this._character;
+    let isCurrent = character.position.equals(this._position);
+    let movement = character.movement;
+    let suffixList = [];
+    if (isCurrent && character.isMoving) {
+      if (movement.col > 0) {
+        suffixList.push("left");
+      } else if (movement.col < 0) {
+        suffixList.push("right");
+      }
+      if (movement.row > 0) {
+        suffixList.push("up");
+      } else if (movement.row < 0) {
+        suffixList.push("down");
+      }
+    }
+    suffixList.length == 0 && suffixList.push("center");
+    return `position-${suffixList.join("-")}`;
+  }
+  private _getEndPositionName() {
+    let character: Character = this._character;
+    let isCurrent = character.position.equals(this._position);
+    let movement = character.movement;
+    let suffixList = [];
+    if (!isCurrent && character.isMoving) {
+      if (movement.col > 0) {
+        suffixList.push("right");
+      } else if (movement.col < 0) {
+        suffixList.push("left");
+      }
+      if (movement.row > 0) {
+        suffixList.push("down");
+      } else if (movement.row < 0) {
+        suffixList.push("up");
+      }
+    }
+    suffixList.length == 0 && suffixList.push("center");
+    return `position-${suffixList.join("-")}`;
+  }
 }
