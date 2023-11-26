@@ -1,20 +1,16 @@
-# Change Log of This Version
+# Change Log for This Version
 
-Patch for local game mode.
-Frontend GameView rendering mechanism improved.
-Several bug fixes.
+PageView added. Popup layout updated.
+Character opens page view by touching an item.
+Player get notified when a player joins or leaves the room.
 
 ## Backend
 
-- none
+- No changes
 
 ## Frontend
 
-- Updated: The GameView rendering mechanism has been improved for better performance. It now only updates:
-  - The tiles occupied by characters.
-  - The tiles where players set or remove the target beacon.
-- Updated: The Navbar & Dropdown Menu now update in real-time when users join or leave the room.
-- Fixed: An issue causing an infinite loop error when clicking the "Dismiss" button of the alert message has been resolved.
-- Fixed: The "Pause Game" and "New Game" features in the dropdown menu now function correctly in local game mode.
-- Updated: The "Game Players" menu has been adjusted for local game mode.
-- Updated: Adjacent unselectable items in the dropdown menu now form a single block.
+- Added: PageView can now load a web page or a markdown page when a player's character interacts with an item.
+- Updated: The popup layout has been updated to accommodate the new PageView. A gradient background has been added for the message box and buttons. CSS transitions have been added for a smoother popup animation.
+- Updated: A new popup type has been introduced that does not block mouse clicks on the GameView. This is applicable when a popup does not have any buttons for player interaction. It's useful for displaying quick messages that only show for a few seconds and do not require player interaction.
+- Updated: The player will now be notified when another player joins or leaves the room.

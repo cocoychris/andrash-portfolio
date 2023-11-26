@@ -1,6 +1,7 @@
 import React, { MouseEventHandler, ReactNode, useEffect } from "react";
 import "./Popup.css";
 import { IIndexable } from "../lib/data/util";
+import { CSSTransition } from "react-transition-group";
 
 const EMOJI_DICT: IIndexable = {
   info: "📢", //💡
@@ -62,19 +63,12 @@ interface IState {
 export default class Popup extends React.Component<{}, IState> {
   private _timeoutID: NodeJS.Timeout | null = null;
   private _resolve: ((value: any) => void) | null = null;
+  private _popupRef = React.createRef<HTMLDivElement>();
+  private _optionsCache: IPopupOptions | null = null;
 
   public state: IState = {
     options: null,
   };
-  // constructor(props: P) {
-  //   super(props);
-  //   this.state = {
-  //     options: null,
-  //   };
-  //   // this.open = this.open.bind(this);
-  //   // this.close = this.close.bind(this);
-  //   // this._close = this._close.bind(this);
-  // }
   /**
    * Close the popup
    * This will also resolve the promise returned by open()
@@ -114,9 +108,9 @@ export default class Popup extends React.Component<{}, IState> {
     });
   }
 
-  public render() {
-    if (!this.state.options) {
-      return null;
+  private _getPopup() {
+    if (this.state.options) {
+      this._optionsCache = this.state.options;
     }
     let {
       type,
@@ -126,9 +120,14 @@ export default class Popup extends React.Component<{}, IState> {
       showCloseButton,
       buttonLabels,
       buttonActions,
-    } = { ...DEFAULT_OPTIONS, ...this.state.options };
+    } = { ...DEFAULT_OPTIONS, ...this._optionsCache };
+
+    let useMask = showCloseButton || (buttonLabels && buttonLabels.length > 0);
     return (
-      <div className={`mask`}>
+      <div
+        className={`popup ${useMask ? "mask" : "noMask"}`}
+        ref={this._popupRef}
+      >
         <div className={`messageBox ${type}`}>
           <div className="left">
             <div className="title">
@@ -169,6 +168,20 @@ export default class Popup extends React.Component<{}, IState> {
           )}
         </div>
       </div>
+    );
+  }
+
+  public render() {
+    return (
+      <CSSTransition
+        in={this.state.options != null}
+        nodeRef={this._popupRef}
+        timeout={300}
+        classNames="popup"
+        unmountOnExit
+      >
+        {this._getPopup()}
+      </CSSTransition>
     );
   }
 

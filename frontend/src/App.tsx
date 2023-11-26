@@ -8,7 +8,10 @@ import NavbarLayout from "./layouts/NavbarLayout";
 import PopupLayout from "./layouts/PopupLayout";
 import { IPopupOptions } from "./components/Popup";
 import { update } from "@tweenjs/tween.js";
+import PageLayout from "./layouts/PageLayout";
+
 const UPDATE_INTERVAL = 16;
+
 let started = false;
 let gameClient: GameClient = new GameClient("/");
 
@@ -235,6 +238,7 @@ function App() {
       console.log("Has local game data - run local game");
       runLocalGame();
     } else {
+      popupOpen({ title: "Connecting...", showCloseButton: false });
       console.log("No local game data - connect to server");
       // No local game data - connect to server
       gameClient.connect();
@@ -329,7 +333,8 @@ function App() {
         onRunServerGame={runServerGame}
         onRunLocalGame={runLocalGame}
       />
-      <GameLayout gameClient={gameClient} />
+      <GameLayout gameClient={gameClient} popupRef={popupRef} />
+      <PageLayout gameClient={gameClient} />
     </>
   );
 }

@@ -195,8 +195,8 @@ export default class MapView extends React.Component<IMapViewProps, IState> {
     if (this.props.onClick) {
       let scroll = this._toScroll(this._position);
       let point = {
-        x: scroll.left + event.clientX,
-        y: scroll.top + event.clientY,
+        x: scroll.left + event.pageX,
+        y: scroll.top + event.pageY,
       };
       let position = new Position({
         col: point.x / this._cellSize,

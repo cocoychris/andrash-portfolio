@@ -47,6 +47,7 @@ let gameData: IGameData = {
         col: 5,
         row: 5,
       },
+      page: "test.md",
     },
     2: {
       type: "star",
@@ -54,6 +55,7 @@ let gameData: IGameData = {
         col: 6,
         row: 8,
       },
+      page: "notExist.md",
     },
     3: {
       type: "reactIcon",

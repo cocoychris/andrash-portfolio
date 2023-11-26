@@ -2,6 +2,7 @@
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
+  user-select: none;
 }
 
 .mapView .tile {
