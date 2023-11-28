@@ -54,7 +54,9 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
         <CharacterDisplay
           character={character}
           position={{ col, row }}
-          key={`character-${character.id}@${character.position}`}
+          key={`character-${character.id}${
+            character.position.equals({ col, row }) ? "" : "-prev"
+          }`}
         />
       );
     });

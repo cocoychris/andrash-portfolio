@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useRef, useState } from "react";
+import ASSET_MAP, { SVGComponent } from "./../assets/gameDef/asset";
+import { Component, ReactNode, useEffect, useRef, useState } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import { IDropItemData } from "../components/DropdownMenu";
@@ -17,150 +18,169 @@ import { ReactComponent as GiftIcon } from "../assets/icons/gift-svgrepo-com.svg
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/DataHolder";
 import Game from "../lib/Game";
+import PopupLayout from "./PopupLayout";
 
-interface props {
+interface IProps {
   gameClient: GameClient;
+  popupRef: React.RefObject<PopupLayout>;
   onRunServerGame: (mapID: string) => void;
   onRunLocalGame: (mapID: string) => void;
 }
-
-export default function NavbarLayout({
-  gameClient,
-  onRunServerGame,
-  onRunLocalGame,
-}: props) {
-  const [game, setGame] = useState<Game | null>(gameClient.game);
-  const [_, forceUpdate] = useState<number>(0);
-
-  useEffect(() => {
-    let onPlayerGroupUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
-      if (event.data.changes.isChanged) {
-        // console.log("NavbarLayout onPlayerGroupUpdate");
-        forceUpdate(Date.now());
-      }
-    };
-    let onDidNewGame = (event: AnyEvent<IDidNewGameEvent>) => {
-      setGame(gameClient.game);
-      gameClient.game?.playerGroup.on<IDidSetUpdateEvent>(
-        "didSetUpdate",
-        onPlayerGroupUpdate
-      );
-    };
-
-    gameClient.on<IDidNewGameEvent>("didNewGame", onDidNewGame);
-    return () => {
-      gameClient.off<IDidNewGameEvent>("didNewGame", onDidNewGame);
-    };
-  }, []);
-
-  return (
-    <Navbar data={getNavbarData(gameClient, onRunLocalGame, onRunServerGame)} />
-  );
+interface IState {
+  game: Game | null;
 }
 
-function getNavbarData(
-  gameClient: GameClient,
-  onRunLocalGame: Function,
-  onRunServerGame: Function
-): Array<INavItemData> {
-  // Update navbar
+export default class NavbarLayout extends Component<IProps, IState> {
+  private _gameClient: GameClient;
+
+  constructor(props: IProps) {
+    super(props);
+    this._gameClient = props.gameClient;
+    this.state = {
+      game: props.gameClient.game || null,
+    };
+    this._onDidNewGame = this._onDidNewGame.bind(this);
+    this._onPlayerGroupUpdate = this._onPlayerGroupUpdate.bind(this);
+  }
+
+  public componentDidMount(): void {
+    this._gameClient.on<IDidNewGameEvent>("didNewGame", this._onDidNewGame);
+  }
+
+  public componentWillUnmount(): void {
+    this._gameClient.off<IDidNewGameEvent>("didNewGame", this._onDidNewGame);
+    this._gameClient.game?.playerGroup.off<IDidSetUpdateEvent>(
+      "didSetUpdate",
+      this._onPlayerGroupUpdate
+    );
+  }
+
+  private _onDidNewGame(event: AnyEvent<IDidNewGameEvent>) {
+    if (this.state.game) {
+      this.state.game.playerGroup.off<IDidSetUpdateEvent>(
+        "didSetUpdate",
+        this._onPlayerGroupUpdate
+      );
+      this.state.game?.playerGroup.off<IDidSetUpdateEvent>(
+        "didSetUpdate",
+        this._onPlayerGroupUpdate
+      );
+    }
+    this.setState({ game: this._gameClient.game || null });
+    this._gameClient.game?.playerGroup.on<IDidSetUpdateEvent>(
+      "didSetUpdate",
+      this._onPlayerGroupUpdate
+    );
+  }
+
+  private _onPlayerGroupUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
+    if (event.data.changes.isChanged) {
+      this.forceUpdate();
+    }
+  }
+  render(): ReactNode {
+    const { gameClient } = this.props;
+    let nevbarData: Array<INavItemData> = [
+      {
+        id: "fullscreen",
+        icon: "🖥️",
+        onClick: () => {
+          screenfull.toggle();
+          return false;
+        },
+        isEnabled: true,
+      },
+      {
+        id: "players",
+        icon: <PeopleIcon />,
+        menuData: getPlayersMenu(this.props),
+        isEnabled: gameClient.game != null,
+      },
+      {
+        id: "GameMenu",
+        icon: "🕹️",
+        menuData: getGameMenu(this.props),
+      },
+      {
+        id: "notification",
+        icon: <BellIcon />,
+      },
+    ];
+    return <Navbar data={nevbarData} />;
+  }
+}
+
+function getGameMenu(props: IProps): Array<IDropItemData> {
+  const { gameClient, popupRef, onRunLocalGame, onRunServerGame } = props;
   let playerGroup = gameClient.game?.playerGroup;
   let hostPlayer = playerGroup?.hostPlayer;
   let mainPlayer = playerGroup?.mainPlayer;
   let isHost = gameClient.isHost;
-  let navbarData: Array<INavItemData> = [
+  return [
     {
-      id: "fullscreen",
-      icon: "🖥️",
+      id: "hello",
+      label: (
+        <>
+          Hello <b>{mainPlayer?.name}</b>!
+        </>
+      ),
+    },
+    {
+      id: "room",
+      label: `You're at ${isHost ? `your own` : `${hostPlayer?.name}'s`} room.`,
+      leftIcon: <HomeIcon />,
+    },
+    {
+      id: "pause",
+      label: "Pause Game",
+      leftIcon: "⏸️",
       onClick: () => {
-        screenfull.toggle();
-        return false;
+        gameClient.stopGame();
+        return true;
       },
-      isEnabled: true,
+      isEnabled: isHost,
     },
     {
-      id: "players",
-      icon: <PeopleIcon />,
-      menuData: getPlayersMenuData(gameClient),
-      isEnabled: gameClient.game != null,
+      id: "restart",
+      label: "New Game",
+      leftIcon: "♟️",
+      onClick: () => {
+        if (gameClient.isLocalGame) {
+          onRunLocalGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
+        } else {
+          onRunServerGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
+        }
+        return true;
+      },
+      isEnabled: isHost,
     },
     {
-      id: "GameMenu",
-      icon: "🕹️",
-      menuData: [
-        {
-          id: "hello",
-          label: (
-            <>
-              Hello <b>{mainPlayer?.name}</b>!
-            </>
-          ),
-        },
-        {
-          id: "room",
-          label: `You're at ${
-            isHost ? `your own` : `${hostPlayer?.name}'s`
-          } room.`,
-          leftIcon: <HomeIcon />,
-        },
-        {
-          id: "pause",
-          label: "Pause Game",
-          leftIcon: "⏸️",
-          onClick: () => {
-            gameClient.stopGame();
-            return true;
-          },
-          isEnabled: isHost,
-        },
-        {
-          id: "restart",
-          label: "New Game",
-          leftIcon: "♟️",
-          onClick: () => {
-            if (gameClient.isLocalGame) {
-              onRunLocalGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
-            } else {
-              onRunServerGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
-            }
-            return true;
-          },
-          isEnabled: isHost,
-        },
-        {
-          id: "leave",
-          label: "Leave this room",
-          leftIcon: "🚪",
-          onClick: () => {
-            gameClient.clearPublicID();
-            window.location.reload();
-            return true;
-          },
-          isEnabled: !isHost,
-        },
-        {
-          id: "newSession",
-          label: "New room with new identity",
-          leftIcon: "💡",
-          onClick: () => {
-            gameClient.clearSession();
-            window.location.reload();
-            return true;
-          },
-          isEnabled: isHost,
-        },
-      ],
+      id: "leave",
+      label: "Leave this room",
+      leftIcon: "🚪",
+      onClick: () => {
+        gameClient.clearPublicID();
+        window.location.reload();
+        return true;
+      },
+      isEnabled: !isHost,
     },
     {
-      id: "notification",
-      icon: <BellIcon />,
+      id: "newSession",
+      label: "New room with new identity",
+      leftIcon: "💡",
+      onClick: () => {
+        gameClient.clearSession();
+        window.location.reload();
+        return true;
+      },
+      isEnabled: isHost,
     },
   ];
-  return navbarData;
 }
-function getPlayersMenuData(
-  gameClient: GameClient
-): Array<IDropItemData> | null {
+
+function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
+  const { gameClient, popupRef } = props;
   let game = gameClient.game;
   if (!game) {
     return null;
@@ -174,16 +194,27 @@ function getPlayersMenuData(
     id: "players",
     label: <h3>Game Players</h3>,
   });
-  playerDataList.push({
-    id: "host",
-    label: `${hostPlayer?.name} [Host]${
-      hostPlayer?.isOccupied ? "" : " [Offline]"
-    }${hostPlayer == mainPlayer ? " [You]" : ""}`,
-    leftIcon: "🤴",
-    isEnabled: hostPlayer?.isOccupied,
-  });
+  if (hostPlayer) {
+    const HostSvg: SVGComponent = ASSET_MAP.svg(
+      hostPlayer.character.frameDef.svgID
+    ) as SVGComponent;
+    const svgStype = {
+      fill: hostPlayer.character.color,
+      transform: "scale(1.8)",
+    };
+
+    playerDataList.push({
+      id: "host",
+      label: `${hostPlayer?.name} [Host]${
+        hostPlayer?.isOccupied ? "" : " [Offline]"
+      }${hostPlayer == mainPlayer ? " [You]" : ""}`,
+      //prince icon
+      leftIcon: <HostSvg style={svgStype} /> || "🤴",
+      isEnabled: hostPlayer?.isOccupied,
+    });
+  }
   // Local Game
-  if (gameClient.isLocalGame) {
+  if (gameClient.isLocalGame || !hostPlayer) {
     playerDataList.push({
       id: "local",
       label: "Multiplayer is not available in local game.",
@@ -201,12 +232,19 @@ function getPlayersMenuData(
         if (!player.isOccupied) {
           playerAvailable = true;
         }
+        const PlayerSVG = ASSET_MAP.svg(
+          player.character.frameDef.svgID
+        ) as SVGComponent;
+        const svgStype = {
+          fill: player.character.color,
+          transform: "scale(1.8)",
+        };
         return {
           id: String(player.id),
           label: `${player.name}${player.isOccupied ? "" : " [offline]"}${
             player == mainPlayer ? " [You]" : ""
           }`,
-          leftIcon: <PersonIcon />,
+          leftIcon: <PlayerSVG style={svgStype} /> || <PersonIcon />,
           isEnabled: player.isOccupied,
         };
       })
@@ -226,11 +264,36 @@ function getPlayersMenuData(
           id: "1",
           label: "Copy the invitation link",
           leftIcon: <LinkIcon />,
+          onClick: () => {
+            // Copy current URL to clipboard
+            if (!navigator.clipboard) {
+              popupRef.current?.open({
+                type: "info",
+                title: "Please copy the link manually",
+                content: (
+                  <>
+                    <p>
+                      Your browser does not support automatic copy to clipboard.
+                    </p>
+                    <p>
+                      Please copy the link (current URL of this page) from the
+                      address bar and share it with your friend.
+                    </p>
+                  </>
+                ),
+              });
+              return true;
+            }
+            navigator.clipboard.writeText(window.location.href);
+            return true;
+          },
           menuData: [
             {
               id: "0",
-              leftIcon: "✔️",
-              label: "Link copied!",
+              leftIcon: navigator.clipboard ? "✔️" : "👆",
+              label: navigator.clipboard
+                ? "Link copied!"
+                : "Copy it from address bar.",
             },
             {
               id: "1",
@@ -258,11 +321,6 @@ function getPlayersMenuData(
           goBack: true,
         },
       ],
-      onClick: () => {
-        // Copy current URL to clipboard
-        navigator.clipboard.writeText(window.location.href);
-        return true;
-      },
     });
   }
   return playerDataList;

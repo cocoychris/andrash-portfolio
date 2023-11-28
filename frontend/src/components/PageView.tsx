@@ -12,7 +12,7 @@ interface IState {
 }
 
 const MAX_TRANS_TIMEOUT = 1000;
-const MIN_TRANS_TIMEOUT = 300;
+const MIN_TRANS_TIMEOUT = 350;
 
 export default class PageView extends Component<IProps, IState> {
   private _useCache: boolean = true;
@@ -60,7 +60,7 @@ export default class PageView extends Component<IProps, IState> {
         in={this.state.page !== ""}
         nodeRef={this._sectionRef}
         timeout={Math.max(
-          Math.min(window.scrollY * 0.7, MAX_TRANS_TIMEOUT),
+          Math.min(window.scrollY * 0.85, MAX_TRANS_TIMEOUT),
           MIN_TRANS_TIMEOUT
         )}
         classNames="pageSection"

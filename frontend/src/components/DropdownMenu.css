@@ -1,9 +1,10 @@
 .dropdown {
-  --bg: rgba(215, 215, 215, 0.9);
+  --bg: rgba(215, 215, 215, 0.95);
   --textColor: #000000;
   --navSize: 60px;
   --border: 0px solid #ffffff;
   --borderRadius: 8px;
+  --outerBorderRadius: 12px;
   --transDuration: 400ms;
   --menuWidth: 300px;
   --itemHeight: 50px;
@@ -16,13 +17,14 @@
   transform: translateX(50%);
   background-color: var(--bg);
   border: var(--border);
-  border-radius: var(--borderRadius);
+  border-radius: var(--outerBorderRadius);
   padding: 0.5rem;
   overflow: hidden;
   transition: height var(--transDuration) ease;
-  margin-left: 0px;
   font-size: 20px;
+  /* margin-right: max(calc(var(--menuWidth) + 200px - 100vw), 0px); */
 }
+
 .dropdown a {
   color: var(--textColor);
   text-decoration: none;
@@ -100,7 +102,6 @@
 }
 
 .dropdown .icon-left svg {
-  fill: var(--textColor);
   width: 20px;
   height: 20px;
 }

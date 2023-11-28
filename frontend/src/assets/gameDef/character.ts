@@ -5,16 +5,16 @@ const characters: IDefPack<ICharacterDef> = {
     isNPC: false,
     frames: {
       default: {
-        svgID: "PersonIcon",
+        svgID: "PacManStanding",
       },
-      search: {
-        svgID: "SearchIcon",
+      searching: {
+        svgID: "PacManSearching",
       },
-      gift: {
-        svgID: "GiftIcon",
+      chasing: {
+        svgID: "PacManChasing",
       },
-      cart: {
-        svgID: "CartIcon",
+      arrived: {
+        svgID: "PacManArrived",
       },
     },
   },
@@ -22,16 +22,16 @@ const characters: IDefPack<ICharacterDef> = {
     isNPC: false,
     frames: {
       default: {
-        svgID: "HeartIcon",
+        svgID: "GhostStanding",
       },
-      search: {
-        svgID: "SearchIcon",
+      searching: {
+        svgID: "GhostSearching",
       },
-      gift: {
-        svgID: "GiftIcon",
+      chasing: {
+        svgID: "GhostChasing",
       },
-      cart: {
-        svgID: "CartIcon",
+      arrived: {
+        svgID: "GhostArrived",
       },
     },
   },

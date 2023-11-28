@@ -136,7 +136,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
       return;
     }
     this.character.target = null;
-    this.character.color = "#ffffff";
+    this.character.color = null;
     this.character.isEnabled = false;
   }
 }

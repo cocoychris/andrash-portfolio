@@ -6,6 +6,7 @@ import GameView from "../components/GameView";
 import PopupLayout from "./PopupLayout";
 import { IDidSetUpdateEvent } from "../lib/DataHolder";
 import { type } from "os";
+import Player from "../lib/Player";
 
 interface IProps {
   gameClient: GameClient;
@@ -24,11 +25,10 @@ export default class GameLayout extends React.Component<IProps, IState> {
     super(props);
     this._gameClient = props.gameClient;
     this._onNewGame = this._onNewGame.bind(this);
-    this._onPlayerGroupUpdate = this._onPlayerGroupUpdate.bind(this);
-    this._gameClient.game?.playerGroup.on<IDidSetUpdateEvent>(
-      "didSetUpdate",
-      this._onPlayerGroupUpdate
-    );
+    this._onPlayerUpdate = this._onPlayerUpdate.bind(this);
+    if (this._gameClient.game) {
+      this._setPlayerEventListeners(this._gameClient.game);
+    }
     this.state = {
       game: props.gameClient.game || null,
     };
@@ -42,87 +42,55 @@ export default class GameLayout extends React.Component<IProps, IState> {
     this._gameClient.off<IDidNewGameEvent>("didNewGame", this._onNewGame);
     let game = this.state.game;
     if (game) {
-      game.playerGroup.off<IDidSetUpdateEvent>(
-        "didSetUpdate",
-        this._onPlayerGroupUpdate
-      );
-    }
-  }
-
-  private _onPlayerGroupUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
-    if (!event.data.changes.isChanged) {
-      return;
-    }
-    let game = this.state.game;
-    if (!game) {
-      return;
-    }
-    let addedPlayerList = game.playerGroup.filter((player) => {
-      if (player.isOccupied && !this._playerIDDict[player.id]) {
-        this._playerIDDict[player.id] = true;
-        return true;
-      }
-      return false;
-    });
-    if (addedPlayerList.length > 0) {
-      let addedNameList = addedPlayerList.map((player) => player.name);
-      console.log("GameLayout onPlayerGroupUpdate", addedNameList);
-      this.props.popupRef.current?.open({
-        type: "success",
-        title: `${addedNameList.length} player(s) joined the room`,
-        content: (
-          <ul>
-            {addedNameList.map((name, index) => (
-              <li key={index}>{name}</li>
-            ))}
-          </ul>
-        ),
-        timeout: 3000,
-        showCloseButton: false,
-      });
-      return;
-    }
-    let removePlayerList = game.playerGroup.filter((player) => {
-      if (!player.isOccupied && this._playerIDDict[player.id]) {
-        this._playerIDDict[player.id] = false;
-        return true;
-      }
-      return false;
-    });
-    if (removePlayerList.length > 0) {
-      let removeNameList = removePlayerList.map((player) => player.name);
-      this.props.popupRef.current?.open({
-        type: "warning",
-        title: `${removeNameList.length} player(s) left the room`,
-        content: (
-          <ul>
-            {removeNameList.map((name, index) => (
-              <li key={index}>{name}</li>
-            ))}
-          </ul>
-        ),
-        timeout: 3000,
-        showCloseButton: false,
-      });
-      return;
+      this._removePlayerEventListeners(game);
     }
   }
 
   private _onNewGame(event: AnyEvent<IDidNewGameEvent>) {
     let game = this.state.game;
     if (game) {
-      game.playerGroup.off<IDidSetUpdateEvent>(
-        "didSetUpdate",
-        this._onPlayerGroupUpdate
-      );
+      this._removePlayerEventListeners(game);
     }
     let newGame = this._gameClient.game as Game;
-    newGame.playerGroup.on<IDidSetUpdateEvent>(
-      "didSetUpdate",
-      this._onPlayerGroupUpdate
-    );
+    this._setPlayerEventListeners(newGame);
     this.setState({ game: newGame });
   }
+
+  private _setPlayerEventListeners(game: Game) {
+    game.playerGroup.forEach((player) => {
+      player.on<IDidSetUpdateEvent>("didSetUpdate", this._onPlayerUpdate);
+    });
+  }
+
+  private _removePlayerEventListeners(game: Game) {
+    game.playerGroup.forEach((player) => {
+      player.off<IDidSetUpdateEvent>("didSetUpdate", this._onPlayerUpdate);
+    });
+  }
+
+  private _onPlayerUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
+    if (event.data.changes.updateProps.includes("isOccupied")) {
+      let player = event.target as Player;
+      // Player joined
+      if (player.isOccupied) {
+        this.props.popupRef.current?.open({
+          type: "success",
+          title: `${player.name} joined the room`,
+          timeout: 3000,
+          showCloseButton: false,
+        });
+        return;
+      }
+      // Player left
+      this.props.popupRef.current?.open({
+        type: "warning",
+        title: `${player.name} left the room`,
+        timeout: 3000,
+        showCloseButton: false,
+      });
+    }
+  }
+
   public render() {
     let game = this.state.game;
     return (

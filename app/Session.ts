@@ -25,7 +25,8 @@ export interface ISessionRemovedEvent extends IEventType {
 
 const SEC = 1000;
 const MIN = 60 * SEC;
-const DEFAULT_LIFETIME = 10 * MIN;
+const HOUR = 60 * MIN;
+const DEFAULT_LIFETIME = 2 * HOUR;
 const SESSION_DICT: { [id: string]: Session } = {};
 const MAX_CONNECT_ERROR_COUNT = 3;
 

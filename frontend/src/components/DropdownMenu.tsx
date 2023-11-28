@@ -43,6 +43,7 @@ export default function DropdownMenu(props: {
   const menuBRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLElement>(null);
   const routeDataMap = getRouteDataMap(menuData);
+  const initialLeft = useRef<number>(0);
 
   function getRouteDataMap(
     menuData: Array<IDropItemData>
@@ -105,6 +106,7 @@ export default function DropdownMenu(props: {
   //更新選單高度，以便在切換選單時，漸變選單高度  Calculate & update menu height for transform animation.
   useEffect(() => {
     updateMenuHeight(showMenuA ? menuARef : menuBRef);
+    initialLeft.current = dropdownRef.current!.offsetLeft;
     reposition();
   }, []);
 
@@ -113,7 +115,6 @@ export default function DropdownMenu(props: {
       setMenuHeight(ref.current.offsetHeight);
     }
   }
-
   //防止選單超出視窗邊界  Preventing the menu from exceeding the border of the viewport.
   window.addEventListener("resize", reposition);
   function reposition() {
@@ -121,12 +122,9 @@ export default function DropdownMenu(props: {
     if (!dropdown) {
       return;
     }
-    let minPosition = 480; //依據選單寬度，自動計算與視窗左側邊界的距離
-    dropdown.style.left = "auto";
-    let offsetRight = window.innerWidth - dropdown.offsetLeft;
-    if (offsetRight < minPosition) {
-      dropdown.style.left = `${window.innerWidth - minPosition}px`;
-    }
+    const DIFFERENCE = 185;
+    let maxLeft = window.innerWidth - dropdown.clientWidth - DIFFERENCE;
+    dropdown.style.left = `${Math.min(maxLeft, initialLeft.current)}px`;
   }
   // Render Menu
   let currentMenuData = getMenuData(currentMenuRoute);

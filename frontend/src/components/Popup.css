@@ -16,8 +16,8 @@
 }
 .popup .messageBox.info {
   --color_bright: #99ccff;
-  --color_dark: #225599;
-  --color_dark2: #113377;
+  --color_dark: #14498e;
+  --color_dark2: #0a265f;
   --gradient_color1: #a1d0ff;
   --gradient_color2: #99ccff;
   --gradient_color3: #82c0ff;
@@ -40,8 +40,8 @@
 }
 .popup .messageBox.success {
   --color_bright: #99ff99;
-  --color_dark: #229922;
-  --color_dark2: #007700;
+  --color_dark: #188818;
+  --color_dark2: #004e00;
   --gradient_color1: #acffac;
   --gradient_color2: #99ff99;
   --gradient_color3: #88f588;
@@ -51,7 +51,7 @@
   --outer_radius: 10px;
   --inner_radius: 8px;
   width: 95%;
-  margin: 10px auto;
+  margin: 70px auto;
   font-size: 20px;
   border-radius: var(--outer_radius);
   border: 2px solid var(--color_dark);

@@ -330,6 +330,7 @@ function App() {
       />
       <NavbarLayout
         gameClient={gameClient}
+        popupRef={popupRef}
         onRunServerGame={runServerGame}
         onRunLocalGame={runLocalGame}
       />

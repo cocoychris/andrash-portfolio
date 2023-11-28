@@ -33,6 +33,7 @@ export interface ICharacterData extends IIndexable {
   navState?: string;
   color?: string | null;
   isEnabled?: boolean;
+  facingDir?: 1 | -1;
 }
 
 const NAV_STATE = {
@@ -51,6 +52,7 @@ export default class Character
 {
   public static readonly NAV_STATE = NAV_STATE;
   public static readonly DEFAULT_FRAME_NAME = "default";
+  public static readonly DEFAULT_COLOR = "#999999";
 
   private _game: Game;
   private _def: ICharacterDef;
@@ -187,8 +189,8 @@ export default class Character
   /**
    * Get the color of the character.
    */
-  public get color(): string | null {
-    return this.data.color || null;
+  public get color(): string {
+    return this.data.color || Character.DEFAULT_COLOR;
   }
   public set color(color: string | null) {
     this.data.color = color;
@@ -203,6 +205,14 @@ export default class Character
   public set isEnabled(isEnabled: boolean) {
     this.data.isEnabled = isEnabled;
   }
+  /**
+   * Indicate the facing direction of the character.
+   * 1: Right
+   * -1: Left
+   */
+  public get facingDir(): 1 | -1 {
+    return this.data.facingDir || 1;
+  }
 
   /**
    * Do not create a new Character instance with "new Character()" statement.
@@ -212,6 +222,7 @@ export default class Character
     data = applyDefault(data, {
       frameName: Character.DEFAULT_FRAME_NAME,
       navState: NAV_STATE.IDLE,
+      facingDir: 1,
     }) as ICharacterData;
     super(group, data, id);
     this._game = group.game;
@@ -225,8 +236,15 @@ export default class Character
     super.init();
     //Set up event listeners
     let onWillGetUpdate = (event: AnyEvent<IWillGetUpdateEvent>) => {
+      let oldPosition = this.data.position;
       this.data.prevPosition = this.data.position;
       this._navigate();
+      let newPosition = this.getStagedValue("position");
+      if (oldPosition.col < newPosition.col) {
+        this.data.facingDir = 1;
+      } else if (oldPosition.col > newPosition.col) {
+        this.data.facingDir = -1;
+      }
     };
     let onDidSetUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
       this._def = this._game.characterDefLoader.getDef(this.type);
@@ -408,7 +426,7 @@ export default class Character
     if (this.position.equals(this.target)) {
       this.target = null;
       this.navState = Character.NAV_STATE.TARGET_REACHED;
-      this.frameName = "gift";
+      this.frameName = "arrived";
       return;
     }
     let diff = this.target.subtract(this.position);
@@ -417,7 +435,7 @@ export default class Character
     let path = map.findPath(this.position, this.target, horizontalFirst);
     if (path && path.length > 0) {
       this.navState = Character.NAV_STATE.FOUND_PATH;
-      this.frameName = "cart";
+      this.frameName = "chasing";
       this.position = path[0];
       return;
     }
@@ -429,7 +447,7 @@ export default class Character
     );
     if (path && path.length > 0) {
       this.navState = Character.NAV_STATE.FOUND_PATH;
-      this.frameName = "cart";
+      this.frameName = "chasing";
       this.position = path[0];
       return;
     }
@@ -437,7 +455,7 @@ export default class Character
     let position = map.findNext(this);
     if (position) {
       this.navState = Character.NAV_STATE.TRYING;
-      this.frameName = "search";
+      this.frameName = "searching";
       this.position = position;
       return;
     }

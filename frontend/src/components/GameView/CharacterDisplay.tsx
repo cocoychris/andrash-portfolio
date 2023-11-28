@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, FunctionComponent } from "react";
-import Character, { IFrameUpdateEvent, IMoveEvent } from "../../lib/Character";
+import Character, { IMoveEvent } from "../../lib/Character";
 import ASSET_MAP from "../../assets/gameDef/asset";
 import { IPosition } from "../../lib/Position";
 import AnyEvent from "../../lib/events/AnyEvent";
@@ -31,11 +31,9 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
       className: `${DEFAULT_CLASS_NAME} ${this._getStartPositionName()}`,
       frameDef: this._character.frameDef,
     };
-    // this._onCharacterMove = this._onCharacterMove.bind(this);
   }
 
   public componentDidMount(): void {
-    // console.log("Mount", this._position);
     let isCurrent = this._character.position.equals(this._position);
     this._timeoutID = setTimeout(() => {
       if (isCurrent) {
@@ -47,40 +45,40 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
       }
       this._timeoutID = null;
     }, TRANSITION_DELAY);
-    // this._character.once<IMoveEvent>("move", this._onCharacterMove);
   }
 
   public componentWillUnmount(): void {
-    // console.log("Unmount", this._position);
-    // this._character.off<IMoveEvent>("move", this._onCharacterMove);
     if (this._timeoutID) {
       clearTimeout(this._timeoutID);
       this._timeoutID = null;
     }
   }
 
-  // private _onCharacterMove(event: AnyEvent<IMoveEvent>) {
-  //   console.log("onCharacterMove", this._position);
-  //   this._timeoutID = setTimeout(() => {
-  //     this.setState({
-  //       className: `${DEFAULT_CLASS_NAME} ${this._getEndPositionName()}`,
-  //     });
-  //     this._timeoutID = null;
-  //   }, TRANSITION_DELAY);
-  // }
-
   public render() {
-    const iconStyle = { fill: this._character.color || "#ffffff" };
+    let color = this._character.color;
+    let stroke = "none";
     if (this._character.hitCharacter()) {
-      iconStyle.fill = "#ff0000";
+      color = "#ff0000";
+      stroke = "#ffffff";
     }
     if (this._character.hitItem()) {
-      iconStyle.fill = "#00ff00";
+      color = "#00ff00";
+      stroke = "#ffffff";
     }
     const SVG = ASSET_MAP.svg(this._character.frameDef.svgID);
+    let id =
+      "character" + this._character.id + "-" + this._character.frameDef.svgID;
     return (
       <div ref={this._ref} className={this.state.className}>
-        <SVG key="CharacterIcon" className="CharacterIcon" style={iconStyle} />
+        <SVG
+          id={id}
+          className="CharacterIcon"
+          style={{
+            transform: `scaleX(${this._character.facingDir})`,
+            fill: color,
+            stroke: stroke,
+          }}
+        />
       </div>
     );
   }
