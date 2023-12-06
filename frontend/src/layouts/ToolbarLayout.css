@@ -1,0 +1,74 @@
+.toolbar {
+  --mainColor: #336699;
+  --fieldBgColor: #cccccc;
+  --brightColor: #aaddff;
+}
+.toolbar .tile {
+  text-align: center;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: 5px;
+}
+
+.toolbar .tile div.debug {
+  display: none;
+}
+
+.toolbar .tile > svg,
+.toolbar .tile > img {
+  /* position: absolute; */
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.toolbar .tile > svg.itemSVG {
+  z-index: 1;
+}
+.toolbar .tile > img.fgImage {
+  z-index: 5;
+}
+
+.toolbar form {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+}
+.toolbar input {
+  all: unset;
+  width: calc(100% - 6px);
+  height: 100%;
+  border: 2px solid var(--mainColor);
+  background-color: var(--fieldBgColor);
+  font-size: 20px;
+  border-radius: 5px;
+  padding-left: 6px;
+}
+.toolbar input:invalid {
+  background-color: #ff9999;
+}
+
+.toolbar select {
+  font-size: unset;
+  outline: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  text-align: center;
+  background-color: var(--mainColor);
+  color: var(--brightColor);
+  padding: 6px;
+}
+
+.toolbar .nav-item a.icon-button.selected {
+  box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 5px 3px #000000;
+  /* box-shadow: inset 0px 0px 2px 0px #ff9966, 0px 0px 2px 3px #44aacc; */
+}

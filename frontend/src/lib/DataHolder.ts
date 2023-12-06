@@ -1,5 +1,5 @@
-import Destroyable, { IDestroyEvent } from "./Destroyable";
-import { IIndexable } from "./data/util";
+import Destroyable, { IDidDestroyEvent } from "./Destroyable";
+import { IIndexable, cloneObject } from "./data/util";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 
 /**
@@ -131,14 +131,17 @@ export default abstract class DataHolder<
   private _changedDict: { [key in keyof T]?: boolean };
   private _changeSummary: IChangeSummary | null;
   private _init: boolean = false;
-  private _handler: ProxyHandler<T>;
   private _dataChangeEventTimeout: NodeJS.Timeout | null = null;
   /**
-   * A handle for getting current data and setting staged data.
+   * A proxy object for getting current data and setting staged data.
    *
    * When setting a value to a property, the value will be set to the staged data. If the value is different from the current data, the staged data will be marked as changed.
    */
   protected readonly data: T;
+  /**
+   * A proxy object for getting and setting staged data.
+   */
+  protected readonly stagedData: T;
   /**
    * Indicates if the group is initialized.
    */
@@ -155,8 +158,10 @@ export default abstract class DataHolder<
     this._stagedData = { ...data };
     this._changedDict = {};
     this._changeSummary = null;
+
+    // Create a proxy for current data
     // let objType: string = "Player"; // DEBUG
-    this._handler = {
+    let dataHandler = {
       set: (target: T, property: keyof T, value: any) => {
         // this.constructor.name === objType && console.log("set", property, value); // DEBUG
         let currentValue = this._currentData[property];
@@ -182,7 +187,7 @@ export default abstract class DataHolder<
         isChanged && this._dispatchDataChangeEvent();
         return true;
       },
-      ownKeys: (target) => {
+      ownKeys: (target: T) => {
         // this.constructor.name === objType && console.log("ownKeys"); // DEBUG
         return Object.keys(this._currentData);
       },
@@ -200,24 +205,46 @@ export default abstract class DataHolder<
         return true;
       },
     };
-    this.data = new Proxy<T>({} as T, this._handler);
+    this.data = new Proxy<T>({} as T, dataHandler);
+
+    // Create a proxy for staged data
+    let stagedDataHandler = {
+      set: dataHandler.set,
+      get: (target: T, property: keyof T) => {
+        return this._stagedData[property];
+      },
+      deleteProperty: dataHandler.deleteProperty,
+      ownKeys: (target: T) => {
+        return Object.keys(this._stagedData);
+      },
+      has: (target: T, property: keyof T) => {
+        return property in this._stagedData;
+      },
+      getOwnPropertyDescriptor: (target: T, property: keyof T) => {
+        return Object.getOwnPropertyDescriptor(this._stagedData, property);
+      },
+      defineProperty: (target: T, property: keyof T, descriptor: any) => {
+        Object.defineProperty(this._stagedData, property, descriptor);
+        return true;
+      },
+    };
+    this.stagedData = new Proxy<T>({} as T, stagedDataHandler);
 
     // Handle destroy event
-    this.on<IDestroyEvent>("destroy", () => {
-      this._handler.get = (t, p) => {
-        console.warn(
-          `Reading property (${String(p)}) of a destroyed DataHolder`
-        );
-      };
-      let destroyed = (t: T, p: string | symbol) => {
+    this.on<IDidDestroyEvent>("didDestroy", () => {
+      let destroyed = (target: T, property: keyof T) => {
         throw new Error(
-          `Writing or deleting property (${String(
-            p
+          `Cannot access property (${String(
+            property
           )}) of a destroyed DataHolder`
         );
       };
-      this._handler.set = destroyed;
-      this._handler.deleteProperty = destroyed;
+      dataHandler.get = destroyed;
+      dataHandler.set = destroyed;
+      dataHandler.deleteProperty = destroyed;
+      stagedDataHandler.get = destroyed;
+      stagedDataHandler.set = destroyed;
+      stagedDataHandler.deleteProperty = destroyed;
       this._stagedData = null as any;
       this._currentData = null as any;
       if (this._dataChangeEventTimeout) {
@@ -258,39 +285,26 @@ export default abstract class DataHolder<
     return this;
   }
   /**
-   * Get the staged value of a property.
-   * @param property
-   * @returns
-   */
-  public getStagedValue(property: keyof T): T[keyof T] {
-    this.checkDestroyed();
-    return this._stagedData[property];
-  }
-  /**
-   * Get a copy of the staged data.
-   * @returns
-   */
-  public getStagedData(): T {
-    this.checkDestroyed();
-    return { ...this._stagedData };
-  }
-  /**
-   * Set the staged data
+   * Set multiple properties of the data at once.
+   * Note that all the changes will be staged and will not be applied until apply() is called.
    * @param data
    * @event DataHolderEvent.DATA_CHANGE The data change event will be dispatched after the data is set.
    */
-  public setStagedData(data: Partial<T>) {
+  public setData(data: Partial<T>) {
     this.checkDestroyed();
-    this._stagedData = { ...this._stagedData, ...data };
+    this._stagedData = { ...this._stagedData, ...cloneObject(data) };
     this._clearChangeCache();
     this._dispatchDataChangeEvent();
   }
+
   /**
-   * Get a copy of the current data.
+   * Get a copy of the data.
+   * @return a copy of the current data.
    */
-  public getCurrentData(): T {
+  public getData(): T {
+    console.log;
     this.checkDestroyed();
-    return { ...this._currentData };
+    return cloneObject(this._currentData);
   }
 
   /**
@@ -492,7 +506,9 @@ export default abstract class DataHolder<
    */
   protected checkDestroyed() {
     if (this.isDestroyed) {
-      throw new Error("Cannot access property of a destroyed DataHolder");
+      throw new Error(
+        "Cannot access property or method of a destroyed DataHolder"
+      );
     }
   }
 

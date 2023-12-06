@@ -1,24 +1,31 @@
 import { ICharacterDef, ICharacterFrameDef } from "../lib/IDefinition";
+import characterDefPack from "../assets/gameDef/character";
 import CharacterGroup from "./CharacterGroup";
-import Game from "./Game";
+import Game, { IActionPhase } from "./Game";
 import Position, { IPosition } from "./Position";
 import { IIndexable, applyDefault } from "./data/util";
 import Member from "./Member";
-import {
-  IChangeSummary,
-  IDidSetUpdateEvent,
-  IWillGetUpdateEvent,
-} from "./DataHolder";
-import { IDestroyEvent } from "./Destroyable";
+import { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
+import { IWillDestroyEvent } from "./Destroyable";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Tile from "./Tile";
 import Item from "./Item";
+import FieldDef from "./data/FieldDef";
 
-export interface IMoveEvent extends IEventType {
-  type: "move";
+export interface IRepositionEvent extends IEventType {
+  type: "reposition";
+  data: {
+    prevTile: Tile | null;
+    currentTile: Tile | null;
+  };
 }
-export interface IStopEvent extends IEventType {
-  type: "stop";
+
+export interface ITargetUpdateEvent extends IEventType {
+  type: "targetUpdate";
+  data: {
+    prevTarget: Position | null;
+    target: Position | null;
+  };
 }
 
 /**
@@ -29,30 +36,95 @@ export interface ICharacterData extends IIndexable {
   position: IPosition;
   prevPosition?: IPosition;
   frameName?: string;
-  // target?: IPosition | null;
-  navState?: string;
   color?: string | null;
   isEnabled?: boolean;
   facingDir?: 1 | -1;
 }
 
-const NAV_STATE = {
-  IDLE: "idle",
-  STUCK: "stuck",
-  FOUND_PATH: "foundPath",
-  TRYING: "trying",
-  TARGET_REACHED: "targetReached",
+const DEFAULT_DATA: Partial<ICharacterData> = {
+  frameName: "default",
+  color: "#999999",
+  facingDir: 1,
 };
-Object.freeze(NAV_STATE);
-const VALID_NAV_STATE = Object.values(NAV_STATE);
+
+function getFieldDef(game: Game, data: ICharacterData) {
+  return new FieldDef<ICharacterData>(
+    {
+      type: "object",
+      acceptNull: false,
+      children: {
+        type: {
+          type: "string",
+          valueList: Object.keys(characterDefPack),
+        },
+        position: {
+          type: "object",
+          children: {
+            col: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.colCount,
+            },
+            row: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.rowCount,
+            },
+          },
+        },
+        prevPosition: {
+          type: "object",
+          acceptUndefined: true,
+          // editable: false,
+          children: {
+            col: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.colCount,
+            },
+            row: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.rowCount,
+            },
+          },
+        },
+        frameName: {
+          type: "string",
+          acceptUndefined: true,
+          editable: false,
+          // valueList: Object.keys(characterDefPack[data.type].frames),
+        },
+        color: {
+          type: "string",
+          inputType: "color",
+          acceptUndefined: true,
+          acceptNull: true,
+          regExp: /#[0-f]{6}/i,
+        },
+        isEnabled: {
+          type: "boolean",
+          acceptUndefined: true,
+        },
+        facingDir: {
+          type: "number",
+          valueList: [1, -1],
+          acceptUndefined: true,
+        },
+      },
+    },
+    data,
+    "characterData"
+  );
+}
 
 export default class Character
   extends Member<CharacterGroup, ICharacterData>
   implements IPosition
 {
-  public static readonly NAV_STATE = NAV_STATE;
-  public static readonly DEFAULT_FRAME_NAME = "default";
-  public static readonly DEFAULT_COLOR = "#999999";
+  public static readonly DEFAULT_FRAME_NAME: string =
+    DEFAULT_DATA.frameName as string;
+  public static readonly DEFAULT_COLOR: string = DEFAULT_DATA.color as string;
 
   private _game: Game;
   private _def: ICharacterDef;
@@ -61,6 +133,11 @@ export default class Character
   private _isStopping: boolean = false;
   private _currentTile: Tile | null = null;
   private _prevTile: Tile | null = null;
+
+  /**
+   * Indicates whether the character is selected.
+   */
+  public isSelected: boolean = false;
 
   /**
    * Get the type of the character.
@@ -126,7 +203,14 @@ export default class Character
     if (target && !this._game.map.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
+    let prevTarget = this._target;
     this._target = target ? new Position(target) : null;
+    this.emit<ITargetUpdateEvent>(
+      new AnyEvent("targetUpdate", {
+        prevTarget: prevTarget,
+        target: this._target,
+      })
+    );
   }
 
   /**
@@ -165,7 +249,7 @@ export default class Character
    * Get the name of the current frame of the character.
    */
   public get frameName(): string {
-    return this.data.frameName as string;
+    return (this.data.frameName as string) || Character.DEFAULT_FRAME_NAME;
   }
 
   public set frameName(frameName: string) {
@@ -173,19 +257,6 @@ export default class Character
     this.data.frameName = frameName;
   }
 
-  /**
-   * Indicate the current state of the character when navigating.
-   * Use Character.NAV_STATE to compare.
-   */
-  public get navState(): string {
-    return this.data.navState || NAV_STATE.IDLE;
-  }
-  public set navState(navState: string) {
-    if (!VALID_NAV_STATE.includes(navState)) {
-      throw new Error(`Invalid navState: ${navState}`);
-    }
-    this.data.navState = navState;
-  }
   /**
    * Get the color of the character.
    */
@@ -219,11 +290,7 @@ export default class Character
    * Use CharacterGroup.new() instead.
    */
   constructor(group: CharacterGroup, data: ICharacterData, id: number) {
-    data = applyDefault(data, {
-      frameName: Character.DEFAULT_FRAME_NAME,
-      navState: NAV_STATE.IDLE,
-      facingDir: 1,
-    }) as ICharacterData;
+    data = applyDefault(data, DEFAULT_DATA) as ICharacterData;
     super(group, data, id);
     this._game = group.game;
     this._def = this._game.characterDefLoader.getDef(this.type);
@@ -234,40 +301,48 @@ export default class Character
    */
   public init(): this {
     super.init();
-    //Set up event listeners
-    let onWillGetUpdate = (event: AnyEvent<IWillGetUpdateEvent>) => {
-      let oldPosition = this.data.position;
+
+    this.onUpdate<IActionPhase>("action", (event) => {
+      let prevPosition = this.data.position;
       this.data.prevPosition = this.data.position;
       this._navigate();
-      let newPosition = this.getStagedValue("position");
-      if (oldPosition.col < newPosition.col) {
+      let newPosition = this.stagedData.position;
+      if (prevPosition.col < newPosition.col) {
         this.data.facingDir = 1;
-      } else if (oldPosition.col > newPosition.col) {
+      } else if (prevPosition.col > newPosition.col) {
         this.data.facingDir = -1;
       }
-    };
+    });
+    //Set up event listeners
+
+    // Replaced by the above onUpdate event listener - Reserving this for future use
+    // let onWillGetUpdate = (event: AnyEvent<IWillGetUpdateEvent>) => {
+    // };
     let onDidSetUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
       this._def = this._game.characterDefLoader.getDef(this.type);
       this._frameDef = this._getFrameDef(this.frameName);
-      // let changes = event.data.changes as IChangeSummary;
-      // if (this.isMoving || changes.updateProps.includes("prevPosition")) {
       if (this.isMoving) {
         this._isStopping = false;
         this._updateTile();
-        this.emit<IMoveEvent>(new AnyEvent("move", null));
       } else if (!this._isStopping) {
         this._isStopping = true;
         this._updateTile();
-        this.emit<IStopEvent>(new AnyEvent("stop", null));
       }
     };
-    this.on<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
+    let onDidApply = (event: AnyEvent<IDidApplyEvent>) => {
+      this._def = this._game.characterDefLoader.getDef(this.type);
+      this._frameDef = this._getFrameDef(this.frameName);
+      this._updateTile();
+    };
+    // this.on<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
     this.on<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
-    this.once<IDestroyEvent>("destroy", () => {
-      this.off<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
+    this.on<IDidApplyEvent>("didApply", onDidApply);
+    this.once<IWillDestroyEvent>("willDestroy", () => {
+      // this.off<IWillGetUpdateEvent>("willGetUpdate", onWillGetUpdate);
       this.off<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
-      this._currentTile?.internal.characters.delete(this);
-      this._prevTile?.internal.prevCharacters.delete(this);
+      this.off<IDidApplyEvent>("didApply", onDidApply);
+      this._currentTile && this._currentTile["internal"].removeCharacter(this);
+      this._prevTile && this._prevTile["internal"].removePrevCharacter(this);
     });
     // Register to tile
     this._updateTile();
@@ -331,7 +406,7 @@ export default class Character
       return list.length > 0 ? list : null;
     }
     for (let tile of this.currentTile.adjacentTiles) {
-      if (tile.internal.characters.has(target)) {
+      if (tile.hasCharacter(target)) {
         return [target];
       }
     }
@@ -350,7 +425,7 @@ export default class Character
       return list.length > 0 ? list : null;
     }
     // Target on the same tile
-    if (this.currentTile.internal.items.has(target)) {
+    if (this.currentTile.hasItem(target)) {
       return [target];
     }
     return null;
@@ -370,18 +445,22 @@ export default class Character
       return list.length > 0 ? list : null;
     }
     for (let tile of this.currentTile.adjacentTiles) {
-      if (tile.internal.items.has(target)) {
+      if (tile.hasItem(target)) {
         return [target];
       }
     }
     return null;
   }
 
+  public getFieldDef(): FieldDef<ICharacterData> {
+    return getFieldDef(this._game, this.data);
+  }
+
   private _updateTile(): void {
     // Current tile
     if (this.isMoving || !this._currentTile) {
       if (this._currentTile) {
-        this._currentTile.internal.characters.delete(this);
+        this._currentTile["internal"].removeCharacter(this);
       }
       this._currentTile = this._game.map.getTile(this.position);
       if (!this._currentTile) {
@@ -389,11 +468,11 @@ export default class Character
           `Tile not found at ${this.position.col} - ${this.position.row}`
         );
       }
-      this._currentTile.internal.characters.add(this);
+      this._currentTile["internal"].addCharacter(this);
     }
     // Previous tile
     if (this._prevTile) {
-      this._prevTile.internal.prevCharacters.delete(this);
+      this._prevTile["internal"].removePrevCharacter(this);
     }
     this._prevTile = this._game.map.getTile(this.prevPosition);
     if (!this._prevTile) {
@@ -402,7 +481,13 @@ export default class Character
       );
     }
     if (this._prevTile != this._currentTile) {
-      this._prevTile.internal.prevCharacters.add(this);
+      this._prevTile["internal"].addPrevCharacter(this);
+      this.emit<IRepositionEvent>(
+        new AnyEvent("reposition", {
+          prevTile: this._prevTile,
+          currentTile: this._currentTile,
+        })
+      );
     }
   }
 
@@ -418,14 +503,12 @@ export default class Character
     let map = this._game.map;
     //No target
     if (!this.target) {
-      this.navState = Character.NAV_STATE.IDLE;
       this.frameName = "default";
       return;
     }
     //Target reached
     if (this.position.equals(this.target)) {
       this.target = null;
-      this.navState = Character.NAV_STATE.TARGET_REACHED;
       this.frameName = "arrived";
       return;
     }
@@ -434,7 +517,6 @@ export default class Character
     let horizontalFirst = Math.abs(diff.col) > Math.abs(diff.row);
     let path = map.findPath(this.position, this.target, horizontalFirst);
     if (path && path.length > 0) {
-      this.navState = Character.NAV_STATE.FOUND_PATH;
       this.frameName = "chasing";
       this.position = path[0];
       return;
@@ -446,7 +528,6 @@ export default class Character
       !horizontalFirst //Different direction (vertical/horizontal)
     );
     if (path && path.length > 0) {
-      this.navState = Character.NAV_STATE.FOUND_PATH;
       this.frameName = "chasing";
       this.position = path[0];
       return;
@@ -454,14 +535,12 @@ export default class Character
     //Just move somewhere - No guarantee of reaching the this.target. But it's good to keep moving.
     let position = map.findNext(this);
     if (position) {
-      this.navState = Character.NAV_STATE.TRYING;
       this.frameName = "searching";
       this.position = position;
       return;
     }
     //You are stucked! - No where to move, probably caged.
     this.target = null;
-    this.navState = Character.NAV_STATE.STUCK;
     this.frameName = "default";
     return;
   }

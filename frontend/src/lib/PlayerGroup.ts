@@ -1,7 +1,7 @@
 import Game from "./Game";
 import Player, { IPlayerData } from "./Player";
 import Group, { IGroupData } from "./Group";
-import { IDestroyEvent } from "./Destroyable";
+import { IWillDestroyEvent } from "./Destroyable";
 
 export default class PlayerGroup extends Group<
   PlayerGroup,
@@ -64,7 +64,7 @@ export default class PlayerGroup extends Group<
       }
       this._mainPlayerID = mainPlayerID;
       player.isOccupied = true;
-      player.once<IDestroyEvent>("destroy", () => {
+      player.once<IWillDestroyEvent>("willDestroy", () => {
         this._mainPlayerID = -1;
       });
     }
@@ -79,9 +79,7 @@ export default class PlayerGroup extends Group<
 
   public getUnoccupiedPlayers(useStagedValue: boolean = false): Array<Player> {
     return this.list().filter((player) => {
-      return useStagedValue
-        ? !player.getStagedValue("isOccupied")
-        : !player.isOccupied;
+      return useStagedValue ? !player.stagedIsOccupied : !player.isOccupied;
     });
   }
 }

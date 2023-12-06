@@ -4,15 +4,24 @@ import "./DropdownMenu.css";
 import { applyDefault } from "../lib/data/util";
 const LOCATION_SEPARATOR = "-";
 
-export interface IDropItemData {
+export interface IDropItemDataProvider {
   id: string;
+  get: (click: () => void) => IDropItemDataWithoutID;
+}
+
+export interface IDropItemData extends IDropItemDataWithoutID {
+  id: string;
+}
+
+export interface IDropItemDataWithoutID {
   label: ReactNode;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   goBack?: boolean;
   onClick?: (isSelected: boolean) => void | boolean; // boolean: true = force select, false = force deselect, undefined = toggle
-  menuData?: Array<IDropItemData>;
+  menuData?: Array<IDropItemData | IDropItemDataProvider> | null;
   isEnabled?: boolean;
+  get?: undefined;
 }
 
 const DEFAULT_DATA: IDropItemData = {
@@ -26,10 +35,12 @@ const DEFAULT_DATA: IDropItemData = {
   isEnabled: true,
 };
 
-export default function DropdownMenu(props: {
+interface IDropdownMenuProps {
   data: Array<IDropItemData>;
   onClose: () => void;
-}) {
+}
+
+export default function DropdownMenu(props: IDropdownMenuProps) {
   const { data: menuData, onClose } = props;
   const [currentMenuRoute, setCurrentMenuRoute] = useState<Array<string>>([]);
   const [prevMenuRoute, setPrevMenuRoute] = useState<Array<string>>([]);
@@ -42,27 +53,35 @@ export default function DropdownMenu(props: {
   const menuARef = useRef<HTMLElement>(null);
   const menuBRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLElement>(null);
-  const routeDataMap = getRouteDataMap(menuData);
   const initialLeft = useRef<number>(0);
 
-  function getRouteDataMap(
-    menuData: Array<IDropItemData>
-  ): Map<string, Array<IDropItemData>> {
-    let map: Map<string, Array<IDropItemData>> = new Map();
-    let exec = (idList: Array<string>, menuData: Array<IDropItemData>) => {
-      map.set(idList.join(LOCATION_SEPARATOR), menuData);
-      menuData.forEach((itemData) => {
-        if (!itemData.menuData || itemData.menuData.length === 0) {
-          return;
-        }
-        exec([...idList, itemData.id], itemData.menuData);
+  function getMenuData(
+    menuRoute: Array<string>
+  ): Array<IDropItemData | IDropItemDataProvider> | null | undefined {
+    let get = (
+      menuData: Array<IDropItemData | IDropItemDataProvider> | undefined | null,
+      index: number
+    ): Array<IDropItemData | IDropItemDataProvider> | null | undefined => {
+      let isEnd = index === menuRoute.length;
+      if (isEnd) {
+        return menuData;
+      }
+      if (!menuData) {
+        return null;
+      }
+      let itemID = menuRoute[index];
+      let itemDataOrProvider = menuData.find((itemDataOrProvider) => {
+        return itemDataOrProvider.id === itemID;
       });
+      if (!itemDataOrProvider) {
+        return null;
+      }
+      let itemData = itemDataOrProvider.get
+        ? { ...itemDataOrProvider.get(() => {}), id: itemDataOrProvider.id }
+        : (itemDataOrProvider as IDropItemData);
+      return get(itemData.menuData, index + 1);
     };
-    exec([], menuData);
-    return map;
-  }
-  function getMenuData(menuRoute: Array<string>): Array<IDropItemData> | null {
-    return routeDataMap.get(menuRoute.join(LOCATION_SEPARATOR)) || null;
+    return get(menuData, 0);
   }
   //選單跳轉控制函數們  Functions for menu nevigation
   function gotoMenu(id: string | null) {
@@ -86,8 +105,8 @@ export default function DropdownMenu(props: {
       onClose();
       return;
     }
-    setCurrentMenuRoute(newMenuRoute);
     setPrevMenuRoute(currentMenuRoute);
+    setCurrentMenuRoute(newMenuRoute);
     setIsEntering(isEntering);
     setShowMenuA(!showMenuA);
   }
@@ -105,8 +124,11 @@ export default function DropdownMenu(props: {
 
   //更新選單高度，以便在切換選單時，漸變選單高度  Calculate & update menu height for transform animation.
   useEffect(() => {
+    window.addEventListener("resize", reposition);
     updateMenuHeight(showMenuA ? menuARef : menuBRef);
-    initialLeft.current = dropdownRef.current!.offsetLeft;
+    if (dropdownRef.current) {
+      initialLeft.current = dropdownRef.current?.offsetLeft;
+    }
     reposition();
   }, []);
 
@@ -116,15 +138,16 @@ export default function DropdownMenu(props: {
     }
   }
   //防止選單超出視窗邊界  Preventing the menu from exceeding the border of the viewport.
-  window.addEventListener("resize", reposition);
   function reposition() {
     let dropdown = dropdownRef.current;
     if (!dropdown) {
       return;
     }
-    const DIFFERENCE = 185;
-    let maxLeft = window.innerWidth - dropdown.clientWidth - DIFFERENCE;
+    let maxLeft =
+      Math.min(window.outerWidth, window.innerWidth) -
+      dropdown.clientWidth * 1.5;
     dropdown.style.left = `${Math.min(maxLeft, initialLeft.current)}px`;
+    updateMenuHeight(showMenuA ? menuARef : menuBRef);
   }
   // Render Menu
   let currentMenuData = getMenuData(currentMenuRoute);
@@ -194,7 +217,7 @@ export default function DropdownMenu(props: {
 }
 
 function SubMenu(props: {
-  menuData: Array<IDropItemData>;
+  menuData: Array<IDropItemData | IDropItemDataProvider>;
   onItemSelect: (itemData: IDropItemData) => void;
   onUpdate: () => void;
 }) {
@@ -227,7 +250,10 @@ function SubMenu(props: {
       onItemSelect(itemData);
     }
   }
-  let propsList: Array<IMenuItemProps> = menuData.map((data, index) => {
+  let propsList: Array<IMenuItemProps> = menuData.map((_data, index) => {
+    let data: IDropItemData = _data.get
+      ? { ..._data.get(() => onItemClick(data)), id: _data.id }
+      : _data;
     data = applyDefault(data, DEFAULT_DATA);
     let props: IMenuItemProps = {
       key: data.id,
@@ -299,6 +325,7 @@ function MenuItem(props: IMenuItemProps) {
   ];
   connectPrev && classList.push("connectPrev");
   connectNext && classList.push("connectNext");
+
   return (
     <a
       href={isEnabled ? "#" : undefined}
@@ -308,6 +335,7 @@ function MenuItem(props: IMenuItemProps) {
           onItemClick(data);
         }
       }}
+      draggable="false"
     >
       {data.leftIcon && <span className="icon-left">{data.leftIcon}</span>}
       {data.leftIcon ? (

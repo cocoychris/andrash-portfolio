@@ -1,11 +1,12 @@
-.mapView {
+.gameView {
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
   user-select: none;
+  touch-action: none;
 }
 
-.mapView .tile {
+.gameView .tile {
   text-align: center;
   padding: 0;
   margin: 0;
@@ -14,12 +15,19 @@
   background-repeat: no-repeat;
 }
 
-.mapView .tile div.debug {
+.gameView .tile div.debug {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 5;
   display: block;
+  background-color: rgba(255, 255, 255, 0.6);
+  padding: 1px 2px;
+  border-radius: 1px;
+}
+.gameView.debugOff .tile div.debug,
+.gameView .tile.empty div.debug {
+  display: none;
 }
 
 .CharacterIcon {
@@ -66,32 +74,50 @@
   translate: 0% 0%;
 }
 
-.mapView .tile > svg,
-img {
+.CharacterDiv.selected svg {
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000;
+}
+.CharacterDiv.hitCharacter svg {
+  opacity: "0.85";
+}
+.CharacterDiv.hitItem svg {
+  opacity: "0.85";
+}
+
+.gameView .tile > svg,
+.gameView .tile > img {
   position: absolute;
   top: 0;
   left: 0;
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
+  user-select: none;
 }
 
-svg.itemSVG {
+.gameView .tile > svg.itemSVG {
   z-index: 1;
 }
-img.fgImage {
+.gameView .tile > img.fgImage {
   z-index: 5;
 }
 
-svg.targetSVG {
+.gameView .tile > svg.targetSVG {
   position: absolute;
-  top: -20%;
+  top: 0;
   left: 0;
   z-index: 11;
   fill: #ff3333;
   transition: opacity 500ms ease;
   opacity: 1;
 }
-svg.targetSVG.fade-out {
+.gameView .tile > svg.targetSVG.fade-out {
   opacity: 0;
+}
+.gameView .tile.selected {
+  box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000,
+    inset 0 0 20px 6px #ffffff;
 }

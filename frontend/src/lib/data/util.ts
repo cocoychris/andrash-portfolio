@@ -303,3 +303,19 @@ export function filterObjectByKey(
   });
   return newObj;
 }
+
+export function randomInterger(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function randomElement<T>(
+  array: Array<T>,
+  deleteElement: boolean = false
+): T {
+  let index = randomInterger(0, array.length - 1);
+  if (deleteElement) {
+    return array.splice(index, 1)[0];
+  } else {
+    return array[index];
+  }
+}

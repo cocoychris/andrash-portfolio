@@ -1,12 +1,12 @@
 import React, { ReactNode } from "react";
 import Game from "../../lib/Game";
-import "./index.css";
+import "./GameView.css";
 import Position from "../../lib/Position";
-import Character, { IMoveEvent } from "../../lib/Character";
+import Character from "../../lib/Character";
 import Player from "../../lib/Player";
 import { IDidSetUpdateEvent } from "../../lib/DataHolder";
 import AnyEvent from "../../lib/events/AnyEvent";
-import MapView, { IPoint } from "./MapView";
+import MapView, { IMouseInfo, IPoint } from "./MapView";
 import { IIndexable } from "../../lib/data/util";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
@@ -69,14 +69,13 @@ export default class GameView extends React.Component<IProps, IState> {
     }
   }
 
-  private _onViewClick(position: Position, point: IPoint) {
-    // console.log("onViewClick", position, point);
+  private _onViewClick(mouseInfo: IMouseInfo): boolean {
     // Clearing previous target
     if (this._mainPlayer.target) {
       this._mapView.updateTileDisplay(this._mainPlayer.target);
     }
     // Setting new target
-    this._mainPlayer.target = position.floor();
+    this._mainPlayer.target = mouseInfo.position.floor();
     return true;
   }
 
@@ -97,6 +96,7 @@ export default class GameView extends React.Component<IProps, IState> {
   public render() {
     return (
       <MapView
+        className="gameView debugOff"
         game={this._game}
         initPosition={this._mainCharacter.position}
         minVisibleTileCount={MIN_VISIBLE_TILE_COUNT}

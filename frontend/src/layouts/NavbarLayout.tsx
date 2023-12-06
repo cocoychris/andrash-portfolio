@@ -104,6 +104,9 @@ export default class NavbarLayout extends Component<IProps, IState> {
       {
         id: "notification",
         icon: <BellIcon />,
+        onClick: (navItem) => {
+          return false;
+        },
       },
     ];
     return <Navbar data={nevbarData} />;
@@ -116,7 +119,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
   let hostPlayer = playerGroup?.hostPlayer;
   let mainPlayer = playerGroup?.mainPlayer;
   let isHost = gameClient.isHost;
-  return [
+  let menuData = [
     {
       id: "hello",
       label: (
@@ -152,7 +155,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
         }
         return true;
       },
-      isEnabled: isHost,
+      isEnabled: isHost && gameClient.mode != GameClient.MODE_EDITOR,
     },
     {
       id: "leave",
@@ -174,9 +177,23 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
         window.location.reload();
         return true;
       },
-      isEnabled: isHost,
+      isEnabled: isHost && gameClient.mode != GameClient.MODE_EDITOR,
     },
   ];
+
+  if (gameClient.mode == GameClient.MODE_EDITOR) {
+    menuData.unshift({
+      id: "editor",
+      label: "Edit Map",
+      leftIcon: "📝",
+      onClick: () => {
+        gameClient.editor?.stopTesting();
+        return true;
+      },
+      isEnabled: isHost,
+    });
+  }
+  return menuData;
 }
 
 function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
@@ -232,7 +249,7 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
         if (!player.isOccupied) {
           playerAvailable = true;
         }
-        const PlayerSVG = ASSET_MAP.svg(
+        const CharacterSVG = ASSET_MAP.svg(
           player.character.frameDef.svgID
         ) as SVGComponent;
         const svgStype = {
@@ -244,7 +261,7 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
           label: `${player.name}${player.isOccupied ? "" : " [offline]"}${
             player == mainPlayer ? " [You]" : ""
           }`,
-          leftIcon: <PlayerSVG style={svgStype} /> || <PersonIcon />,
+          leftIcon: <CharacterSVG style={svgStype} /> || <PersonIcon />,
           isEnabled: player.isOccupied,
         };
       })

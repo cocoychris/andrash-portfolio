@@ -1,6 +1,6 @@
 import Group from "./Group";
-import DataHolder from "./DataHolder";
 import { IIndexable } from "./data/util";
+import DataUpdater from "./DataUpdater";
 
 /**
  * A member of a group.
@@ -10,7 +10,7 @@ import { IIndexable } from "./data/util";
 export default abstract class Member<
   TGroup extends Group<TGroup, TMemberData, Member<TGroup, TMemberData>>,
   TMemberData extends IIndexable
-> extends DataHolder<TMemberData> {
+> extends DataUpdater<TMemberData> {
   private _id: number;
   private _group: TGroup;
 

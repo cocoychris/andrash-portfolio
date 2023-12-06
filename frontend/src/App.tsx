@@ -1,30 +1,47 @@
 import "./App.css";
 import GameLayout from "./layouts/GameLayout";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import GameClient, { IErrorEvent } from "./lib/GameClient";
 import { IGameStopEvent, IGameTickEvent } from "./lib/events/transEventTypes";
 import { IConnectEvent, IDisconnectEvent } from "./lib/events/Transmitter";
 import NavbarLayout from "./layouts/NavbarLayout";
+import ToolbarLayout from "./layouts/ToolbarLayout";
 import PopupLayout from "./layouts/PopupLayout";
 import { IPopupOptions } from "./components/Popup";
 import { update } from "@tweenjs/tween.js";
 import PageLayout from "./layouts/PageLayout";
+import EditorLayout from "./layouts/EditorLayout";
+import Editor, { IStartTestingEvent, IStopTestingEvent } from "./lib/Editor";
+import preventLongPressMenu from "./components/preventLongPressMenu";
 
 const UPDATE_INTERVAL = 16;
 
-let started = false;
+// Get parameter `mode` from url
 let gameClient: GameClient = new GameClient("/");
+let started = false;
+
+preventLongPressMenu();
 
 function App() {
   console.log("App");
   const popupRef = useRef<PopupLayout>(null);
+  const [showEditor, setShowEditor] = useState<boolean>(
+    gameClient.editor != null && !gameClient.editor.isTesting
+  );
   useEffect(() => {
     if (started) {
       return;
     }
     started = true;
-    startGaneClient();
+    startGameClient();
     setInterval(update, UPDATE_INTERVAL);
+    gameClient.editor?.on<IStartTestingEvent>("startTesting", () => {
+      console.log("onStartTesting");
+      setShowEditor(false);
+    });
+    gameClient.editor?.on<IStopTestingEvent>("stopTesting", () => {
+      setShowEditor(true);
+    });
   }, []);
 
   function popupOpen(options: IPopupOptions): Promise<any> {
@@ -43,7 +60,7 @@ function App() {
     popupRef.current?.warning(title, message);
   }
 
-  function startGaneClient() {
+  function startGameClient() {
     // Set up gameClient event listeners
     gameClient.on<IConnectEvent>("connect", async (event) => {
       try {
@@ -233,16 +250,18 @@ function App() {
       }
     });
     // Start gameClient
-    // Has local game data - run local game
-    if (gameClient.hasLocalGameData) {
-      console.log("Has local game data - run local game");
-      runLocalGame();
-    } else {
-      popupOpen({ title: "Connecting...", showCloseButton: false });
-      console.log("No local game data - connect to server");
-      // No local game data - connect to server
-      gameClient.connect();
+    console.log(`Running in ${gameClient.mode} mode`);
+    if (gameClient.mode == GameClient.MODE_EDITOR) {
+      // TODO: Start editor mode here
+
+      return;
     }
+    if (gameClient.mode == GameClient.MODE_LOCAL) {
+      runLocalGame();
+      return;
+    }
+    popupOpen({ title: "Connecting...", showCloseButton: false });
+    gameClient.connect();
   }
 
   async function runServerGame(mapID?: string) {
@@ -250,9 +269,8 @@ function App() {
     try {
       popupOpen({ title: "Loading...", showCloseButton: false });
       await gameClient.loadGame({
-        isLocalGame: false,
         tickInterval: undefined,
-        mapID: mapID,
+        mapID,
       });
     } catch (error) {
       popupError("Failed to load game from server", (error as Error).message);
@@ -272,7 +290,6 @@ function App() {
     console.log("runLocalGame");
     try {
       await gameClient.loadGame({
-        isLocalGame: true,
         tickInterval: undefined,
         mapID,
       });
@@ -280,7 +297,6 @@ function App() {
       popupError("Failed to run game on local", (error as Error).message);
       return;
     }
-
     // Notify user that the game is running in local mode
     popupOpen({
       type: "warning",
@@ -314,29 +330,54 @@ function App() {
       buttonActions: [
         null,
         () => {
-          gameClient.clearSession();
-          window.location.reload();
+          gameClient.mode = GameClient.MODE_SERVER;
         },
       ],
     });
   }
-
-  return (
-    <>
-      <PopupLayout
+  // Render layouts
+  let layouts = [
+    <PopupLayout
+      key="popup-layout"
+      gameClient={gameClient}
+      onRunLocalGame={runLocalGame}
+      ref={popupRef}
+    />,
+  ];
+  if (showEditor) {
+    layouts.push(
+      <ToolbarLayout
+        key="toolbar-layout"
         gameClient={gameClient}
-        onRunLocalGame={runLocalGame}
-        ref={popupRef}
+        popupRef={popupRef}
       />
+    );
+    layouts.push(
+      <EditorLayout
+        key="editor-layout"
+        editor={gameClient.editor as Editor}
+        popupRef={popupRef}
+      />
+    );
+  } else {
+    layouts.push(
       <NavbarLayout
+        key="navbar-layout"
         gameClient={gameClient}
         popupRef={popupRef}
         onRunServerGame={runServerGame}
         onRunLocalGame={runLocalGame}
       />
-      <GameLayout gameClient={gameClient} popupRef={popupRef} />
-      <PageLayout gameClient={gameClient} />
-    </>
-  );
+    );
+    layouts.push(
+      <GameLayout
+        key="game-layout"
+        gameClient={gameClient}
+        popupRef={popupRef}
+      />
+    );
+  }
+  layouts.push(<PageLayout key="page-layout" gameClient={gameClient} />);
+  return layouts;
 }
 export default App;

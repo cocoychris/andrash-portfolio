@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState, FunctionComponent } from "react";
-import Character, { IMoveEvent } from "../../lib/Character";
+import Character from "../../lib/Character";
 import ASSET_MAP from "../../assets/gameDef/asset";
 import { IPosition } from "../../lib/Position";
 import AnyEvent from "../../lib/events/AnyEvent";
 import { ICharacterFrameDef } from "../../lib/IDefinition";
+import tinycolor from "tinycolor2";
 
 interface IProps {
   character: Character;
@@ -22,11 +23,13 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
   private _character: Character;
   private _position: IPosition;
   private _timeoutID: NodeJS.Timeout | null = null;
+  private _isCurrent: boolean;
 
   constructor(props: IProps) {
     super(props);
     this._character = this.props.character;
     this._position = this.props.position;
+    this._isCurrent = this._character.position.equals(this._position);
     this.state = {
       className: `${DEFAULT_CLASS_NAME} ${this._getStartPositionName()}`,
       frameDef: this._character.frameDef,
@@ -34,9 +37,8 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
   }
 
   public componentDidMount(): void {
-    let isCurrent = this._character.position.equals(this._position);
     this._timeoutID = setTimeout(() => {
-      if (isCurrent) {
+      if (this._isCurrent) {
         this.setState({ className: `${DEFAULT_CLASS_NAME} position-center` });
       } else {
         this.setState({
@@ -55,30 +57,39 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
   }
 
   public render() {
-    let color = this._character.color;
-    let stroke = "none";
+    let svgStyle: React.CSSProperties = {
+      transform: `scaleX(${this._character.facingDir})`,
+      fill: this._character.color,
+      stroke: "none",
+    };
+    let classList = [this.state.className];
+    if (!this._character.isEnabled) {
+      classList.push("disabled");
+      svgStyle.fill = Character.DEFAULT_COLOR;
+    }
+    if (this._character.isSelected) {
+      classList.push("selected");
+      svgStyle.stroke = "#ffffff";
+      svgStyle.strokeWidth = "4px";
+    }
     if (this._character.hitCharacter()) {
-      color = "#ff0000";
-      stroke = "#ffffff";
+      classList.push("hitCharacter");
+      svgStyle.fill = tinycolor(this._character.color).brighten(30).toString();
+      svgStyle.stroke = "#ffffff";
+      svgStyle.strokeWidth = "4px";
     }
     if (this._character.hitItem()) {
-      color = "#00ff00";
-      stroke = "#ffffff";
+      classList.push("hitItem");
+      svgStyle.fill = tinycolor(this._character.color).brighten(30).toString();
+      svgStyle.stroke = "#ffffff";
+      svgStyle.strokeWidth = "4px";
     }
     const SVG = ASSET_MAP.svg(this._character.frameDef.svgID);
     let id =
       "character" + this._character.id + "-" + this._character.frameDef.svgID;
     return (
-      <div ref={this._ref} className={this.state.className}>
-        <SVG
-          id={id}
-          className="CharacterIcon"
-          style={{
-            transform: `scaleX(${this._character.facingDir})`,
-            fill: color,
-            stroke: stroke,
-          }}
-        />
+      <div ref={this._ref} className={classList.join(" ")}>
+        <SVG id={id} className="CharacterIcon" style={svgStyle} />
       </div>
     );
   }

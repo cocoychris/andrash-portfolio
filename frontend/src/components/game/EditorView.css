@@ -1,0 +1,30 @@
+.editorView {
+  --mapBorderRadius: 20px;
+  --lightBorder: 3px solid #999999;
+  --darkBorder: 3px solid #666666;
+}
+.editorView .tile.top {
+  border-top: var(--lightBorder);
+}
+.editorView .tile.bottom {
+  border-bottom: var(--darkBorder);
+}
+.editorView .tile.left {
+  border-left: var(--lightBorder);
+}
+.editorView .tile.right {
+  border-right: var(--darkBorder);
+}
+
+.editorView .tile.top.left {
+  border-top-left-radius: var(--mapBorderRadius);
+}
+.editorView .tile.top.right {
+  border-top-right-radius: var(--mapBorderRadius);
+}
+.editorView .tile.bottom.left {
+  border-bottom-left-radius: var(--mapBorderRadius);
+}
+.editorView .tile.bottom.right {
+  border-bottom-right-radius: var(--mapBorderRadius);
+}

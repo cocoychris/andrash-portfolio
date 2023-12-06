@@ -1,9 +1,12 @@
 import { ITileDef } from "../lib/IDefinition";
 import GameMap from "./GameMap";
-import DataHolder, { IDidSetUpdateEvent } from "./DataHolder";
+import tileDefPack from "../assets/gameDef/tile";
+import DataHolder, { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
 import Character from "./Character";
 import Item from "./Item";
 import Position, { IPosition } from "./Position";
+import AnyEvent, { IEventType } from "./events/AnyEvent";
+import FieldDef from "./data/FieldDef";
 
 export interface ITileData {
   // Name of the tile definition (ITypeDef.name)
@@ -14,21 +17,79 @@ export interface ITileData {
   bgColor?: string | null;
 }
 
+export interface ICharacterAddedEvent extends IEventType {
+  type: "characterAdded";
+  data: {
+    isPrev: boolean;
+    character: Character;
+  };
+}
+export interface ICharacterRemovedEvent extends IEventType {
+  type: "characterRemoved";
+  data: {
+    isPrev: boolean;
+    character: Character;
+  };
+}
+export interface IItemAddedEvent extends IEventType {
+  type: "itemAdded";
+  data: {
+    item: Item;
+  };
+}
+export interface IItemRemovedEvent extends IEventType {
+  type: "itemRemoved";
+  data: {
+    item: Item;
+  };
+}
+
+function getFieldDef(data: ITileData) {
+  return new FieldDef<ITileData>(
+    {
+      type: "object",
+      acceptNull: false,
+      children: {
+        type: {
+          type: "string",
+          valueList: Object.keys(tileDefPack),
+        },
+        walkable: {
+          type: "boolean",
+          acceptUndefined: true,
+          acceptNull: true,
+        },
+        bgColor: {
+          type: "string",
+          inputType: "color",
+          acceptUndefined: true,
+          acceptNull: true,
+          regExp: /#[0-f]{6}/i,
+        },
+      },
+    },
+    data,
+    "characterData"
+  );
+}
+
 //Tile class
 export default class Tile extends DataHolder<ITileData> implements IPosition {
   private _tileDef: ITileDef;
   private _map: GameMap;
   private _position: IPosition;
   private _adjacentTiles: Array<Tile> | null = null;
-
-  /**
-   * Only access this from Character and Item class
-   */
-  public internal = Object.freeze({
-    characters: new Set<Character>(),
-    prevCharacters: new Set<Character>(),
-    items: new Set<Item>(),
-  });
+  private _characters: Set<Character> = new Set();
+  private _prevCharacters: Set<Character> = new Set();
+  private _items: Set<Item> = new Set();
+  private internal = {
+    addCharacter: this._addCharacter.bind(this),
+    removeCharacter: this._removeCharacter.bind(this),
+    addPrevCharacter: this._addPrevCharacter.bind(this),
+    removePrevCharacter: this._removePrevCharacter.bind(this),
+    addItem: this._addItem.bind(this),
+    removeItem: this._removeItem.bind(this),
+  };
 
   /**
    * The row where the tile is located in the map
@@ -102,16 +163,16 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
    * All characters on the tile
    */
   public get characters(): Array<Character> {
-    return Array.from(this.internal.characters);
+    return Array.from(this._characters);
   }
   public get prevCharacters(): Array<Character> {
-    return Array.from(this.internal.prevCharacters);
+    return Array.from(this._prevCharacters);
   }
   /**
    * All items on the tile
    */
   public get items(): Array<Item> {
-    return Array.from(this.internal.items);
+    return Array.from(this._items);
   }
   /**
    * Get the tile on the top of this tile
@@ -162,6 +223,10 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
     return this._map.getTile({ row: this.row + 1, col: this.col + 1 });
   }
   /**
+   * Indicate if the tile is highlighted
+   */
+  public isSelected: boolean = false;
+  /**
    * Get all adjacent tiles
    */
   public get adjacentTiles(): Array<Tile> {
@@ -200,10 +265,77 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
     super.init();
     //Set up event listeners
     this.on<IDidSetUpdateEvent>("didSetUpdate", () => {
-      // this._tileDef = this._getTileDef();
       this._adjacentTiles = null;
     });
+    this.on<IDidApplyEvent>("didApply", (event: AnyEvent<IDidApplyEvent>) => {
+      if (event.data.changes.updateProps.includes("type")) {
+        this._tileDef = this._getTileDef();
+      }
+    });
     return this;
+  }
+
+  public getFieldDef(): FieldDef<ITileData> {
+    return getFieldDef(this.data);
+  }
+
+  public hasCharacter(character: Character): boolean {
+    return this._characters.has(character);
+  }
+  public hasPrevCharacter(character: Character): boolean {
+    return this._prevCharacters.has(character);
+  }
+  public hasItem(item: Item): boolean {
+    return this._items.has(item);
+  }
+
+  private _addCharacter(character: Character) {
+    this._characters.add(character);
+    this.emit<ICharacterAddedEvent>(
+      new AnyEvent<ICharacterAddedEvent>("characterAdded", {
+        isPrev: false,
+        character,
+      })
+    );
+  }
+  private _removeCharacter(character: Character) {
+    this._characters.delete(character);
+    this.emit<ICharacterRemovedEvent>(
+      new AnyEvent<ICharacterRemovedEvent>("characterRemoved", {
+        isPrev: false,
+        character,
+      })
+    );
+  }
+  private _addPrevCharacter(character: Character) {
+    this._prevCharacters.add(character);
+    this.emit<ICharacterAddedEvent>(
+      new AnyEvent<ICharacterAddedEvent>("characterAdded", {
+        isPrev: true,
+        character,
+      })
+    );
+  }
+  private _removePrevCharacter(character: Character) {
+    this._prevCharacters.delete(character);
+    this.emit<ICharacterRemovedEvent>(
+      new AnyEvent<ICharacterRemovedEvent>("characterRemoved", {
+        isPrev: true,
+        character,
+      })
+    );
+  }
+  private _addItem(item: Item) {
+    this._items.add(item);
+    this.emit<IItemAddedEvent>(
+      new AnyEvent<IItemAddedEvent>("itemAdded", { item })
+    );
+  }
+  private _removeItem(item: Item) {
+    this._items.delete(item);
+    this.emit<IItemRemovedEvent>(
+      new AnyEvent<IItemRemovedEvent>("itemRemoved", { item })
+    );
   }
 
   private _getTileDef(): ITileDef {

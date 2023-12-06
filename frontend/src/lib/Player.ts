@@ -3,6 +3,8 @@ import { IIndexable, applyDefault, filterObjectByKey } from "./data/util";
 import Member from "./Member";
 import Character from "./Character";
 import Position, { IPosition } from "./Position";
+import FieldDef from "./data/FieldDef";
+import Game from "./Game";
 
 /**
  * Essential data for creating a new character object.
@@ -23,7 +25,53 @@ const DEFAULT_PLAYER_DATA: IPlayerData = {
   isOccupied: false,
 };
 
+function getFieldDef(game: Game, data: IPlayerData) {
+  return new FieldDef<IPlayerData>(
+    {
+      type: "object",
+      acceptNull: false,
+      children: {
+        name: {
+          type: "string",
+        },
+        color: {
+          type: "string",
+          regExp: /#[0-f]{6}/i,
+        },
+        characterID: {
+          type: "number",
+          editable: false,
+        },
+        target: {
+          type: "object",
+          acceptNull: true,
+          acceptUndefined: true,
+          children: {
+            col: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.colCount,
+            },
+            row: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.rowCount,
+            },
+          },
+        },
+        isOccupied: {
+          type: "boolean",
+          acceptUndefined: true,
+        },
+      },
+    },
+    data,
+    "characterData"
+  );
+}
+
 export default class Player extends Member<PlayerGroup, IPlayerData> {
+  private _isSelected: boolean = false;
   /**
    * The name of the player.
    */
@@ -69,6 +117,8 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
   }
   /**
    * The target position of the player.
+   * When reading, the value is from current data.
+   * When writing, the value is written to staged data.
    */
   public get target(): Position | null {
     return this.data.target ? new Position(this.data.target) : null;
@@ -81,11 +131,10 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
   }
   /**
    * The staged target position of the player.
+   * The value is from staged data.
    */
   public get stagedTarget(): Position | null {
-    return this.getStagedValue("target")
-      ? new Position(this.getStagedValue("target"))
-      : null;
+    return this.stagedData.target ? new Position(this.stagedData.target) : null;
   }
   /**
    * The character object that the player is using.
@@ -95,12 +144,31 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
   }
   /**
    * Whether the player is taken by a user session.
+   * When reading, the value is from current data.
+   * When writing, the value is written to staged data.
    */
   public get isOccupied(): boolean {
     return this.data.isOccupied || false;
   }
   public set isOccupied(isOccupied: boolean) {
     this.data.isOccupied = isOccupied;
+  }
+  /**
+   * Whether the player is taken by a user session.
+   * The value is from staged data.
+   */
+  public get stagedIsOccupied(): boolean {
+    return this.stagedData.isOccupied || false;
+  }
+  /**
+   * Whether the player is selected.
+   */
+  public get isSelected(): boolean {
+    return this._isSelected;
+  }
+  public set isSelected(isSelected: boolean) {
+    this.character.isSelected = isSelected;
+    this._isSelected = isSelected;
   }
 
   /**
@@ -118,17 +186,21 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
    * Sync player data with its character.
    */
   public updateCharacter() {
-    if (!this.getStagedValue("isOccupied")) {
+    if (!this.stagedData.isOccupied) {
       this._disableCharacter();
       return;
     }
     if (!this.character) {
       return;
     }
-    let target = this.getStagedValue("target");
+    let target = this.stagedData.target;
     this.character.target = target ? new Position(target) : null;
-    this.character.color = this.getStagedValue("color");
+    this.character.color = this.stagedData.color;
     this.character.isEnabled = true;
+  }
+
+  public getFieldDef(): FieldDef<IPlayerData> {
+    return getFieldDef(this.group.game, this.data);
   }
 
   private _disableCharacter() {
@@ -136,7 +208,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
       return;
     }
     this.character.target = null;
-    this.character.color = null;
+    // this.character.color = null;
     this.character.isEnabled = false;
   }
 }

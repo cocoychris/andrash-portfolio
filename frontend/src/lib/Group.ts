@@ -1,12 +1,14 @@
 import Member from "./Member";
-import DataHolder, {
+import {
   IChangeSummary,
   IDidSetUpdateEvent,
+  IWillApplyEvent,
   IWillGetUpdateEvent,
 } from "./DataHolder";
 import { IIndexable } from "./data/util";
-import { IDestroyEvent } from "./Destroyable";
+import { IWillDestroyEvent } from "./Destroyable";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
+import DataUpdater from "./DataUpdater";
 
 /**
  * Will trigger before a member is added to the group.
@@ -72,7 +74,7 @@ export default abstract class Group<
   TGroup extends Group<TGroup, TMemberData, TMember>,
   TMemberData extends IIndexable,
   TMember extends Member<TGroup, TMemberData>
-> extends DataHolder<IGroupData<TMemberData>> {
+> extends DataUpdater<IGroupData<TMemberData>> {
   private _idNum: number = 0;
   private _new: boolean = false;
   private _memberDict: IMemberDict<TMember>;
@@ -114,6 +116,14 @@ export default abstract class Group<
     });
     this.on<IDidSetUpdateEvent>("didSetUpdate", (event) => {
       this.setMemberUpdates(event.data.changes);
+    });
+    this.on<IWillApplyEvent>("willApply", () => {
+      // Apply all the members.
+      members.forEach((member) => member.apply());
+    });
+    this.onAllUpdate((phase, props) => {
+      // Update all the members.
+      members.forEach((member) => member.update(phase, props));
     });
     return this;
   }
@@ -168,31 +178,18 @@ export default abstract class Group<
     this.checkInit();
     return Object.values(this._memberDict).filter(callback);
   }
-  /**
-   * Get the staged data of all the members.
-   * @returns
-   */
-  public getStagedData(): IGroupData<TMemberData> {
-    this.checkDestroyed();
-    // Get staged data from all the members.
-    // This is necessary because the data in the group may be cached as null values to indicate that the member data is not changed.
-    let data: IGroupData<TMemberData> = {};
-    Object.keys(this._memberDict).forEach((id: any) => {
-      data[id] = this._memberDict[id].getStagedData();
-    });
-    return data;
-  }
+
   /**
    * Get the current data of all the members.
    * @returns
    */
-  public getCurrentData(): IGroupData<TMemberData> {
+  public getData(): IGroupData<TMemberData> {
     this.checkDestroyed();
     // Get current data from all the members.
     // This is necessary because the data in the group may be cached as null values to indicate that the member data is not changed.
     let data: IGroupData<TMemberData> = {};
     Object.keys(this._memberDict).forEach((id: any) => {
-      data[id] = this._memberDict[id].getCurrentData();
+      data[id] = this._memberDict[id].getData();
     });
     return data;
   }
@@ -208,10 +205,7 @@ export default abstract class Group<
    * Override this method to add custom update logic.
    */
   protected getMemberUpdates() {
-    let idList: Array<number> = Object.keys(this._memberDict).map((id) => {
-      return parseInt(id);
-    });
-    idList.forEach((id) => {
+    Object.keys(this._memberDict).forEach((id: any) => {
       const member = this._memberDict[id];
       this.data[id] = member.getUpdate();
     });
@@ -257,7 +251,7 @@ export default abstract class Group<
     this._new = false;
     this._memberDict[id] = member;
 
-    member.once<IDestroyEvent>("destroy", () => {
+    member.once<IWillDestroyEvent>("willDestroy", () => {
       this.emit<IWillRemoveMemberEvent>(
         new AnyEvent("willRemoveMember", { memberID: id, member: member })
       );

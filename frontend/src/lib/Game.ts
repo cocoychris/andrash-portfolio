@@ -9,14 +9,23 @@ import { IGroupData } from "./Group";
 import { IItemData } from "./Item";
 import DataHolder, {
   IDidSetUpdateEvent,
+  IWillApplyEvent,
   IWillGetUpdateEvent,
 } from "./DataHolder";
 import { IPlayerData } from "./Player";
 import PlayerGroup from "./PlayerGroup";
 import { cloneObject } from "./data/util";
+import DataUpdater, { IUpdatePhase } from "./DataUpdater";
+import { IDidDestroyEvent, IWillDestroyEvent } from "./Destroyable";
 
 export interface IGameData {
+  /**
+   * No need to set this manually. This will be set automatically when the game is created.
+   */
   id?: string;
+  /**
+   * No need to set this manually. This will be set automatically by the server or client.
+   */
   hostPlayerID?: number;
   playerDataDict: IGroupData<IPlayerData> | null;
   characterDataDict: IGroupData<ICharacterData> | null;
@@ -24,9 +33,33 @@ export interface IGameData {
   mapData: IMapData | null;
 }
 export interface IGameDef {
-  charaterDefPack: IDefPack<ICharacterDef>;
+  characterDefPack: IDefPack<ICharacterDef>;
   tileDefPack: IDefPack<ITileDef>;
   itemDefPack: IDefPack<IItemDef>;
+}
+/**
+ * Action phase: An update phase for game elements to perform their AI actions or human controlled actions.
+ * For example, the new position of a character after moving will be calculated in this phase.
+ */
+export interface IActionPhase extends IUpdatePhase {
+  phase: "action";
+  props: null;
+}
+/**
+ * Interaction phase: An update phase for calculating the interaction between game elements after the action phase.
+ * For example, when a character hits another character, the collision will be detected in this phase.
+ */
+export interface IInteractionPhase extends IUpdatePhase {
+  phase: "interaction";
+  props: null;
+}
+/**
+ * Correction phase: An update phase for correcting the game data after the interaction phase.
+ * For example, if a character is overlapping with another character after collision, the position of the character will be corrected to avoid overlapping in this phase.
+ */
+export interface ICorrectionPhase extends IUpdatePhase {
+  phase: "correction";
+  props: null;
 }
 
 const DEFAULT_UPDATE_INTERVAL = 600;
@@ -38,7 +71,7 @@ let gameNum = 0;
  * Represents a game session. A game session contains all the game data and objects.
  * To restart a game, create a new Game instance.
  */
-export default class Game extends DataHolder<IGameData> {
+export default class Game extends DataUpdater<IGameData> {
   private _tickNum: number;
   private _playerGroup: PlayerGroup;
   private _characterGroup: CharacterGroup;
@@ -50,15 +83,22 @@ export default class Game extends DataHolder<IGameData> {
   private _intervalID: NodeJS.Timeout | null = null;
   private _isRunning: boolean = false;
   private _tickInterval: number = DEFAULT_UPDATE_INTERVAL;
-
+  /**
+   * A unique ID of the game.
+   * This is helpful when you want to distinguish different games.
+   */
   public get id(): string {
     return this.data.id as string;
   }
-
+  /**
+   * Get the current tick number of the game.
+   */
   public get tickNum(): number {
     return this._tickNum;
   }
-
+  /**
+   * The ID of the player who hosts the game.
+   */
   public get hostPlayerID(): number {
     return this.data.hostPlayerID as number;
   }
@@ -67,24 +107,28 @@ export default class Game extends DataHolder<IGameData> {
   }
   /**
    * Get the player group that manages all the players.
+   * Only available after init().
    */
   public get playerGroup(): PlayerGroup {
     return this._playerGroup;
   }
   /**
    * Get the game map object that contains all the tiles and map information.
+   * Only available after init().
    */
   public get map(): GameMap {
     return this._map;
   }
   /**
    * Get the item group that manages all the items.
+   * Only available after init().
    */
   public get itemGroup(): ItemGroup {
     return this._itemGroup;
   }
   /**
    * Get the character group that manages all the characters.
+   * Only available after init().
    */
   public get characterGroup(): CharacterGroup {
     return this._characterGroup;
@@ -114,19 +158,26 @@ export default class Game extends DataHolder<IGameData> {
   public get isRunning(): boolean {
     return this._isRunning;
   }
-
+  /**
+   * Get the update interval of the game in milliseconds.
+   */
   public get tickInterval(): number {
     return this._tickInterval;
   }
-
+  /**
+   * Create a new game.
+   * @param gameDef The game definition that contains all the definitions of tiles, characters and items.
+   * @param data The game data that will be used to create the game.
+   */
   constructor(gameDef: IGameDef, data: IGameData) {
+    _checkGameData(data);
     data = cloneObject(data);
     !data.id && (data.id = _generateGameID());
     data.hostPlayerID === undefined && (data.hostPlayerID = -1);
     super(data);
     this._tickNum = 0;
     this._tileDefLoader = new DefLoader(gameDef.tileDefPack);
-    this._characterDefLoader = new DefLoader(gameDef.charaterDefPack);
+    this._characterDefLoader = new DefLoader(gameDef.characterDefPack);
     this._itemDefLoader = new DefLoader(gameDef.itemDefPack);
 
     if (!this.data.playerDataDict) {
@@ -151,6 +202,7 @@ export default class Game extends DataHolder<IGameData> {
   }
   /**
    * Initialize the game.
+   * This will create playerGroup, map, characterGroup and itemGroup and all the child objects using the data provided in the constructor.
    * @param tickNum The initial tick number of the game. Default to 0.
    * @param tickInterval The update interval of the game in milliseconds. Default to 600.
    */
@@ -195,6 +247,21 @@ export default class Game extends DataHolder<IGameData> {
       this._characterGroup.setUpdate(this.data.characterDataDict);
       this._itemGroup.setUpdate(this.data.itemDataDict);
     });
+    this.on<IWillApplyEvent>("willApply", () => {
+      this._playerGroup.apply();
+      this._map.apply();
+      this._characterGroup.apply();
+      this._itemGroup.apply();
+    });
+    this.on<IWillDestroyEvent>("willDestroy", () => {
+      this.stop();
+    });
+    this.on<IDidDestroyEvent>("didDestroy", () => {
+      this._playerGroup.destroy();
+      this._map.destroy();
+      this._characterGroup.destroy();
+      this._itemGroup.destroy();
+    });
     return this;
   }
   /**
@@ -237,51 +304,43 @@ export default class Game extends DataHolder<IGameData> {
   }
   /**
    * Update the game data to the next tick manually.
-   * @param gameData The game data to update to. If not provided, the game calls getUpdate() to get the game data. Pass null to skip the update and only increment the tick.
+   * @param gameData The game data to update to. If not provided, the game will run its own update logic to generate the next game data.
+   * Pass null to skip the update and only increment the tick number.
    */
   public tick(gameData?: IGameData | null): IGameData | null {
-    gameData = gameData === undefined ? this.getUpdate() : gameData;
+    // Will skip this section if gameData is null
+    if (gameData === undefined) {
+      this._characterGroup.update<IActionPhase>("action", null);
+      this._itemGroup.update<IActionPhase>("action", null);
+
+      // Other update phases -  Not yet implemented - Reserved for future use.
+      // this._characterGroup.update<IInteractionPhase>("interaction", null);
+      // this._itemGroup.update<IInteractionPhase>("interaction", null);
+      // this._characterGroup.update<ICorrectionPhase>("correction", null);
+      // this._itemGroup.update<ICorrectionPhase>("correction", null);
+
+      gameData = this.getUpdate();
+    }
+    // Apply the update
     this.setUpdate(gameData);
     // Increment the tick
     this._tickNum++;
     return gameData;
   }
-  /**
-   * Get the staged game data.
-   * @returns
-   */
-  public getStagedData(): IGameData {
-    // Get staged data from all the child objects.
-    // This is necessary because the data of Game may be cached as null values to indicate that the child data is not changed.
-    let data: IGameData = { ...super.getStagedData() };
-    data.playerDataDict = this._playerGroup.getStagedData();
-    data.mapData = this._map.getStagedData();
-    data.characterDataDict = this._characterGroup.getStagedData();
-    data.itemDataDict = this._itemGroup.getStagedData();
-    return data;
-  }
+
   /**
    * Get the current game data.
    * @returns
    */
-  public getCurrentData(): IGameData {
+  public getData(): IGameData {
     // Get current data from all the child objects.
     // This is necessary because the data of Game may be cached as null values to indicate that the child data is not changed.
     let data: IGameData = { ...this.data };
-    data.playerDataDict = this._playerGroup.getCurrentData();
-    data.mapData = this._map.getCurrentData();
-    data.characterDataDict = this._characterGroup.getCurrentData();
-    data.itemDataDict = this._itemGroup.getCurrentData();
+    data.playerDataDict = this._playerGroup.getData();
+    data.mapData = this._map.getData();
+    data.characterDataDict = this._characterGroup.getData();
+    data.itemDataDict = this._itemGroup.getData();
     return data;
-  }
-
-  public destroy() {
-    this.stop();
-    this._playerGroup.destroy();
-    this._map.destroy();
-    this._characterGroup.destroy();
-    this._itemGroup.destroy();
-    super.destroy();
   }
 }
 
@@ -290,4 +349,34 @@ function _generateGameID(): string {
   return `G${gameNum}-${Math.floor(Math.random() * 36 * 36).toString(
     36
   )}${Date.now().toString(36)}`;
+}
+
+function _checkGameData(data: IGameData) {
+  if (!data.mapData) {
+    throw new Error("Map data is missing.");
+  }
+  if (!data.mapData.id) {
+    throw new Error("Map ID is missing.");
+  }
+  if (!data.mapData.name) {
+    throw new Error("Map name is missing.");
+  }
+  if (!data.mapData.colCount) {
+    throw new Error("Map column count is missing.");
+  }
+  if (!data.mapData.rowCount) {
+    throw new Error("Map row count is missing.");
+  }
+  if (!data.mapData.tileData2DArray) {
+    throw new Error("Map tile data is missing.");
+  }
+  if (!data.playerDataDict) {
+    throw new Error("Player data is missing.");
+  }
+  if (!data.characterDataDict) {
+    throw new Error("Character data is missing.");
+  }
+  if (!data.itemDataDict) {
+    throw new Error("Item data is missing.");
+  }
 }

@@ -1,14 +1,24 @@
 import { IItemDef, IItemFrameDef } from "../lib/IDefinition";
+import itemDefPack from "../assets/gameDef/item";
 import Game from "./Game";
 import ItemGroup from "./ItemGroup";
 import Position, { IPosition } from "./Position";
 import { applyDefault } from "./data/util";
 import Member from "./Member";
-import { IDidSetUpdateEvent } from "./DataHolder";
-import { IDestroyEvent } from "./Destroyable";
+import { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
+import { IWillDestroyEvent } from "./Destroyable";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Tile from "./Tile";
 import Character from "./Character";
+import FieldDef from "./data/FieldDef";
+
+export interface IRepositionEvent extends IEventType {
+  type: "reposition";
+  data: {
+    prevTile: Tile | null;
+    currentTile: Tile | null;
+  };
+}
 
 /**
  * Essential data for creating a new item object.
@@ -19,15 +29,59 @@ export interface IItemData {
   inFront?: boolean | null; // Indicate if the item should be in front of the character. If null, use item definition.
   frameName?: string; // The name of the frame. If null, use default frame name.
   page?: string | null; // The page to link to. If null, use item definition.
+  facingDir?: 1 | -1;
 }
 
-export interface IRepositionEvent extends IEventType {
-  type: "reposition";
-  data: {
-    prevTile: Tile;
-  };
+function getFieldDef(game: Game, data: IItemData) {
+  return new FieldDef<IItemData>(
+    {
+      type: "object",
+      acceptNull: false,
+      children: {
+        type: {
+          type: "string",
+          valueList: Object.keys(itemDefPack),
+        },
+        position: {
+          type: "object",
+          children: {
+            col: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.colCount,
+            },
+            row: {
+              type: "number",
+              minNum: 0,
+              maxNum: game.map.rowCount,
+            },
+          },
+        },
+        inFront: {
+          type: "boolean",
+          acceptUndefined: true,
+        },
+        frameName: {
+          type: "string",
+          acceptUndefined: true,
+          editable: false,
+        },
+        page: {
+          type: "string",
+          acceptUndefined: true,
+          acceptNull: true,
+        },
+        facingDir: {
+          type: "number",
+          valueList: [1, -1],
+          acceptUndefined: true,
+        },
+      },
+    },
+    data,
+    "itemData"
+  );
 }
-
 export default class Item
   extends Member<ItemGroup, IItemData>
   implements IPosition
@@ -142,6 +196,15 @@ export default class Item
   }
 
   /**
+   * Indicate the facing direction of the character.
+   * 1: Right
+   * -1: Left
+   */
+  public get facingDir(): 1 | -1 {
+    return this.data.facingDir || 1;
+  }
+
+  /**
    * Create a new game item
    * @param data
    */
@@ -161,18 +224,17 @@ export default class Item
   public init(): this {
     super.init();
     //Set up event listeners
-    let onDidSetUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
+    let onDidSetUpdate = () => {
       this._itemDef = this._getItemDef(this.type as string);
       this._frameDef = this._getFrameDef(this.frameName as string);
-      let prevTile = this._updateTile();
-      if (prevTile) {
-        this.emit<IRepositionEvent>(new AnyEvent("reposition", { prevTile }));
-      }
+      this._updateTile();
     };
     this.on<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
-    this.once<IDestroyEvent>("destroy", () => {
+    this.on<IDidApplyEvent>("didApply", onDidSetUpdate);
+    this.once<IWillDestroyEvent>("willDestroy", () => {
       this.off<IDidSetUpdateEvent>("didSetUpdate", onDidSetUpdate);
-      this._currentTile?.internal.items.delete(this);
+      this.off<IDidApplyEvent>("didApply", onDidSetUpdate);
+      this._currentTile && this._currentTile["internal"].removeItem(this);
     });
     // Register to tile
     this._updateTile();
@@ -190,7 +252,7 @@ export default class Item
       return list.length > 0 ? list : null;
     }
     // Target on the same tile
-    if (this.currentTile.internal.items.has(target)) {
+    if (this.currentTile.hasItem(target)) {
       return [target];
     }
     return null;
@@ -210,12 +272,13 @@ export default class Item
       return list.length > 0 ? list : null;
     }
     for (let tile of this.currentTile.adjacentTiles) {
-      if (tile.internal.items.has(target)) {
+      if (tile.hasItem(target)) {
         return [target];
       }
     }
     return null;
   }
+
   /**
    * Get characters that this item is colliding with.
    * @param target A specific character to check collision with. If null, check collision with all characters on the same tile.
@@ -230,7 +293,7 @@ export default class Item
       return list.length > 0 ? list : null;
     }
     // Target on the same tile
-    if (this.currentTile.internal.characters.has(target)) {
+    if (this.currentTile.hasCharacter(target)) {
       return [target];
     }
     return null;
@@ -251,14 +314,14 @@ export default class Item
       return list.length > 0 ? list : null;
     }
     for (let tile of this.currentTile.adjacentTiles) {
-      if (tile.internal.characters.has(target)) {
+      if (tile.hasCharacter(target)) {
         return [target];
       }
     }
     return null;
   }
 
-  private _updateTile(): Tile | null {
+  private _updateTile() {
     let tile = this._game.map.getTile(this.position);
     if (!tile) {
       throw new Error(
@@ -270,12 +333,22 @@ export default class Item
       return null;
     }
     if (this._currentTile) {
-      this._currentTile.internal.items.delete(this);
+      this._currentTile["internal"].removeItem(this);
     }
     let prevTile = this._currentTile;
     this._currentTile = tile;
-    this._currentTile.internal.items.add(this);
-    return prevTile;
+    this._currentTile["internal"].addItem(this);
+
+    this.emit<IRepositionEvent>(
+      new AnyEvent("reposition", {
+        prevTile,
+        currentTile: this._currentTile,
+      })
+    );
+  }
+
+  public getFieldDef(): FieldDef<IItemData> {
+    return getFieldDef(this._game, this.data);
   }
 
   private _getItemDef(type: string): IItemDef {

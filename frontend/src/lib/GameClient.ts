@@ -1,3 +1,4 @@
+import Editor from "../lib/Editor";
 import Game, { IGameData, IGameDef } from "./Game";
 import { io, Socket } from "socket.io-client";
 import {
@@ -19,23 +20,41 @@ import AnyEventEmitter from "./events/AnyEventEmitter";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import DEFAULT_GAME_DATA from "../assets/gameData/default";
 import tileDefPack from "../assets/gameDef/tile";
-import charaterDefPack from "../assets/gameDef/character";
+import characterDefPack from "../assets/gameDef/character";
 import itemDefPack from "../assets/gameDef/item";
 import { delay } from "./data/util";
 import { IDataChangeEvent } from "./DataHolder";
-import { IDestroyEvent } from "./Destroyable";
+import { IWillDestroyEvent } from "./Destroyable";
 import FruitNameGenerator from "./FruitNameGenerator";
 
 let DEFAULT_GAME_DEF: IGameDef = {
-  charaterDefPack,
+  characterDefPack,
   tileDefPack,
   itemDefPack,
 };
 
 export interface ILoadGameOptions {
-  isLocalGame?: boolean;
-  tickInterval?: number;
+  /**
+   * Will load the game with the specified map ID.
+   * If not specified, previous game session will be loaded.
+   * If no previous game session is found, the default map will be loaded.
+   */
   mapID?: string;
+  /**
+   * Load the game with the specified game data instead of loading with the map ID.
+   * Only works when running the game locally.
+   */
+  gameData?: IGameData;
+  /**
+   * The player ID of the local player. (aka mainPlayerID)
+   */
+  playerID?: number;
+  /**
+   * The tick interval of the game in milliseconds.
+   * If running the game locally, this value will be used to run the game.
+   * If running the game on the server, there is no guarantee that the game will run at this interval.
+   */
+  tickInterval?: number;
 }
 
 export interface IErrorEvent extends IEventType {
@@ -52,7 +71,7 @@ export interface IErrorEvent extends IEventType {
 // }
 export interface IDidNewGameEvent extends IEventType {
   type: "didNewGame";
-  data: null;
+  data: { game: Game };
 }
 
 const EVENT_TIMEOUT = 5000;
@@ -65,9 +84,18 @@ const EVENT_RETRY_INTERVAL = 200;
 export default class GameClient extends AnyEventEmitter {
   public static readonly DEFAULT_MAP_ID: string =
     DEFAULT_GAME_DATA.mapData?.id || "default";
+  public static readonly MODE_LOCAL: string = "local";
+  public static readonly MODE_SERVER: string = "server";
+  public static readonly MODE_EDITOR: string = "editor";
+  private static readonly _VALID_MODES: Array<string> = [
+    GameClient.MODE_LOCAL,
+    GameClient.MODE_SERVER,
+    GameClient.MODE_EDITOR,
+  ];
+
+  private _mode: string = "";
   private _game: Game | null = null;
   private _gameDef: IGameDef;
-  private _isLocalGame: boolean = false; // Whether the game is running in local without connecting to the server.
   private _isSyncing: boolean = false;
   private _localSession: LocalSession;
   private _isAuthenticated: boolean = false;
@@ -75,6 +103,31 @@ export default class GameClient extends AnyEventEmitter {
   private _isHost: boolean = false;
   private _gameStopTimeoutID: NodeJS.Timeout | null = null;
 
+  /**
+   * The mode of the game client.
+   */
+  public get mode(): string {
+    return this._mode;
+  }
+  /**
+   * Set the mode of the game client.
+   * Note that this will reload the page.
+   */
+  public set mode(value: string) {
+    if (!GameClient._VALID_MODES.includes(value)) {
+      throw new Error(`Invalid mode: ${value}`);
+    }
+    //Change and go to new URL
+    let url = new URL(window.location.href);
+    url.searchParams.set("mode", value);
+    // window.history.pushState("", "", url.toString());
+    window.location.assign(url);
+  }
+  /**
+   * The editor instance.
+   * The value is null if the client is not running in editor mode.
+   */
+  public readonly editor: Editor | null;
   /**
    * The game that is currently running.
    * The value is null if no game is running.
@@ -87,13 +140,10 @@ export default class GameClient extends AnyEventEmitter {
    * This property is updated after loading a game.
    */
   public get isLocalGame(): boolean {
-    return this._isLocalGame;
-  }
-  /**
-   * Whether there is local game data stored in the client.
-   */
-  public get hasLocalGameData(): boolean {
-    return this._localSession.gameData != null;
+    return (
+      this._mode == GameClient.MODE_LOCAL ||
+      this._mode == GameClient.MODE_EDITOR
+    );
   }
 
   /**
@@ -106,7 +156,7 @@ export default class GameClient extends AnyEventEmitter {
    * Whether the client is the owner of the room/game.
    */
   public get isHost(): boolean {
-    return this._isLocalGame || this._isHost;
+    return this.isLocalGame || this._isHost;
   }
 
   /**
@@ -115,6 +165,8 @@ export default class GameClient extends AnyEventEmitter {
    */
   constructor(serverURL: string) {
     super();
+    this._mode = this._getMode();
+    this.editor = this.mode == GameClient.MODE_EDITOR ? new Editor(this) : null;
     let socket = io(serverURL, { autoConnect: false });
     this._transmitter = new Transmitter(
       socket,
@@ -235,21 +287,21 @@ export default class GameClient extends AnyEventEmitter {
   public async loadGame(options: ILoadGameOptions): Promise<Game> {
     console.log("loadGame");
     // Loading default map from local
-    let loadPreviousGame = !options.mapID; // No mapID means load previous game
-    let isDefaultMap = options.mapID == GameClient.DEFAULT_MAP_ID;
-    if (options.isLocalGame && (loadPreviousGame || isDefaultMap)) {
-      this._transmitter.disconnect();
-      this._localSession.publicID = "";
-      let newGameOptions = {
-        gameData:
-          (loadPreviousGame && this._localSession.gameData) ||
-          DEFAULT_GAME_DATA,
-        isLocalGame: true,
-        tickInterval: options.tickInterval,
-        playerID: 0,
-      };
-      console.log("Creating new local game...", newGameOptions);
-      return await this._newGame(newGameOptions);
+    if (this.isLocalGame) {
+      let localGameData: IGameData | null =
+        options.gameData || this._getLocalGameData(options.mapID);
+      if (localGameData) {
+        this._transmitter.disconnect();
+        this._localSession.publicID = "";
+        let newGameOptions = {
+          gameData: localGameData,
+          isLocalGame: true,
+          tickInterval: options.tickInterval,
+          playerID: options.playerID || 0,
+        };
+        console.log("Creating new local game...", newGameOptions);
+        return await this._newGame(newGameOptions);
+      }
     }
     // Loading other map from server
     if (!this._isAuthenticated) {
@@ -258,7 +310,9 @@ export default class GameClient extends AnyEventEmitter {
     let response = await this._transmitter.transmit<ILoadGameEvent>(
       "loadGame",
       {
-        ...options,
+        isLocalGame: this.isLocalGame,
+        mapID: options.mapID,
+        tickInterval: options.tickInterval,
       }
     );
     if (response.error) {
@@ -281,7 +335,7 @@ export default class GameClient extends AnyEventEmitter {
     if (this.isLocalGame) {
       this._game.run((tick) => {
         tick();
-        this._localSession.gameData = this._game?.getCurrentData() || null;
+        this._localSession.gameData = this._game?.getData() || null;
       });
       return;
     }
@@ -349,7 +403,6 @@ export default class GameClient extends AnyEventEmitter {
 
   private async _newGame(options: {
     gameData: IGameData;
-    isLocalGame: boolean;
     tickInterval?: number;
     playerID: number;
     tickNum?: number;
@@ -359,12 +412,11 @@ export default class GameClient extends AnyEventEmitter {
     if (this._game) {
       this._game.destroy();
     }
-    this._isLocalGame = options.isLocalGame;
     // Create the game.
     this._game = new Game(this._gameDef, options.gameData);
     this._game.init(options.tickNum, options.tickInterval, options.playerID);
     console.log(
-      `New ${this._isLocalGame ? "local" : "remote"} game created`,
+      `New ${this.isLocalGame ? "local" : "remote"} game created`,
       this._game.id
     );
     // Monitor the data change of the main player and update it to the game.
@@ -373,23 +425,24 @@ export default class GameClient extends AnyEventEmitter {
       throw new Error("Client main player not found");
     }
     // Assign local player
-    if (this._isLocalGame) {
+    if (this.isLocalGame) {
       player.isOccupied = true;
       player.name = FruitNameGenerator.newName();
       this._game.hostPlayerID = player.id;
     }
     player.dataChangeEventDelay = 10;
     player.on<IDataChangeEvent>("dataChange", this._onMainPlayerDataChange);
-    player.on<IDestroyEvent>("destroy", () => {
+    player.on<IWillDestroyEvent>("willDestroy", () => {
       player?.off<IDataChangeEvent>("dataChange", this._onMainPlayerDataChange);
     });
     // Clean up the game when it is destroyed.
-    this._game.once<IDestroyEvent>("destroy", async (event) => {
+    this._game.once<IWillDestroyEvent>("willDestroy", async (event) => {
       this._stopSyncing();
       this._game = null;
     });
-
-    this.emit<IDidNewGameEvent>(new AnyEvent("didNewGame", null));
+    this.emit<IDidNewGameEvent>(
+      new AnyEvent("didNewGame", { game: this._game })
+    );
     return this._game;
   }
 
@@ -491,7 +544,7 @@ export default class GameClient extends AnyEventEmitter {
       return;
     }
     // Local game
-    if (this._isLocalGame) {
+    if (this.isLocalGame) {
       player.updateCharacter();
       return;
     }
@@ -548,6 +601,27 @@ export default class GameClient extends AnyEventEmitter {
       this._gameStopTimeoutID = null;
     }
   }
+
+  private _getLocalGameData(mapID?: string): IGameData | null {
+    // Load previous game data
+    if (!mapID) {
+      return this._localSession.gameData || DEFAULT_GAME_DATA;
+    }
+    // Load default game data
+    if (mapID == DEFAULT_GAME_DATA.id) {
+      return DEFAULT_GAME_DATA;
+    }
+    return null;
+  }
+
+  private _getMode() {
+    let url = new URL(window.location.href);
+    let mode = url.searchParams.get("mode");
+    if (mode && GameClient._VALID_MODES.includes(mode)) {
+      return mode;
+    }
+    return GameClient.MODE_SERVER;
+  }
 }
 
 class LocalSession {
@@ -572,9 +646,13 @@ class LocalSession {
   public set publicID(publicID: string) {
     this._publicID = publicID;
     if (publicID) {
-      window.history.pushState("", "", `/?room=${publicID}`);
+      let url = new URL(window.location.href);
+      url.searchParams.set("room", publicID);
+      window.history.pushState("", "", url.toString());
     } else {
-      window.history.pushState("", "", `/`);
+      let url = new URL(window.location.href);
+      url.searchParams.delete("room");
+      window.history.pushState("", "", url.toString());
     }
   }
   public get gameData(): IGameData | null {

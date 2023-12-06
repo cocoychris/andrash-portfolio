@@ -2,13 +2,11 @@ import Character from "./Character";
 import Game from "./Game";
 import Position, { IPosition } from "./Position";
 import Tile, { ITileData } from "./Tile";
-import DataHolder, {
-  IDidSetUpdateEvent,
-  IWillGetUpdateEvent,
-} from "./DataHolder";
+import { IDidSetUpdateEvent, IWillGetUpdateEvent } from "./DataHolder";
 import Item from "./Item";
 import { IDidAddMemberEvent } from "./Group";
 import AnyEvent from "./events/AnyEvent";
+import DataUpdater from "./DataUpdater";
 
 export interface IMapData {
   id: string;
@@ -24,7 +22,7 @@ export interface IMapData {
 /**
  * Represents a game map. A game map contains all the tiles and map information.
  */
-export default class GameMap extends DataHolder<IMapData> {
+export default class GameMap extends DataUpdater<IMapData> {
   private _game: Game;
   private _tile2DArray: Array<Array<Tile>>;
   /**
@@ -38,6 +36,9 @@ export default class GameMap extends DataHolder<IMapData> {
    */
   public get name(): string {
     return this.data.name;
+  }
+  public set name(value: string) {
+    this.data.name = value;
   }
   /**
    * Get number of columns
@@ -101,6 +102,14 @@ export default class GameMap extends DataHolder<IMapData> {
       this._setTileUpdates();
     });
     return this;
+  }
+
+  public getData(): IMapData {
+    let data = super.getData();
+    data.tileData2DArray = this._tile2DArray.map((rowTiles) => {
+      return rowTiles.map((tile) => tile.getData());
+    });
+    return data;
   }
 
   /**

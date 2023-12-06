@@ -22,9 +22,7 @@
   overflow: hidden;
   transition: height var(--transDuration) ease;
   font-size: 20px;
-  /* margin-right: max(calc(var(--menuWidth) + 200px - 100vw), 0px); */
 }
-
 .dropdown a {
   color: var(--textColor);
   text-decoration: none;
@@ -124,9 +122,13 @@
 
 .menu-moveRight {
   width: var(--menuWidth);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 .menu-moveLeft {
   width: var(--menuWidth);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
 .menu-moveRight.menu-enter {

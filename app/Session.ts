@@ -5,7 +5,9 @@ import Transmitter, {
   IConnectErrorEvent,
   IConnectEvent,
 } from "../frontend/src/lib/events/Transmitter";
-import Destroyable, { IDestroyEvent } from "../frontend/src/lib/Destroyable";
+import Destroyable, {
+  IWillDestroyEvent,
+} from "../frontend/src/lib/Destroyable";
 import { IEventType } from "../frontend/src/lib/events/AnyEvent";
 import FruitNameGenerator from "../frontend/src/lib/FruitNameGenerator";
 
@@ -185,7 +187,7 @@ export default class Session extends Destroyable {
       this._transmitter.cancelWaiting(); // Stop waiting for response to all events.
     });
     // Clean up when the session is destroyed.
-    this.on<IDestroyEvent>("destroy", () => {
+    this.on<IWillDestroyEvent>("willDestroy", () => {
       console.log(`[Session ${this._id}] Session destroyed.`);
       if (this._ownRoom.sessionList.length == 0) {
         this._ownRoom.destroy();

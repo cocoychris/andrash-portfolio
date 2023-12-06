@@ -15,9 +15,11 @@ import TransEvent from "../frontend/src/lib/events/TransEvent";
 
 import DEFAULT_GAME_DATA from "../frontend/src/assets/gameData/default";
 import tileDefPack from "../frontend/src/assets/gameDef/tile";
-import charaterDefPack from "../frontend/src/assets/gameDef/character";
+import characterDefPack from "../frontend/src/assets/gameDef/character";
 import itemDefPack from "../frontend/src/assets/gameDef/item";
-import Destroyable, { IDestroyEvent } from "../frontend/src/lib/Destroyable";
+import Destroyable, {
+  IWillDestroyEvent,
+} from "../frontend/src/lib/Destroyable";
 import { IDisconnectEvent } from "../frontend/src/lib/events/Transmitter";
 import { filterObjectByKey } from "../frontend/src/lib/data/util";
 import FruitNameGenerator from "../frontend/src/lib/FruitNameGenerator";
@@ -30,7 +32,7 @@ interface INewGameOptions {
 }
 
 const DEFAULT_GAME_DEF: IGameDef = {
-  charaterDefPack,
+  characterDefPack,
   tileDefPack,
   itemDefPack,
 };
@@ -106,7 +108,7 @@ export default class Room extends Destroyable {
     this._onTick = this._onTick.bind(this);
     this.add(session);
 
-    this._owner.once<IDestroyEvent>("destroy", () => {
+    this._owner.once<IWillDestroyEvent>("willDestroy", () => {
       if (this._sessionList.length == 0 && !this.isDestroyed) {
         console.log(
           `[Room ${this.publicID}] Owner session destroyed. Destroying empty room...`
@@ -114,7 +116,7 @@ export default class Room extends Destroyable {
         this.destroy();
       }
     });
-    this.once<IDestroyEvent>("destroy", () => {
+    this.once<IWillDestroyEvent>("willDestroy", () => {
       console.log(`[Room ${this.publicID}] Destroying room...`);
       this._sessionList.forEach((session) => {
         this.remove(session);
@@ -173,7 +175,7 @@ export default class Room extends Destroyable {
         callback({
           error: null,
           playerID: session.playerID,
-          gameData: this.game.getCurrentData(),
+          gameData: this.game.getData(),
           isOpen: this.isOpen,
           isLocalGame: this._isLocalGame,
           tickInterval: this.game.tickInterval,
@@ -283,7 +285,7 @@ export default class Room extends Destroyable {
         "disconnect",
         onSessionDisconnect
       );
-      session.off<IDestroyEvent>("destroy", onSessionDestroy);
+      session.off<IWillDestroyEvent>("willDestroy", onSessionDestroy);
       session.off<ISessionRemovedEvent>("removed", onSessionRemoved);
     };
     // Set up event listeners.
@@ -292,7 +294,7 @@ export default class Room extends Destroyable {
     session.transmitter.on<IStopGameEvent>("stopGame", onStopGame);
     session.transmitter.on<IUpdatePlayerEvent>("updatePlayer", onUpdatePlayer);
     session.transmitter.on<IDisconnectEvent>("disconnect", onSessionDisconnect);
-    session.on<IDestroyEvent>("destroy", onSessionDestroy);
+    session.on<IWillDestroyEvent>("willDestroy", onSessionDestroy);
     session.on<ISessionRemovedEvent>("removed", onSessionRemoved);
     // Added
     session.emit<ISessionAddedEvent>(new AnyEvent("added", { room: this }));
@@ -413,16 +415,7 @@ export default class Room extends Destroyable {
       return;
     }
     // Go next tick and propagate the update to all sessions.
-
-    // let data = this.game.getStagedData();
-    // console.log(
-    //   "T0",
-    //   data
-    // );
-
     let gameData = tick();
-
-    // console.log("T2", gameData);
 
     console.log(
       `[Room ${this.publicID}] Updating to tick ${this.game.tickNum} for ${this._playerSessionList.length} sessions`
@@ -602,8 +595,7 @@ export default class Room extends Destroyable {
     }
     if (playerData) {
       // Only update some of the properties that are allowed to be updated from the client.
-      let updateProps = ["target"];
-      player.setStagedData(filterObjectByKey(playerData, updateProps));
+      player.target = playerData.target || null;
     }
     player.updateCharacter();
   }
@@ -620,7 +612,7 @@ export default class Room extends Destroyable {
       // Session come back to the same room - try assign the same player.
     } else if (session.prevRoom == this) {
       player = this.game.playerGroup.get(session.playerID);
-      if (!player || player.getStagedValue("isOccupied")) {
+      if (!player || player.stagedIsOccupied) {
         player = null;
       }
     }
@@ -636,9 +628,7 @@ export default class Room extends Destroyable {
     // Get a name for the player while avoiding duplicates with other players in the room.
     let existNames = this.game.playerGroup
       .list()
-      .filter(
-        (p) => p != player && (p.getStagedValue("isOccupied") || p.isHost)
-      )
+      .filter((p) => p != player && (p.stagedIsOccupied || p.isHost))
       .map((player) => player.name);
     player.name = FruitNameGenerator.differentiateName(
       session.name,

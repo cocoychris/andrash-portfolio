@@ -2,10 +2,9 @@ import React, { ReactNode, RefObject, useEffect, useState } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Game from "../lib/Game";
 import AnyEvent from "../lib/events/AnyEvent";
-import GameView from "../components/GameView";
+import GameView from "../components/game/GameView";
 import PopupLayout from "./PopupLayout";
 import { IDidSetUpdateEvent } from "../lib/DataHolder";
-import { type } from "os";
 import Player from "../lib/Player";
 
 interface IProps {
@@ -19,7 +18,6 @@ interface IState {
 
 export default class GameLayout extends React.Component<IProps, IState> {
   private _gameClient: GameClient;
-  private _playerIDDict: { [key: string]: boolean } = {};
 
   constructor(props: IProps) {
     super(props);

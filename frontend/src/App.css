@@ -9,7 +9,8 @@ body {
   overflow-x: hidden;
 }
 
-section#game {
+section#game,
+section#editor {
   width: 100%;
   height: 100vh;
   background-color: #252530;
