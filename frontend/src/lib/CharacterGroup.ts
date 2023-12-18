@@ -1,6 +1,7 @@
 import Game from "./Game";
 import Character, { ICharacterData } from "./Character";
-import Group, { IGroupData } from "./Group";
+import Group, { IGroupData } from "./data/Group";
+import DefPack, { ICharacterDef } from "./data/DefPack";
 
 export default class CharacterGroup extends Group<
   CharacterGroup,
@@ -8,7 +9,13 @@ export default class CharacterGroup extends Group<
   Character
 > {
   private _game: Game;
-
+  /**
+   * Get the character definition pack
+   * This is a shortcut for `game.assetPack.characterDefPack`
+   */
+  public get characterDefPack(): DefPack<ICharacterDef> {
+    return this._game.assetPack.characterDefPack;
+  }
   /**
    * Get the game instance that created this group.
    */
@@ -17,12 +24,11 @@ export default class CharacterGroup extends Group<
   }
 
   constructor(game: Game, data: IGroupData<ICharacterData>) {
-    super(data, Character);
+    super(Character, data);
     this._game = game;
   }
 
-  public init(): this {
-    super.init();
-    return this;
+  public init() {
+    super.initGroup();
   }
 }

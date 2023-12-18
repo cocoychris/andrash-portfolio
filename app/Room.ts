@@ -1,6 +1,6 @@
 import { randomInt } from "crypto";
 import Session, { ISessionAddedEvent, ISessionRemovedEvent } from "./Session";
-import Game, { IGameDef, IGameData } from "../frontend/src/lib/Game";
+import Game, { IGameData } from "../frontend/src/lib/Game";
 import Player, { IPlayerData } from "../frontend/src/lib/Player";
 import {
   IGameStopEvent,
@@ -13,34 +13,21 @@ import {
 import AnyEvent from "../frontend/src/lib/events/AnyEvent";
 import TransEvent from "../frontend/src/lib/events/TransEvent";
 
-import DEFAULT_GAME_DATA from "../frontend/src/assets/gameData/default";
-import tileDefPack from "../frontend/src/assets/gameDef/tile";
-import characterDefPack from "../frontend/src/assets/gameDef/character";
-import itemDefPack from "../frontend/src/assets/gameDef/item";
 import Destroyable, {
+  IDidDestroyEvent,
   IWillDestroyEvent,
 } from "../frontend/src/lib/Destroyable";
 import { IDisconnectEvent } from "../frontend/src/lib/events/Transmitter";
-import { filterObjectByKey } from "../frontend/src/lib/data/util";
 import FruitNameGenerator from "../frontend/src/lib/FruitNameGenerator";
+import { applyDefault } from "../frontend/src/lib/data/util";
+import path from "path";
+import { readFile } from "fs/promises";
 
-interface INewGameOptions {
-  mapID?: string;
-  isOpen?: boolean;
-  isLocalGame?: boolean;
-  tickInterval?: number;
-}
-
-const DEFAULT_GAME_DEF: IGameDef = {
-  characterDefPack,
-  tileDefPack,
-  itemDefPack,
-};
-const DEFAULT_MAP_ID = "default";
 const EVENT_TIMEOUT = 3000;
 const EVENT_RETRY_COUNT = 3;
 const EVENT_RETRY_INTERVAL = 200;
 const ROOM_DICT: { [publicID: string]: Room } = {};
+const MAPS_BASE_DIR = path.join(__dirname, "../../frontend/public/maps");
 
 export default class Room extends Destroyable {
   public static get(publicID: string): Room | null {
@@ -51,10 +38,10 @@ export default class Room extends Destroyable {
   private _owner: Session;
   private _sessionList: Array<Session> = [];
   private _playerSessionList: Array<Session> = [];
-  private _game: Game;
+  private _game: Game | null = null;
+  private _gamePromise: Promise<Game>;
   private _isOpen: boolean = true;
   private _isLocalGame: boolean = false;
-  private _mapID: string = DEFAULT_MAP_ID;
 
   /**
    * An unique ID that clients can use to added the room.
@@ -70,19 +57,18 @@ export default class Room extends Destroyable {
     return this._owner;
   }
 
-  public get game(): Game {
-    return this._game;
-  }
-
   /**
    * Whether the room is full.
    * You can not added a room that is full even if it is open.
    * There is always one slot reserved for the owner.
    */
   public get isFull(): boolean {
+    if (!this._game) {
+      return true;
+    }
     return (
       _removeDuplicates([...this._sessionList, this.owner]).length >=
-      this.game.playerGroup.length
+      this._game.playerGroup.length
     );
   }
   /**
@@ -104,7 +90,7 @@ export default class Room extends Destroyable {
     this._owner = session;
     this._publicID = _generatePublicID();
     ROOM_DICT[this._publicID] = this;
-    this._game = this._newGame({ isLocalGame: false });
+    this._gamePromise = this._newGame({ isLocalGame: false });
     this._onTick = this._onTick.bind(this);
     this.add(session);
 
@@ -121,11 +107,13 @@ export default class Room extends Destroyable {
       this._sessionList.forEach((session) => {
         this.remove(session);
       });
-      this.game.destroy();
+      this._game?.destroy();
       delete ROOM_DICT[this._publicID];
       console.log(`[Room ${this.publicID}] Room destroyed.`);
     });
   }
+
+  public init() {}
 
   public add(session: Session): void {
     console.log(`[Room ${this.publicID}] Adding session ${session.id}`);
@@ -154,7 +142,7 @@ export default class Room extends Destroyable {
     session["_currentRoom"] = this;
     session.touch();
 
-    let onLoadGame = (event: TransEvent<ILoadGameEvent>) => {
+    let onLoadGame = async (event: TransEvent<ILoadGameEvent>) => {
       console.log(`[Room ${this.publicID}] onLoadGame`, session.id, event.data);
       let { data, callback } = event;
       try {
@@ -168,25 +156,30 @@ export default class Room extends Destroyable {
             true,
             "Host is ending this game to start a new one. Please rejoin the room later."
           );
-          this._newGame(data);
+          this._gamePromise = this._newGame(data);
         }
+        let game = await this._gamePromise;
         this._assignPlayer(session);
         // Send the game data to the client.
         callback({
           error: null,
           playerID: session.playerID,
-          gameData: this.game.getData(),
+          gameData: game.getData(),
           isOpen: this.isOpen,
           isLocalGame: this._isLocalGame,
-          tickInterval: this.game.tickInterval,
-          tickNum: this.game.tickNum,
+          tickInterval: game.tickInterval,
+          tickNum: game.tickNum,
         });
         console.log(
           `[Room ${this.publicID}] Game loaded for session ${session.id}`
         );
       } catch (error) {
         callback({ error: (error as Error).message || String(error) });
-        console.log(`[Room ${this.publicID}] Failed to load game: ${error}`);
+        console.log(
+          `[Room ${this.publicID}] Failed to load game: ${
+            (error as Error).stack || error
+          }`
+        );
       }
     };
 
@@ -198,22 +191,30 @@ export default class Room extends Destroyable {
       );
       let { data, callback } = event;
       try {
+        let game = this._game as Game;
+        if (!game) {
+          throw new Error("Game not found");
+        }
         session.isReady = true;
         let unreadySessions: Array<Session> = this._startGame(
           data.force && isOwner
         );
         callback({
           error: null,
-          isStarted: this.game.isRunning,
+          isStarted: game.isRunning,
           waitingPlayerNames: unreadySessions.map(
             (session) =>
-              this.game.playerGroup.get(session.playerID)?.name ||
+              game.playerGroup.get(session.playerID)?.name ||
               `Player ${session.playerID}`
           ),
         });
       } catch (error) {
         callback({ error: (error as Error).message || String(error) });
-        console.log(`[Room ${this.publicID}] Failed to start game: ${error}`);
+        console.log(
+          `[Room ${this.publicID}] Failed to start game: ${
+            (error as Error).stack || error
+          }`
+        );
       }
     };
 
@@ -224,12 +225,16 @@ export default class Room extends Destroyable {
         if (!isOwner) {
           throw new Error("Only the owner can stop the game");
         }
+        let game = this._game as Game;
+        if (!game) {
+          throw new Error("Game not found");
+        }
         if (data.type == "pause") {
           session.isReady = false;
           console.log(`[Room ${this.publicID}] Game paused by host`);
         } else if (data.type == "end") {
           session.isReady = false;
-          this.game.stop();
+          game.stop();
           this._isOpen = false;
           this._kick(this._sessionList, true, "Host ended the game");
           console.log(`[Room ${this.publicID}] Game ended by host`);
@@ -238,11 +243,15 @@ export default class Room extends Destroyable {
         }
         callback({
           error: null,
-          isStopped: !this.game.isRunning,
+          isStopped: !game.isRunning,
         });
       } catch (error) {
         callback({ error: (error as Error).message || String(error) });
-        console.log(`[Room ${this.publicID}] Failed to stop game: ${error}`);
+        console.log(
+          `[Room ${this.publicID}] Failed to stop game: ${
+            (error as Error).stack || error
+          }`
+        );
       }
     };
     let onUpdatePlayer = (event: TransEvent<IUpdatePlayerEvent>) => {
@@ -317,7 +326,7 @@ export default class Room extends Destroyable {
     session.emit<ISessionRemovedEvent>(new AnyEvent("removed", { room: this }));
     // Destroy the room if it is empty and the owner session is destroyed.
     if (this._sessionList.length == 0) {
-      this._game.stop();
+      this._game?.stop();
       if (this._owner.isDestroyed) {
         console.log(`[Room ${this.publicID}] Destroying empty room...`);
         this.destroy();
@@ -373,59 +382,72 @@ export default class Room extends Destroyable {
     });
   }
 
-  private _newGame(options: INewGameOptions): Game {
+  private async _newGame(options: {
+    mapID?: string;
+    isOpen?: boolean;
+    isLocalGame?: boolean;
+    tickInterval?: number;
+  }): Promise<Game> {
     // console.log(
     //   `[Room ${this.publicID}] Creating new game (mapID: ${
     //     options.mapID || "default"
     //   })`
     // );
-    if (options.isLocalGame !== undefined) {
-      this._isLocalGame = options.isLocalGame;
-    }
-    this._isOpen = options.isOpen !== undefined ? options.isOpen : true;
-
-    // TO DO: should load gameData and gameDef dynamically by options.mapID
-    // if(options.mapID !== undefined){
-    //   this._mapID = options.mapID || DEFAULT_MAP_ID;
-    // }
-    this._mapID = DEFAULT_MAP_ID; // Use default map for now.
-    let gameData: IGameData = DEFAULT_GAME_DATA; // Use default gameData for now.
-    let gameDef: IGameDef = DEFAULT_GAME_DEF; // Use default gameDef for now.
-    // Create the game.
+    // Close the room until the game is initialized.
+    this._isOpen = false;
+    // Apply default options.
+    const { mapID, isOpen, isLocalGame, tickInterval } = applyDefault(options, {
+      mapID: Game.DEFAULT_MAP_ID,
+      isOpen: true,
+      isLocalGame: false,
+      tickInterval: Game.DEFAULT_TICK_INTERVAL,
+    });
+    // Load game data.
+    let filePath = path.normalize(path.join(MAPS_BASE_DIR, `${mapID}.json`));
+    let gameData: IGameData = JSON.parse(await readFile(filePath, "utf-8"));
+    // Destroy the old game.
     this._game?.destroy();
-    this._game = new Game(gameDef, gameData);
-    this._game.init(0, options.tickInterval);
-    // Clear all player sessions.
-    this._playerSessionList = [];
-
+    this._game = null;
+    // Create the game.
+    this._game = await new Game(gameData).init({
+      tickInterval,
+    });
+    this._game.once<IDidDestroyEvent>("didDestroy", () => {
+      this._playerSessionList = [];
+    });
+    // Set properties.
+    this._isLocalGame = isLocalGame as boolean;
+    this._isOpen = isOpen as boolean;
+    // Wait for the game to be initialized.
     console.log(
-      `[Room ${this.publicID}] New game created (id: ${this.game.id}, mapID: ${this._mapID})`
+      `[Room ${this.publicID}] New game created (id: ${this._game.id}, mapID: ${mapID})`
     );
     return this._game;
   }
 
   private _onTick(tick: (gameData?: IGameData | null) => IGameData | null) {
+    let game = this._game as Game;
     //Handle unready sessions
     this._startGame(); // Will stop the game if any player session is not ready
-    if (!this.game.isRunning) {
+    if (!game.isRunning) {
       return;
     }
     //Handle waiting sessions
-    if (this._waitingSessions()) {
+    if (this._waitForSessions(game)) {
       return;
     }
     // Go next tick and propagate the update to all sessions.
     let gameData = tick();
 
     console.log(
-      `[Room ${this.publicID}] Updating to tick ${this.game.tickNum} for ${this._playerSessionList.length} sessions`
+      `[Room ${this.publicID}] Updating to tick ${game.tickNum} for ${this._playerSessionList.length} sessions`
     );
     this._playerSessionList.forEach((session) => {
       session.transmitter
         .transmit<IGameTickEvent>(
           "gameTick",
           {
-            tickNum: this.game.tickNum,
+            tickNum: game.tickNum,
             gameData,
             waitingPlayerNames: [],
           },
@@ -456,9 +478,13 @@ export default class Room extends Destroyable {
    * @returns unreadySessions
    */
   private _startGame(force: boolean = false): Array<Session> {
+    let game = this._game as Game;
+    if (!game) {
+      throw new Error("Game not found");
+    }
     // No Session to play the game
     if (this._playerSessionList.length == 0) {
-      this.game.stop();
+      game.stop();
       return [];
     }
     // Check if all sessions are ready
@@ -467,8 +493,8 @@ export default class Room extends Destroyable {
     );
     // All sessions are ready - run the game if it is not running yet
     if (unreadySessions.length == 0) {
-      if (!this.game.isRunning) {
-        this.game.run(this._onTick);
+      if (!game.isRunning) {
+        game.run(this._onTick);
       }
       return [];
     }
@@ -483,14 +509,14 @@ export default class Room extends Destroyable {
       return unreadySessions;
     }
     // // Some sessions are not ready - do nothing as it is already stopped
-    // if (!this.game.isRunning) {
+    // if (!game.isRunning) {
     //   return unreadySessions;
     // }
     // Some sessions are not ready - stop the game and send event
-    this.game.stop();
+    game.stop();
     let waitingPlayerNames = unreadySessions.map(
       (session) =>
-        this.game.playerGroup.get(session.playerID)?.name ||
+        game.playerGroup.get(session.playerID)?.name ||
         `Player ${session.playerID}`
     );
     let data: IGameStopEvent["data"];
@@ -540,7 +566,7 @@ export default class Room extends Destroyable {
     return unreadySessions;
   }
 
-  private _waitingSessions(): boolean {
+  private _waitForSessions(game: Game): boolean {
     // Check if any session is not ready.
     let waitingSessions: Array<Session> = this._playerSessionList.filter(
       (session) => !session.isReady || session.transmitter.isWaiting("gameTick")
@@ -551,7 +577,7 @@ export default class Room extends Destroyable {
     // Tell sessions to wait for the next tick
     let waitingPlayerNames = waitingSessions.map(
       (session) =>
-        this.game.playerGroup.get(session.playerID)?.name ||
+        game.playerGroup.get(session.playerID)?.name ||
         `Player ${session.playerID}`
     );
     let readySessions = this._playerSessionList.filter(
@@ -562,7 +588,7 @@ export default class Room extends Destroyable {
         .transmit<IGameTickEvent>(
           "gameTick",
           {
-            tickNum: this.game.tickNum,
+            tickNum: game.tickNum,
             gameData: null,
             waitingPlayerNames,
           },
@@ -589,7 +615,11 @@ export default class Room extends Destroyable {
   }
 
   private _updatePlayer(playerID: number, playerData?: IPlayerData) {
-    let player = this.game.playerGroup.get(playerID);
+    let game = this._game as Game;
+    if (!game) {
+      throw new Error("Game not found");
+    }
+    let player = game.playerGroup.get(playerID);
     if (!player) {
       throw new Error(`Player ${playerID} not found.`);
     }
@@ -601,6 +631,10 @@ export default class Room extends Destroyable {
   }
 
   private _assignPlayer(session: Session): void {
+    let game = this._game as Game;
+    if (!game) {
+      throw new Error("Game not found");
+    }
     // Session already has a player.
     if (this._playerSessionList.includes(session)) {
       return;
@@ -608,10 +642,10 @@ export default class Room extends Destroyable {
     let player: Player | null = null;
     // Session is the owner - assign the host player.
     if (session == this.owner) {
-      player = this.game.playerGroup.hostPlayer;
+      player = game.playerGroup.hostPlayer;
       // Session come back to the same room - try assign the same player.
     } else if (session.prevRoom == this) {
-      player = this.game.playerGroup.get(session.playerID);
+      player = game.playerGroup.get(session.playerID);
       if (!player || player.stagedIsOccupied) {
         player = null;
       }
@@ -619,14 +653,14 @@ export default class Room extends Destroyable {
     // Session is new to the room - try assign a random player.
     if (!player) {
       // Get an available player for the session.
-      let playerList = this.game.playerGroup.getUnoccupiedPlayers(true);
+      let playerList = game.playerGroup.getUnoccupiedPlayers(true);
       if (playerList.length == 0) {
         throw new Error(`No available player for session ${session.id}`);
       }
       player = playerList[Math.floor(Math.random() * playerList.length)];
     }
     // Get a name for the player while avoiding duplicates with other players in the room.
-    let existNames = this.game.playerGroup
+    let existNames = game.playerGroup
       .list()
       .filter((p) => p != player && (p.stagedIsOccupied || p.isHost))
       .map((player) => player.name);
@@ -640,16 +674,20 @@ export default class Room extends Destroyable {
     this._playerSessionList.push(session);
     session.playerID = player.id;
     if (session == this.owner) {
-      this.game.hostPlayerID = session.playerID;
+      game.hostPlayerID = session.playerID;
     }
   }
 
   private _releasePlayer(session: Session): void {
+    let game = this._game as Game;
+    if (!game) {
+      throw new Error("Game not found");
+    }
     let index = this._playerSessionList.indexOf(session);
     if (index < 0) {
       return;
     }
-    let player = this.game.playerGroup.get(session.playerID);
+    let player = game.playerGroup.get(session.playerID);
     if (!player) {
       throw new Error(`Player ${session.playerID} not found.`);
     }

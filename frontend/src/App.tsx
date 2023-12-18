@@ -19,10 +19,18 @@ const UPDATE_INTERVAL = 16;
 // Get parameter `mode` from url
 let gameClient: GameClient = new GameClient("/");
 let started = false;
-
 preventLongPressMenu();
 
-function App() {
+// import { ReactSVG } from "react-svg";
+// export default function Test() {
+//   // return <ReactSVG src="/before.svg" />;
+//   // return <ReactSVG src="/assets/default/svgs/ghost_arrived.svg" />;
+//   // return <ReactSVG src="/assets/default/svgs/ghost_chasing.svg" />;
+//   // return <ReactSVG src="/assets/default/svgs/ghost_searching.svg" />;
+//   // return <ReactSVG src="/assets/default/svgs/ghost_standing.svg" />;
+// }
+
+export default function App() {
   console.log("App");
   const popupRef = useRef<PopupLayout>(null);
   const [showEditor, setShowEditor] = useState<boolean>(
@@ -33,316 +41,20 @@ function App() {
       return;
     }
     started = true;
-    startGameClient();
+    initGameClient(gameClient, popupRef);
     setInterval(update, UPDATE_INTERVAL);
-    gameClient.editor?.on<IStartTestingEvent>("startTesting", () => {
-      console.log("onStartTesting");
+
+    gameClient.editor?.on<IStartTestingEvent>("startTesting", (event) => {
       setShowEditor(false);
     });
-    gameClient.editor?.on<IStopTestingEvent>("stopTesting", () => {
+    gameClient.editor?.on<IStopTestingEvent>("stopTesting", (event) => {
       setShowEditor(true);
     });
   }, []);
 
-  function popupOpen(options: IPopupOptions): Promise<any> {
-    if (!popupRef.current) {
-      return Promise.reject("PopupLayout is not mounted");
-    }
-    return popupRef.current.open(options);
-  }
-  function popupClose() {
-    popupRef.current?.close();
-  }
-  function popupError(title: string, message?: ReactNode) {
-    popupRef.current?.error(title, message);
-  }
-  function popupWarning(title: string, message?: ReactNode) {
-    popupRef.current?.warning(title, message);
-  }
-
-  function startGameClient() {
-    // Set up gameClient event listeners
-    gameClient.on<IConnectEvent>("connect", async (event) => {
-      try {
-        let response = await gameClient.authenticate();
-        if (response.joinRoomWarning) {
-          await popupOpen({
-            type: "warning",
-            title: `Failed to join room`,
-            content: (
-              <>
-                <p>{response.joinRoomWarning}</p>
-                <p>
-                  We have redirected you to your own room ({response.publicID}).{" "}
-                  <br />
-                  Please share the URL of this page with your friends to invite
-                  them to join your room.
-                </p>
-              </>
-            ),
-            buttonLabels: ["OK"],
-            buttonActions: [null],
-          });
-        }
-      } catch (error) {
-        // Authenticate failed
-        popupError(
-          "Failed to authenticate with server",
-          (error as Error).message
-        );
-        return;
-      }
-      // Authenticate success
-      await runServerGame();
-    });
-
-    gameClient.on<IDisconnectEvent>("disconnect", (event) => {
-      popupOpen({
-        type: "warning",
-        title: "Disconnected from server",
-        content: (
-          <>
-            This may happen due to the following reasons:
-            <ul>
-              <li key={1}>You have been idle for too long.</li>
-              <li key={2}>
-                You have more than one tab of this website opened.
-              </li>
-              <li key={3}>Network connection lost, server error or restart.</li>
-            </ul>
-            <p>
-              You can <b>Reload</b> the page to reconnect to the server.
-            </p>
-          </>
-        ),
-        onClose: () => {
-          window.location.reload();
-        },
-        buttonLabels: ["Reload"],
-        buttonActions: [null],
-      });
-    });
-
-    gameClient.on<IErrorEvent>("error", (event) => {
-      if (event.data.continuable) {
-        popupWarning(event.data.error.name, event.data.error.message);
-        return;
-      }
-      popupError(event.data.error.name, event.data.error.message);
-    });
-
-    gameClient.on<IGameStopEvent>("gameStop", (event) => {
-      gameClient.once<IGameTickEvent>("gameTick", (event) => {
-        popupClose();
-      });
-      if (event.data.type == "pause") {
-        let options: IPopupOptions = {
-          type: "info",
-          title: "Game Paused",
-          content: (
-            <>
-              {event.data.reason} <br />
-              {gameClient.isHost ? (
-                "Please resume the game before idling for too long."
-              ) : (
-                <>
-                  Please wait for the game to resume.
-                  <br />
-                  You can also <b>Leave This Room</b> if you do not want to
-                  wait.
-                </>
-              )}
-            </>
-          ),
-          showCloseButton: false,
-        };
-        if (gameClient.isHost) {
-          options.buttonLabels = ["Resume Game"];
-          options.buttonActions = [
-            async () => {
-              popupOpen({ title: "Resuming game...", showCloseButton: false });
-              try {
-                await gameClient.startGame();
-              } catch (error) {
-                popupError(
-                  "Failed to resume game from server",
-                  (error as Error).message
-                );
-              }
-            },
-          ];
-        } else {
-          options.buttonLabels = ["Leave This Room"];
-          options.buttonActions = [
-            () => {
-              gameClient.clearPublicID();
-              window.location.reload();
-            },
-          ];
-        }
-        popupOpen(options);
-        return;
-      }
-      if (event.data.type == "waiting") {
-        let options: IPopupOptions = {
-          type: "warning",
-          title: "Waiting for players",
-          content: (
-            <>
-              {event.data.reason}
-              <br />
-              Waiting player list:
-              <ul>
-                {event.data.waitingPlayerNames.map((playerName, index) => {
-                  return <li key={index}>{playerName}</li>;
-                })}
-              </ul>
-            </>
-          ),
-        };
-        if (gameClient.isHost) {
-          options.buttonLabels = ["Kick Players"];
-          options.buttonActions = [
-            async () => {
-              popupOpen({
-                title: "Kicking players...",
-                showCloseButton: false,
-              });
-              try {
-                await gameClient.startGame(true);
-              } catch (error) {
-                popupError(
-                  "Failed to kick players and force start game",
-                  (error as Error).message
-                );
-              }
-            },
-          ];
-        }
-        popupOpen(options);
-        return;
-      }
-
-      if (event.data.type == "end") {
-        let options: IPopupOptions = {
-          type: "info",
-          title: "The game has ended",
-          content: (
-            <>
-              {event.data.reason}
-              <br />
-            </>
-          ),
-          onClose: () => {
-            gameClient.clearPublicID();
-            window.location.reload();
-          },
-          buttonLabels: ["Leave", "Rejoin"],
-          buttonActions: [
-            null,
-            () => {
-              window.location.reload();
-            },
-          ],
-        };
-        popupOpen(options);
-        return;
-      }
-    });
-    // Start gameClient
-    console.log(`Running in ${gameClient.mode} mode`);
-    if (gameClient.mode == GameClient.MODE_EDITOR) {
-      // TODO: Start editor mode here
-
-      return;
-    }
-    if (gameClient.mode == GameClient.MODE_LOCAL) {
-      runLocalGame();
-      return;
-    }
-    popupOpen({ title: "Connecting...", showCloseButton: false });
-    gameClient.connect();
-  }
-
-  async function runServerGame(mapID?: string) {
-    console.log("runServerGame");
-    try {
-      popupOpen({ title: "Loading...", showCloseButton: false });
-      await gameClient.loadGame({
-        tickInterval: undefined,
-        mapID,
-      });
-    } catch (error) {
-      popupError("Failed to load game from server", (error as Error).message);
-      return;
-    }
-    try {
-      // await delay(5000); // For testing
-      await gameClient.startGame();
-      popupClose();
-    } catch (error) {
-      popupError("Failed to start game from server", (error as Error).message);
-      return;
-    }
-  }
-
-  async function runLocalGame(mapID?: string) {
-    console.log("runLocalGame");
-    try {
-      await gameClient.loadGame({
-        tickInterval: undefined,
-        mapID,
-      });
-    } catch (error) {
-      popupError("Failed to run game on local", (error as Error).message);
-      return;
-    }
-    // Notify user that the game is running in local mode
-    popupOpen({
-      type: "warning",
-      title: "Local Mode",
-      content: (
-        <>
-          <p>You are currently playing in local mode.</p>
-          <p>
-            This feature allows you to play the game even with a poor network
-            connection or server errors. <br />
-          </p>
-          <p>
-            Please note that in this mode, the multiplayer feature will not be
-            available.{" "}
-          </p>
-          Available actions:
-          <ul>
-            <li key={0}>
-              <b>Continue</b> the game in local mode.
-            </li>
-            <li key={1}>
-              Start a <b>New Game</b> in online mode.
-            </li>
-          </ul>
-        </>
-      ),
-      onClose: () => {
-        gameClient.startGame();
-      },
-      buttonLabels: ["Continue", "New Game"],
-      buttonActions: [
-        null,
-        () => {
-          gameClient.mode = GameClient.MODE_SERVER;
-        },
-      ],
-    });
-  }
   // Render layouts
   let layouts = [
-    <PopupLayout
-      key="popup-layout"
-      gameClient={gameClient}
-      onRunLocalGame={runLocalGame}
-      ref={popupRef}
-    />,
+    <PopupLayout key="popup-layout" gameClient={gameClient} ref={popupRef} />,
   ];
   if (showEditor) {
     layouts.push(
@@ -365,8 +77,6 @@ function App() {
         key="navbar-layout"
         gameClient={gameClient}
         popupRef={popupRef}
-        onRunServerGame={runServerGame}
-        onRunLocalGame={runLocalGame}
       />
     );
     layouts.push(
@@ -380,4 +90,258 @@ function App() {
   layouts.push(<PageLayout key="page-layout" gameClient={gameClient} />);
   return layouts;
 }
-export default App;
+
+async function initGameClient(
+  gameClient: GameClient,
+  popupRef: React.RefObject<PopupLayout>
+) {
+  function show(options: IPopupOptions): Promise<any> {
+    if (!popupRef.current) {
+      alert(options.content);
+      return Promise.resolve();
+    }
+    return popupRef.current.show(options);
+  }
+  function close() {
+    if (!popupRef.current) {
+      return;
+    }
+    popupRef.current.close();
+  }
+  function showError(title: string, message?: ReactNode) {
+    if (!popupRef.current) {
+      alert(`[Error] ${title}\n${message}`);
+      return;
+    }
+    popupRef.current.error(title, message);
+  }
+  function showWarn(title: string, message?: ReactNode) {
+    if (!popupRef.current) {
+      alert(`[Warning] ${title}\n${message}`);
+      return;
+    }
+    popupRef.current.warning(title, message);
+  }
+
+  gameClient.on<IDisconnectEvent>("disconnect", (event) => {
+    show({
+      type: "warning",
+      title: "Disconnected from server",
+      content: (
+        <>
+          This may happen due to the following reasons:
+          <ul>
+            <li key={1}>You have been idle for too long.</li>
+            <li key={2}>You have more than one tab of this website opened.</li>
+            <li key={3}>Bad network connection or server error.</li>
+          </ul>
+          <p>
+            You can <b>Reload</b> the page to reconnect to the server.
+          </p>
+        </>
+      ),
+      onClose: () => {
+        window.location.reload();
+      },
+      buttonLabels: ["Reload"],
+      buttonActions: [null],
+    });
+  });
+
+  gameClient.on<IErrorEvent>("error", (event) => {
+    if (event.data.continuable) {
+      showWarn(event.data.error.name, event.data.error.message);
+      return;
+    }
+    showError(event.data.error.name, event.data.error.message);
+  });
+
+  gameClient.on<IGameStopEvent>("gameStop", (event) => {
+    gameClient.once<IGameTickEvent>("gameTick", (event) => {
+      close();
+    });
+    if (event.data.type == "pause") {
+      let options: IPopupOptions = {
+        type: "info",
+        title: "Game Paused",
+        content: (
+          <>
+            {event.data.reason} <br />
+            {gameClient.isHost ? (
+              "Please resume the game before idling for too long."
+            ) : (
+              <>
+                Please wait for the game to resume.
+                <br />
+                You can also <b>Leave This Room</b> if you do not want to wait.
+              </>
+            )}
+          </>
+        ),
+        showCloseButton: false,
+      };
+      if (gameClient.isHost) {
+        options.buttonLabels = ["Resume Game"];
+        options.buttonActions = [
+          async () => {
+            show({ title: "Resuming game...", showCloseButton: false });
+            try {
+              await gameClient.startGame();
+            } catch (error) {
+              showError(
+                "Failed to resume game from server",
+                (error as Error).message
+              );
+            }
+          },
+        ];
+      } else {
+        options.buttonLabels = ["Leave This Room"];
+        options.buttonActions = [
+          () => {
+            gameClient.clearPublicID();
+            window.location.reload();
+          },
+        ];
+      }
+      show(options);
+      return;
+    }
+    if (event.data.type == "waiting") {
+      let options: IPopupOptions = {
+        type: "warning",
+        title: "Waiting for players",
+        content: (
+          <>
+            {event.data.reason}
+            <br />
+            Waiting player list:
+            <ul>
+              {event.data.waitingPlayerNames.map((playerName, index) => {
+                return <li key={index}>{playerName}</li>;
+              })}
+            </ul>
+          </>
+        ),
+      };
+      if (gameClient.isHost) {
+        options.buttonLabels = ["Kick Players"];
+        options.buttonActions = [
+          async () => {
+            show({
+              title: "Kicking players...",
+              showCloseButton: false,
+            });
+            try {
+              await gameClient.startGame(true);
+            } catch (error) {
+              showError(
+                "Failed to kick players and force start game",
+                (error as Error).message
+              );
+            }
+          },
+        ];
+      }
+      show(options);
+      return;
+    }
+
+    if (event.data.type == "end") {
+      let options: IPopupOptions = {
+        type: "info",
+        title: "The game has ended",
+        content: (
+          <>
+            {event.data.reason}
+            <br />
+          </>
+        ),
+        onClose: () => {
+          gameClient.clearPublicID();
+          window.location.reload();
+        },
+        buttonLabels: ["Leave", "Rejoin"],
+        buttonActions: [
+          null,
+          () => {
+            window.location.reload();
+          },
+        ],
+      };
+      show(options);
+      return;
+    }
+  });
+
+  try {
+    show({ title: "Loading...", showCloseButton: false });
+    await gameClient.init();
+    if (gameClient.joinRoomWarning) {
+      show({
+        type: "warning",
+        title: `Failed to join room`,
+        content: (
+          <>
+            <p>{gameClient.joinRoomWarning}</p>
+            <p>
+              We have redirected you to your own room ({gameClient.publicID}).{" "}
+              <br />
+              Please share the URL of this page with your friends to invite them
+              to join your room.
+            </p>
+          </>
+        ),
+        buttonLabels: ["OK"],
+        buttonActions: [null],
+      });
+    } else {
+      close();
+    }
+  } catch (error) {
+    let suggestMode = gameClient.isLocalGame ? "Online Mode" : "Local Mode";
+    show({
+      type: "error",
+      title: `Faild to start in ${gameClient.mode} mode`,
+      content: (
+        <>
+          <p>
+            Please check your network connection and <b>Reload</b> the page or
+            try run the game in <b>{suggestMode}</b> instead.
+          </p>
+          <details>
+            <summary>Addtional Information</summary>
+            <p>
+              If nothing above works, please{" "}
+              <b>
+                <a
+                  onClick={() => {
+                    gameClient.clearSession();
+                    window.location.reload();
+                  }}
+                >
+                  CLICK HERE
+                </a>
+              </b>{" "}
+              to reset the game. Note that this will clear your game session.
+            </p>
+            <p>Error message: {(error as Error).message || String(error)}</p>
+          </details>
+        </>
+      ),
+      buttonLabels: ["Reload", suggestMode],
+      buttonActions: [
+        () => {
+          window.location.reload();
+        },
+        () => {
+          gameClient.mode = gameClient.isLocalGame
+            ? GameClient.MODE_ONLINE
+            : GameClient.MODE_LOCAL;
+        },
+      ],
+    });
+
+    return;
+  }
+}

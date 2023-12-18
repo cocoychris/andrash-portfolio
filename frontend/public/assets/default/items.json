@@ -1,0 +1,22 @@
+{
+  "star": {
+    "collectable": true,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "svgName": "icons/star-svgrepo-com"
+      }
+    }
+  },
+  "reactIcon": {
+    "collectable": true,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "svgName": "icons/react"
+      }
+    }
+  }
+}

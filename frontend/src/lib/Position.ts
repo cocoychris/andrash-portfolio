@@ -1,3 +1,5 @@
+import { DataObject } from "./data/DataHolder";
+
 export interface IPosition {
   col: number;
   row: number;
@@ -73,7 +75,7 @@ export default class Position implements IPosition {
     });
   }
 
-  toObject(): IPosition {
+  toObject(): IPosition & DataObject {
     return { col: this._col, row: this._row };
   }
   toString(): string {

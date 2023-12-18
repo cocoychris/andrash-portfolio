@@ -1,41 +1,83 @@
-import GameMap, { IMapData } from "./GameMap";
-import DefLoader from "./DefLoader";
-import { ICharacterDef, IDefPack, IItemDef, ITileDef } from "./IDefinition";
+import TileManager, { ITileDataDict } from "./TileManager";
 import CharacterGroup from "./CharacterGroup";
 import { ICharacterData } from "./Character";
 
 import ItemGroup from "./ItemGroup";
-import { IGroupData } from "./Group";
+import { IGroupData } from "./data/Group";
 import { IItemData } from "./Item";
-import DataHolder, {
-  IDidSetUpdateEvent,
-  IWillApplyEvent,
-  IWillGetUpdateEvent,
-} from "./DataHolder";
-import { IPlayerData } from "./Player";
+import DataHolder, { DataObject } from "./data/DataHolder";
+import Player, { IPlayerData } from "./Player";
 import PlayerGroup from "./PlayerGroup";
-import { cloneObject } from "./data/util";
-import DataUpdater, { IUpdatePhase } from "./DataUpdater";
+import { applyDefault, cloneObject } from "./data/util";
+import DataUpdater, { IUpdatePhase } from "./data/DataUpdater";
 import { IDidDestroyEvent, IWillDestroyEvent } from "./Destroyable";
+import AssetPack from "./data/AssetPack";
+import FieldDef from "./data/FieldDef";
+import MapInfo, { IMapInfo } from "./MapInfo";
 
-export interface IGameData {
+export interface IGameData extends DataObject {
   /**
-   * No need to set this manually. This will be set automatically when the game is created.
+   * The id of the game. It will be created automatically when the game is created.
+   * A game data with id of empty string is considered as a map data.
    */
-  id?: string;
-  /**
-   * No need to set this manually. This will be set automatically by the server or client.
-   */
+  id: string;
   hostPlayerID?: number;
   playerDataDict: IGroupData<IPlayerData> | null;
   characterDataDict: IGroupData<ICharacterData> | null;
   itemDataDict: IGroupData<IItemData> | null;
-  mapData: IMapData | null;
+  tileDataDict: ITileDataDict | null;
+  assetPackName: string;
+  mapInfoData: IMapInfo | null;
 }
-export interface IGameDef {
-  characterDefPack: IDefPack<ICharacterDef>;
-  tileDefPack: IDefPack<ITileDef>;
-  itemDefPack: IDefPack<IItemDef>;
+
+const GAME_DATA_FIELD_DEF = new FieldDef<IGameData>(
+  {
+    type: "object",
+    children: {
+      id: {
+        type: "string",
+        minLength: 0,
+      },
+      hostPlayerID: {
+        type: "number",
+        acceptUndefined: true,
+      },
+      playerDataDict: {
+        type: "object",
+      },
+      characterDataDict: {
+        type: "object",
+      },
+      itemDataDict: {
+        type: "object",
+      },
+      tileDataDict: {
+        type: "object",
+      },
+      assetPackName: {
+        type: "string",
+      },
+      mapInfoData: {
+        type: "object",
+      },
+    },
+  },
+  undefined,
+  "gameData"
+);
+
+export interface IGameInitOptions {
+  tickNum?: number;
+  tickInterval?: number;
+  mainPlayerID?: number;
+}
+
+/**
+ * Reset phase: An update phase for resetting the game data to the before starting state.
+ */
+export interface IResetPhase extends IUpdatePhase {
+  phase: "reset";
+  props: null;
 }
 /**
  * Action phase: An update phase for game elements to perform their AI actions or human controlled actions.
@@ -62,33 +104,81 @@ export interface ICorrectionPhase extends IUpdatePhase {
   props: null;
 }
 
-const DEFAULT_UPDATE_INTERVAL = 600;
-const MIN_UPDATE_INTERVAL = 500;
-const MAX_UPDATE_INTERVAL = 5000;
 let gameNum = 0;
 
 /**
  * Represents a game session. A game session contains all the game data and objects.
  * To restart a game, create a new Game instance.
  */
-export default class Game extends DataUpdater<IGameData> {
+export default class Game extends DataHolder<IGameData> {
+  /**
+   * The default map ID.
+   */
+  public static readonly DEFAULT_MAP_ID = "default";
+  public static readonly DEFAULT_TICK_INTERVAL = 600;
+  public static readonly MIN_TICK_INTERVAL = 500;
+  public static readonly MAX_TICK_INTERVAL = 5000;
+
   private _tickNum: number;
-  private _playerGroup: PlayerGroup;
-  private _characterGroup: CharacterGroup;
-  private _itemGroup: ItemGroup;
-  private _map: GameMap;
-  private _tileDefLoader: DefLoader<ITileDef>;
-  private _characterDefLoader: DefLoader<ICharacterDef>;
-  private _itemDefLoader: DefLoader<IItemDef>;
   private _intervalID: NodeJS.Timeout | null = null;
   private _isRunning: boolean = false;
-  private _tickInterval: number = DEFAULT_UPDATE_INTERVAL;
+  private _tickInterval: number = Game.DEFAULT_TICK_INTERVAL;
+  private _assetPack: AssetPack | null = null;
+  private _id: string = "";
+  private _isInitialized: boolean = false;
+
+  private _mapInfo?: MapInfo;
+  private _playerGroup?: PlayerGroup;
+  private _tileManager?: TileManager;
+  private _itemGroup?: ItemGroup;
+  private _characterGroup?: CharacterGroup;
+
+  /**
+   * Get the name of the asset pack used by the game.
+   */
+  public readonly assetPackName: string;
+  /**
+   * Get the map info of the game.
+   */
+  public get mapInfo(): MapInfo {
+    return this._mapInfo as MapInfo;
+  }
+  /**
+   * Get the player group that manages all the players.
+   */
+  public get playerGroup(): PlayerGroup {
+    return this._playerGroup as PlayerGroup;
+  }
+  /**
+   * Get the tile manager that manages all the tiles.
+   */
+  public get tileManager(): TileManager {
+    return this._tileManager as TileManager;
+  }
+  /**
+   * Get the item group that manages all the items.
+   */
+  public get itemGroup(): ItemGroup {
+    return this._itemGroup as ItemGroup;
+  }
+  /**
+   * Get the character group that manages all the characters.
+   */
+  public get characterGroup(): CharacterGroup {
+    return this._characterGroup as CharacterGroup;
+  }
+  /**
+   * Indicates if the game is initialized.
+   */
+  public get isInitialized(): boolean {
+    return this._isInitialized;
+  }
   /**
    * A unique ID of the game.
    * This is helpful when you want to distinguish different games.
    */
   public get id(): string {
-    return this.data.id as string;
+    return this._id || this.data.id; // So the id can still be accessed after the game is destroyed.
   }
   /**
    * Get the current tick number of the game.
@@ -106,53 +196,6 @@ export default class Game extends DataUpdater<IGameData> {
     this.data.hostPlayerID = id;
   }
   /**
-   * Get the player group that manages all the players.
-   * Only available after init().
-   */
-  public get playerGroup(): PlayerGroup {
-    return this._playerGroup;
-  }
-  /**
-   * Get the game map object that contains all the tiles and map information.
-   * Only available after init().
-   */
-  public get map(): GameMap {
-    return this._map;
-  }
-  /**
-   * Get the item group that manages all the items.
-   * Only available after init().
-   */
-  public get itemGroup(): ItemGroup {
-    return this._itemGroup;
-  }
-  /**
-   * Get the character group that manages all the characters.
-   * Only available after init().
-   */
-  public get characterGroup(): CharacterGroup {
-    return this._characterGroup;
-  }
-
-  /**
-   * A tile definition loader that contains all tile definitions.
-   */
-  public get tileDefLoader(): DefLoader<ITileDef> {
-    return this._tileDefLoader;
-  }
-  /**
-   * A character definition loader that contains all character definitions.
-   */
-  public get characterDefLoader(): DefLoader<ICharacterDef> {
-    return this._characterDefLoader;
-  }
-  /**
-   * A item definition loader that contains all item definitions.
-   */
-  public get itemDefLoader(): DefLoader<IItemDef> {
-    return this._itemDefLoader;
-  }
-  /**
    * Get whether the game is running.
    */
   public get isRunning(): boolean {
@@ -165,40 +208,38 @@ export default class Game extends DataUpdater<IGameData> {
     return this._tickInterval;
   }
   /**
-   * Create a new game.
-   * @param gameDef The game definition that contains all the definitions of tiles, characters and items.
-   * @param data The game data that will be used to create the game.
+   * Get the asset pack used by the game.
+   * Only available after init().
    */
-  constructor(gameDef: IGameDef, data: IGameData) {
-    _checkGameData(data);
-    data = cloneObject(data);
-    !data.id && (data.id = _generateGameID());
-    data.hostPlayerID === undefined && (data.hostPlayerID = -1);
+  public get assetPack(): AssetPack {
+    return this._assetPack as AssetPack;
+  }
+  /**
+   * Create a new game.
+   * @param data The game data that will be used to create the game. It can be the data from an ongoing game session or a map data for starting a new game.
+   * @param isMapData Whether the game data is a map data. Default to true.
+   */
+  constructor(data: IGameData, isMapData: boolean = true) {
+    if (isMapData && data.id) {
+      throw new Error(
+        `Invalid game data: Game id ${data.id} found in map data.`
+      );
+    }
+    if (!isMapData && !data.id) {
+      throw new Error(`Invalid game data: Game id not found in game data.`);
+    }
+    //Check if the data is valid
+    let result = GAME_DATA_FIELD_DEF.validate(data);
+    if (!result.isValid) {
+      throw new Error(`Invalid game data: ${result.message}`);
+    }
+    data = cloneObject(data); // Perform a deep clone as this is the top level of the data tree.
+    applyDefault(data, {
+      hostPlayerID: Player.ID_UNSET,
+    });
     super(data);
     this._tickNum = 0;
-    this._tileDefLoader = new DefLoader(gameDef.tileDefPack);
-    this._characterDefLoader = new DefLoader(gameDef.characterDefPack);
-    this._itemDefLoader = new DefLoader(gameDef.itemDefPack);
-
-    if (!this.data.playerDataDict) {
-      throw new Error("Player data is required");
-    }
-    if (!this.data.mapData) {
-      throw new Error("Map data is required");
-    }
-    if (!this.data.characterDataDict) {
-      throw new Error("Character data is required");
-    }
-    if (!this.data.itemDataDict) {
-      throw new Error("Item data is required");
-    }
-    this._playerGroup = new PlayerGroup(this, this.data.playerDataDict);
-    this._map = new GameMap(this, this.data.mapData);
-    this._characterGroup = new CharacterGroup(
-      this,
-      this.data.characterDataDict
-    );
-    this._itemGroup = new ItemGroup(this, this.data.itemDataDict);
+    this.assetPackName = data.assetPackName;
   }
   /**
    * Initialize the game.
@@ -206,64 +247,106 @@ export default class Game extends DataUpdater<IGameData> {
    * @param tickNum The initial tick number of the game. Default to 0.
    * @param tickInterval The update interval of the game in milliseconds. Default to 600.
    */
-  public init(
-    tickNum?: number,
-    tickInterval?: number,
-    mainPlayerID?: number
-  ): this {
-    if (this.initialized) {
-      console.log("Game already initialized.");
-      return this;
+  public async init(options?: IGameInitOptions): Promise<this> {
+    if (this._isInitialized) {
+      throw new Error(`Game ${this.id} is already initialized.`);
     }
-    super.init();
-    // Initialize child objects - the order matters!
-    this._playerGroup.init(mainPlayerID);
-    this._map.init();
+    this._isInitialized = true;
+    // Set up properties
+    const { tickNum, tickInterval, mainPlayerID } = applyDefault(
+      options || {},
+      {
+        tickNum: 0,
+        tickInterval: Game.DEFAULT_TICK_INTERVAL,
+        mainPlayerID: Player.ID_UNSET,
+      }
+    );
+    this._tickNum = tickNum as number;
+    this._tickInterval = Math.min(
+      Math.max(Math.floor(tickInterval as number), Game.MIN_TICK_INTERVAL),
+      Game.MAX_TICK_INTERVAL
+    );
+    // Set up asset pack, this is the prerequisite of creating child objects
+    this._assetPack = await AssetPack.load(this.assetPackName);
+    this._assetPack.bind(this);
+
+    // Create child DataHolders
+    this._mapInfo = new MapInfo(this.data.mapInfoData as IMapInfo);
+    this._playerGroup = new PlayerGroup(
+      this,
+      this.data.playerDataDict as IGroupData<IPlayerData>
+    );
+    this._tileManager = new TileManager(
+      this,
+      this.data.tileDataDict as ITileDataDict
+    );
+    this._characterGroup = new CharacterGroup(
+      this,
+      this.data.characterDataDict as IGroupData<ICharacterData>
+    );
+    this._itemGroup = new ItemGroup(
+      this,
+      this.data.itemDataDict as IGroupData<IItemData>
+    );
+
+    // Mount child DataHolders
+    this.setChild("mapInfoData", this._mapInfo);
+    this.setChild("playerDataDict", this._playerGroup);
+    this.setChild("tileDataDict", this._tileManager);
+    this.setChild("characterDataDict", this._characterGroup);
+    this.setChild("itemDataDict", this._itemGroup);
+
+    // Is map data
+    let isMapData = !this.data.id;
+    if (isMapData) {
+      this.reset(); // Will set the game ID to empty string
+      this._id = _generateGameID();
+      this.data.id = this._id;
+      this.apply();
+    } else {
+      this._id = this.data.id;
+    }
+
+    // Initialize child DataHolders. Order matters!
+    this._playerGroup.init(mainPlayerID as number);
+    this._tileManager.init();
     this._characterGroup.init();
     this._itemGroup.init();
-    // Set the tick number
-    if (tickNum !== undefined) {
-      this._tickNum = tickNum;
-    }
-    // Set the update interval
-    if (tickInterval !== undefined) {
-      this._tickInterval = Math.max(
-        Math.min(tickInterval || DEFAULT_UPDATE_INTERVAL, MAX_UPDATE_INTERVAL),
-        MIN_UPDATE_INTERVAL
-      );
-    }
+
     // Set up event listeners
-    this.on<IWillGetUpdateEvent>("willGetUpdate", () => {
-      this.data.playerDataDict = this._playerGroup.getUpdate();
-      this.data.mapData = this._map.getUpdate();
-      this.data.characterDataDict =
-        this._characterGroup.getUpdate() as IGroupData<ICharacterData>;
-      this.data.itemDataDict =
-        this._itemGroup.getUpdate() as IGroupData<IItemData>;
-    });
-    this.on<IDidSetUpdateEvent>("didSetUpdate", () => {
-      this._playerGroup.setUpdate(this.data.playerDataDict);
-      this._map.setUpdate(this.data.mapData);
-      this._characterGroup.setUpdate(this.data.characterDataDict);
-      this._itemGroup.setUpdate(this.data.itemDataDict);
-    });
-    this.on<IWillApplyEvent>("willApply", () => {
-      this._playerGroup.apply();
-      this._map.apply();
-      this._characterGroup.apply();
-      this._itemGroup.apply();
-    });
     this.on<IWillDestroyEvent>("willDestroy", () => {
+      console.log(`Game ${this.id} willDestroy.`);
       this.stop();
     });
     this.on<IDidDestroyEvent>("didDestroy", () => {
-      this._playerGroup.destroy();
-      this._map.destroy();
-      this._characterGroup.destroy();
-      this._itemGroup.destroy();
+      console.log(`Game ${this.id} didDestroy.`);
+      this.playerGroup.destroy();
+      this.tileManager.destroy();
+      this.characterGroup.destroy();
+      this.itemGroup.destroy();
+      this.mapInfo.destroy();
     });
     return this;
   }
+  /**
+   * This will reset all the play-time data of the game to the initial state.
+   * Which includes releasing all the occupied players.
+   * Reset the data when you just created a new game and want to make sure that the gameData does not contain any play-time changes.
+   * It is also ideal to reset the game data when you are saving a gameData as a mapData.
+   */
+  public reset() {
+    this.playerGroup.update<IResetPhase>("reset", null);
+    this.tileManager.update<IResetPhase>("reset", null);
+    this.characterGroup.update<IResetPhase>("reset", null);
+    this.itemGroup.update<IResetPhase>("reset", null);
+    this.mapInfo.update<IResetPhase>("reset", null);
+    this.setData({
+      id: "",
+      hostPlayerID: Player.ID_UNSET,
+    });
+    this.apply();
+  }
+
   /**
    * Run the game.
    * The game will be updated every tickInterval milliseconds.
@@ -273,7 +356,7 @@ export default class Game extends DataUpdater<IGameData> {
     onTick?: (tick: (gameData?: IGameData | null) => IGameData | null) => void
   ) {
     this.checkDestroyed();
-    this.checkInit();
+    this._checkInit();
     if (this._isRunning) {
       return;
     }
@@ -292,7 +375,7 @@ export default class Game extends DataUpdater<IGameData> {
    */
   public stop() {
     this.checkDestroyed();
-    this.checkInit();
+    this._checkInit();
     if (!this._isRunning) {
       return;
     }
@@ -310,16 +393,16 @@ export default class Game extends DataUpdater<IGameData> {
   public tick(gameData?: IGameData | null): IGameData | null {
     // Will skip this section if gameData is null
     if (gameData === undefined) {
-      this._characterGroup.update<IActionPhase>("action", null);
-      this._itemGroup.update<IActionPhase>("action", null);
+      this.characterGroup.update<IActionPhase>("action", null);
+      this.itemGroup.update<IActionPhase>("action", null);
 
       // Other update phases -  Not yet implemented - Reserved for future use.
-      // this._characterGroup.update<IInteractionPhase>("interaction", null);
-      // this._itemGroup.update<IInteractionPhase>("interaction", null);
-      // this._characterGroup.update<ICorrectionPhase>("correction", null);
-      // this._itemGroup.update<ICorrectionPhase>("correction", null);
+      // this.characterGroup.update<IInteractionPhase>("interaction", null);
+      // this.itemGroup.update<IInteractionPhase>("interaction", null);
+      // this.characterGroup.update<ICorrectionPhase>("correction", null);
+      // this.itemGroup.update<ICorrectionPhase>("correction", null);
 
-      gameData = this.getUpdate();
+      gameData = this.getUpdate() as IGameData;
     }
     // Apply the update
     this.setUpdate(gameData);
@@ -328,19 +411,10 @@ export default class Game extends DataUpdater<IGameData> {
     return gameData;
   }
 
-  /**
-   * Get the current game data.
-   * @returns
-   */
-  public getData(): IGameData {
-    // Get current data from all the child objects.
-    // This is necessary because the data of Game may be cached as null values to indicate that the child data is not changed.
-    let data: IGameData = { ...this.data };
-    data.playerDataDict = this._playerGroup.getData();
-    data.mapData = this._map.getData();
-    data.characterDataDict = this._characterGroup.getData();
-    data.itemDataDict = this._itemGroup.getData();
-    return data;
+  private _checkInit() {
+    if (!this._isInitialized) {
+      throw new Error(`Game ${this.id} is not initialized.`);
+    }
   }
 }
 
@@ -349,34 +423,4 @@ function _generateGameID(): string {
   return `G${gameNum}-${Math.floor(Math.random() * 36 * 36).toString(
     36
   )}${Date.now().toString(36)}`;
-}
-
-function _checkGameData(data: IGameData) {
-  if (!data.mapData) {
-    throw new Error("Map data is missing.");
-  }
-  if (!data.mapData.id) {
-    throw new Error("Map ID is missing.");
-  }
-  if (!data.mapData.name) {
-    throw new Error("Map name is missing.");
-  }
-  if (!data.mapData.colCount) {
-    throw new Error("Map column count is missing.");
-  }
-  if (!data.mapData.rowCount) {
-    throw new Error("Map row count is missing.");
-  }
-  if (!data.mapData.tileData2DArray) {
-    throw new Error("Map tile data is missing.");
-  }
-  if (!data.playerDataDict) {
-    throw new Error("Player data is missing.");
-  }
-  if (!data.characterDataDict) {
-    throw new Error("Character data is missing.");
-  }
-  if (!data.itemDataDict) {
-    throw new Error("Item data is missing.");
-  }
 }

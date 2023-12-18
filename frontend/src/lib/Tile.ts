@@ -1,14 +1,17 @@
-import { ITileDef } from "../lib/IDefinition";
-import GameMap from "./GameMap";
-import tileDefPack from "../assets/gameDef/tile";
-import DataHolder, { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
+import DefPack, { ITileDef } from "./data/DefPack";
+import TileManager from "./TileManager";
+import DataHolder, {
+  DataObject,
+  IDidApplyEvent,
+  IDidSetUpdateEvent,
+} from "./data/DataHolder";
 import Character from "./Character";
 import Item from "./Item";
 import Position, { IPosition } from "./Position";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import FieldDef from "./data/FieldDef";
 
-export interface ITileData {
+export interface ITileData extends DataObject {
   // Name of the tile definition (ITypeDef.name)
   type: string;
   // If null, use ITypeDef.walkable
@@ -44,7 +47,7 @@ export interface IItemRemovedEvent extends IEventType {
   };
 }
 
-function getFieldDef(data: ITileData) {
+function getFieldDef(data: ITileData, tileDefPack: DefPack<ITileDef>) {
   return new FieldDef<ITileData>(
     {
       type: "object",
@@ -52,7 +55,7 @@ function getFieldDef(data: ITileData) {
       children: {
         type: {
           type: "string",
-          valueList: Object.keys(tileDefPack),
+          valueList: tileDefPack.typeNames,
         },
         walkable: {
           type: "boolean",
@@ -69,14 +72,14 @@ function getFieldDef(data: ITileData) {
       },
     },
     data,
-    "characterData"
+    "tileData"
   );
 }
 
 //Tile class
 export default class Tile extends DataHolder<ITileData> implements IPosition {
   private _tileDef: ITileDef;
-  private _map: GameMap;
+  private _manager: TileManager;
   private _position: IPosition;
   private _adjacentTiles: Array<Tile> | null = null;
   private _characters: Set<Character> = new Set();
@@ -92,11 +95,11 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
   };
 
   /**
-   * The row where the tile is located in the map
+   * The row where the tile is located in the grid
    */
   public readonly row: number;
   /**
-   * The column where the tile is located in the map
+   * The column where the tile is located in the grid
    */
   public readonly col: number;
   /**
@@ -112,7 +115,7 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
     return this.data.type;
   }
   public set type(type: string) {
-    if (!this._map.game.tileDefLoader.getDef(type)) {
+    if (!this._manager.tileDefPack.get(type)) {
       throw new Error(`Tile type ${type} not found`);
     }
     this.data.type = type;
@@ -122,6 +125,12 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
    */
   public get tileDef(): ITileDef {
     return { ...this._tileDef };
+  }
+  /**
+   * Get the manager of the tile
+   */
+  public get manager(): TileManager {
+    return this._manager;
   }
   /**
    * Indicate if the tile is walkable
@@ -150,14 +159,14 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
   /**
    * Get background image
    */
-  public get bgImageID(): string | null {
-    return this._tileDef.bgImageID;
+  public get bgSVGName(): string | null {
+    return this._tileDef.bgSVGName;
   }
   /**
    * Get foreground image
    */
-  public get fgImageID(): string | null {
-    return this._tileDef.fgImageID;
+  public get fgSVGName(): string | null {
+    return this._tileDef.fgSVGName;
   }
   /**
    * All characters on the tile
@@ -178,49 +187,49 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
    * Get the tile on the top of this tile
    */
   public get topTile(): Tile | null {
-    return this._map.getTile({ row: this.row - 1, col: this.col });
+    return this._manager.getTile({ row: this.row - 1, col: this.col });
   }
   /**
    * Get the tile relative to this tile
    */
   public get bottomTile(): Tile | null {
-    return this._map.getTile({ row: this.row + 1, col: this.col });
+    return this._manager.getTile({ row: this.row + 1, col: this.col });
   }
   /**
    * Get the tile relative to this tile
    */
   public get leftTile(): Tile | null {
-    return this._map.getTile({ row: this.row, col: this.col - 1 });
+    return this._manager.getTile({ row: this.row, col: this.col - 1 });
   }
   /**
    * Get the tile relative to this tile
    */
   public get rightTile(): Tile | null {
-    return this._map.getTile({ row: this.row, col: this.col + 1 });
+    return this._manager.getTile({ row: this.row, col: this.col + 1 });
   }
   /**
    * Get the tile relative to this tile
    */
   public get topLeftTile(): Tile | null {
-    return this._map.getTile({ row: this.row - 1, col: this.col - 1 });
+    return this._manager.getTile({ row: this.row - 1, col: this.col - 1 });
   }
   /**
    * Get the tile relative to this tile
    */
   public get topRightTile(): Tile | null {
-    return this._map.getTile({ row: this.row - 1, col: this.col + 1 });
+    return this._manager.getTile({ row: this.row - 1, col: this.col + 1 });
   }
   /**
    * Get the tile relative to this tile
    */
   public get bottomLeftTile(): Tile | null {
-    return this._map.getTile({ row: this.row + 1, col: this.col - 1 });
+    return this._manager.getTile({ row: this.row + 1, col: this.col - 1 });
   }
   /**
    * Get the tile relative to this tile
    */
   public get bottomRightTile(): Tile | null {
-    return this._map.getTile({ row: this.row + 1, col: this.col + 1 });
+    return this._manager.getTile({ row: this.row + 1, col: this.col + 1 });
   }
   /**
    * Indicate if the tile is highlighted
@@ -250,19 +259,14 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
    * Create a new tile
    * @param tileData
    */
-  constructor(map: GameMap, tileData: ITileData, position: IPosition) {
+  constructor(manager: TileManager, tileData: ITileData, position: IPosition) {
     super(tileData);
-    this._map = map;
+    this._manager = manager;
     this._tileDef = this._getTileDef();
     this.col = position.col;
     this.row = position.row;
     this._position = position;
-  }
-  /**
-   * Initialize the tile
-   */
-  public init(): this {
-    super.init();
+
     //Set up event listeners
     this.on<IDidSetUpdateEvent>("didSetUpdate", () => {
       this._adjacentTiles = null;
@@ -272,11 +276,10 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
         this._tileDef = this._getTileDef();
       }
     });
-    return this;
   }
 
   public getFieldDef(): FieldDef<ITileData> {
-    return getFieldDef(this.data);
+    return getFieldDef(this.data, this._manager.tileDefPack);
   }
 
   public hasCharacter(character: Character): boolean {
@@ -287,6 +290,10 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
   }
   public hasItem(item: Item): boolean {
     return this._items.has(item);
+  }
+
+  public setData(data: Partial<ITileData>): void {
+    super.setData(data);
   }
 
   private _addCharacter(character: Character) {
@@ -339,7 +346,7 @@ export default class Tile extends DataHolder<ITileData> implements IPosition {
   }
 
   private _getTileDef(): ITileDef {
-    let tileDef = this._map.game.tileDefLoader.getDef(this.data.type);
+    let tileDef = this._manager.tileDefPack.get(this.data.type);
     if (!tileDef) {
       throw new Error(`Tile type ${this.data.type} not found`);
     }

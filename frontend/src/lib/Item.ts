@@ -1,11 +1,14 @@
-import { IItemDef, IItemFrameDef } from "../lib/IDefinition";
-import itemDefPack from "../assets/gameDef/item";
+import { IItemDef, ISpriteFrameDef } from "./data/DefPack";
 import Game from "./Game";
 import ItemGroup from "./ItemGroup";
 import Position, { IPosition } from "./Position";
 import { applyDefault } from "./data/util";
-import Member from "./Member";
-import { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
+import Member from "./data/Member";
+import {
+  IDidApplyEvent,
+  IDidSetUpdateEvent,
+  DataObject,
+} from "./data/DataHolder";
 import { IWillDestroyEvent } from "./Destroyable";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Tile from "./Tile";
@@ -23,9 +26,9 @@ export interface IRepositionEvent extends IEventType {
 /**
  * Essential data for creating a new item object.
  */
-export interface IItemData {
+export interface IItemData extends DataObject {
   type: string; // Item type. Which is the name of the item definition.
-  position: IPosition;
+  position: IPosition & DataObject;
   inFront?: boolean | null; // Indicate if the item should be in front of the character. If null, use item definition.
   frameName?: string; // The name of the frame. If null, use default frame name.
   page?: string | null; // The page to link to. If null, use item definition.
@@ -40,7 +43,7 @@ function getFieldDef(game: Game, data: IItemData) {
       children: {
         type: {
           type: "string",
-          valueList: Object.keys(itemDefPack),
+          valueList: game.assetPack.itemDefPack.typeNames,
         },
         position: {
           type: "object",
@@ -48,18 +51,19 @@ function getFieldDef(game: Game, data: IItemData) {
             col: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.colCount,
+              maxNum: game.tileManager.colCount,
             },
             row: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.rowCount,
+              maxNum: game.tileManager.rowCount,
             },
           },
         },
         inFront: {
           type: "boolean",
           acceptUndefined: true,
+          acceptNull: true,
         },
         frameName: {
           type: "string",
@@ -82,15 +86,23 @@ function getFieldDef(game: Game, data: IItemData) {
     "itemData"
   );
 }
+
+const DEFAULT_ITEM_DATA: Partial<IItemData> = {
+  inFront: null,
+  frameName: "default",
+  page: null,
+  facingDir: 1,
+};
+
 export default class Item
   extends Member<ItemGroup, IItemData>
   implements IPosition
 {
-  public static readonly DEFAULT_FRAME_NAME = "default";
+  public static readonly DEFAULT_FRAME_NAME = DEFAULT_ITEM_DATA.frameName;
 
   private _game: Game;
   private _itemDef: IItemDef;
-  private _frameDef: IItemFrameDef;
+  private _frameDef: ISpriteFrameDef;
   private _currentTile: Tile | null = null;
 
   /**
@@ -100,7 +112,7 @@ export default class Item
     return this.data.type;
   }
   public set type(type: string) {
-    if (!this._game.itemDefLoader.getDef(type)) {
+    if (!this.group.itemDefPack.get(type)) {
       throw new Error(`Item type ${type} not found`);
     }
     this.data.type = type;
@@ -142,12 +154,7 @@ export default class Item
     return new Position(this.data.position);
   }
   public set position(position: IPosition) {
-    if (
-      position.row < 0 ||
-      position.row >= this._game.map.rowCount ||
-      position.col < 0 ||
-      position.col >= this._game.map.colCount
-    ) {
+    if (!this._game.tileManager.isInRange(position)) {
       throw new Error(
         `Position out of range: ${position.col} - ${position.row}`
       );
@@ -177,7 +184,7 @@ export default class Item
   /**
    * Get a copy of the definition of the current frame of the item.
    */
-  public get frameDef(): IItemFrameDef {
+  public get frameDef(): ISpriteFrameDef {
     return { ...this._frameDef };
   }
   /**
@@ -208,21 +215,13 @@ export default class Item
    * Create a new game item
    * @param data
    */
-  constructor(group: ItemGroup, data: IItemData, id: number) {
-    data = applyDefault(data, {
-      frameName: Item.DEFAULT_FRAME_NAME,
-    }) as IItemData;
-    super(group, data, id);
+  constructor(group: ItemGroup, id: number, data: IItemData) {
+    data = applyDefault(data, DEFAULT_ITEM_DATA) as IItemData;
+    super(group, id, data);
     this._game = group.game;
-
     this._itemDef = this._getItemDef(this.data.type as string);
     this._frameDef = this._getFrameDef(this.data.frameName as string);
-  }
-  /**
-   * Initialize the item
-   */
-  public init(): this {
-    super.init();
+
     //Set up event listeners
     let onDidSetUpdate = () => {
       this._itemDef = this._getItemDef(this.type as string);
@@ -238,8 +237,8 @@ export default class Item
     });
     // Register to tile
     this._updateTile();
-    return this;
   }
+
   /**
    * Get items that this item is colliding with.
    * @param target A specific item to check collision with. If null, check collision with all items on the same tile.
@@ -321,8 +320,12 @@ export default class Item
     return null;
   }
 
+  public setData(data: Partial<IItemData>): void {
+    super.setData(data);
+  }
+
   private _updateTile() {
-    let tile = this._game.map.getTile(this.position);
+    let tile = this._game.tileManager.getTile(this.position);
     if (!tile) {
       throw new Error(
         `Tile not found at ${this.position.col} - ${this.position.row}`
@@ -352,14 +355,14 @@ export default class Item
   }
 
   private _getItemDef(type: string): IItemDef {
-    let itemDef = this._game.itemDefLoader.getDef(type);
+    let itemDef = this.group.itemDefPack.get(type);
     if (!itemDef) {
       throw new Error(`Unknown item type: ${type}`);
     }
     return itemDef;
   }
 
-  private _getFrameDef(frameName: string): IItemFrameDef {
+  private _getFrameDef(frameName: string): ISpriteFrameDef {
     let frameDef = this._itemDef.frames[frameName];
     if (!frameDef) {
       throw new Error(`Unknown frame name: ${frameName}`);

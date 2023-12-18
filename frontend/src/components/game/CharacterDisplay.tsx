@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState, FunctionComponent } from "react";
+import React from "react";
 import Character from "../../lib/Character";
-import ASSET_MAP from "../../assets/gameDef/asset";
 import { IPosition } from "../../lib/Position";
-import AnyEvent from "../../lib/events/AnyEvent";
-import { ICharacterFrameDef } from "../../lib/IDefinition";
+import { ISpriteFrameDef } from "../../lib/data/DefPack";
 import tinycolor from "tinycolor2";
+import SVGDisplay from "./SVGDisplay";
 
 interface IProps {
   character: Character;
@@ -12,10 +11,10 @@ interface IProps {
 }
 interface IState {
   className: string;
-  frameDef: ICharacterFrameDef;
+  frameDef: ISpriteFrameDef;
 }
 
-const DEFAULT_CLASS_NAME = "CharacterDiv";
+const DEFAULT_CLASS_NAME = "characterDiv";
 const TRANSITION_DELAY = 16;
 
 export default class CharacterDisplay extends React.Component<IProps, IState> {
@@ -58,7 +57,6 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
 
   public render() {
     let svgStyle: React.CSSProperties = {
-      transform: `scaleX(${this._character.facingDir})`,
       fill: this._character.color,
       stroke: "none",
     };
@@ -84,12 +82,19 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
       svgStyle.stroke = "#ffffff";
       svgStyle.strokeWidth = "4px";
     }
-    const SVG = ASSET_MAP.svg(this._character.frameDef.svgID);
+    if (this._character.facingDir == -1) {
+      classList.push("flip");
+    }
+
     let id =
-      "character" + this._character.id + "-" + this._character.frameDef.svgID;
+      "character" + this._character.id + "-" + this._character.frameDef.svgName;
     return (
-      <div ref={this._ref} className={classList.join(" ")}>
-        <SVG id={id} className="CharacterIcon" style={svgStyle} />
+      <div id={id} className={classList.join(" ")} ref={this._ref}>
+        <SVGDisplay
+          assetPack={this._character.group.game.assetPack}
+          svgName={this._character.frameDef.svgName}
+          svgStyle={svgStyle}
+        />
       </div>
     );
   }

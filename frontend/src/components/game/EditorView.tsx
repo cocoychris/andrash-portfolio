@@ -1,23 +1,23 @@
 import React, { ReactNode } from "react";
 import Game, { IActionPhase } from "../../lib/Game";
-import Position from "../../lib/Position";
+import Position, { IPosition } from "../../lib/Position";
 import Character, { ITargetUpdateEvent } from "../../lib/Character";
 import Player from "../../lib/Player";
-import MapView, { IMouseInfo } from "./MapView";
+import TileGrid, { IMouseInfo, IPoint } from "./TileGrid";
 import Editor, { IPlayerSelectEvent, ITileSelectEvent } from "../../lib/Editor";
 import AnyEvent from "../../lib/events/AnyEvent";
-import { IDidApplyEvent, IDidSetUpdateEvent } from "../../lib/DataHolder";
+import { IDidApplyEvent, IDidSetUpdateEvent } from "../../lib/data/DataHolder";
 import Item, { IRepositionEvent } from "../../lib/Item";
 import { IWillDestroyEvent } from "../../lib/Destroyable";
-import { IDidAddMemberEvent } from "../../lib/Group";
+import { IDidAddMemberEvent } from "../../lib/data/Group";
 import Tile from "../../lib/Tile";
-import PopupLayout from "../../layouts/PopupLayout";
 import "./GameView.css";
 import "./EditorView.css";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
 const AUTO_SCROLL_INTERVAL = 20;
-const AUTO_SCROLL_SPEED_RATIO = 0.002;
+const AUTO_SCROLL_MAX_SPEED_RATIO = 0.1;
+const AUTO_SCROLL_ACCELERATION = 0.005;
 
 interface IProps {
   editor: Editor;
@@ -26,16 +26,16 @@ interface IState {}
 
 export default class EditorView extends React.Component<IProps, IState> {
   private _editor: Editor;
-  private _game: Game;
-  private _mapViewRef = React.createRef<MapView>();
+  private _tileGridRef = React.createRef<TileGrid>();
   private _prevDragPosition: Position | null = null;
   private _autoScrollIntervalID: NodeJS.Timeout | null = null;
   private _mouseInfo: IMouseInfo | null = null;
+  private _game: Game;
+  private _velocity: Position = new Position({ col: 0, row: 0 });
 
-  private get _mapView(): MapView | null {
-    return this._mapViewRef.current;
+  private get _tileGrid(): TileGrid | null {
+    return this._tileGridRef.current;
   }
-
   public state: Readonly<IState> = {};
 
   constructor(props: IProps) {
@@ -44,9 +44,12 @@ export default class EditorView extends React.Component<IProps, IState> {
     const { editor } = props;
     this._editor = editor;
     if (!editor.game) {
-      throw new Error("EditorView requires an editor with a game");
+      throw new Error("EditorView: game is null");
     }
+    // Saving a reference to the game object so we can do the cleanup in componentWillUnmount even editor.game is null
     this._game = editor.game;
+
+    this._onGameWillDestroy = this._onGameWillDestroy.bind(this);
     this._onViewClick = this._onViewClick.bind(this);
     this._onViewDrag = this._onViewDrag.bind(this);
     this._onViewMouseUp = this._onViewMouseUp.bind(this);
@@ -61,21 +64,21 @@ export default class EditorView extends React.Component<IProps, IState> {
 
   private _onPlayerSelect(event: AnyEvent<IPlayerSelectEvent>) {
     if (event.data.prevPlayer) {
-      this._mapView?.updateTileDisplay(
+      this._tileGrid?.updateTileDisplay(
         event.data.prevPlayer.character.position
       );
     }
     if (event.data.player) {
-      this._mapView?.updateTileDisplay(event.data.player.character.position);
+      this._tileGrid?.updateTileDisplay(event.data.player.character.position);
     }
   }
   private _onTileSelect(event: AnyEvent<ITileSelectEvent>) {
     if (event.data.prevTile) {
-      this._mapView?.updateTileDisplay(event.data.prevTile);
+      this._tileGrid?.updateTileDisplay(event.data.prevTile);
       this._removeObjectEventListener(event.data.prevTile);
     }
     if (event.data.tile) {
-      this._mapView?.updateTileDisplay(event.data.tile);
+      this._tileGrid?.updateTileDisplay(event.data.tile);
       this._addObjectEventListener(event.data.tile);
     }
   }
@@ -122,6 +125,7 @@ export default class EditorView extends React.Component<IProps, IState> {
       clearInterval(this._autoScrollIntervalID);
       this._autoScrollIntervalID = null;
     }
+    this._velocity = new Position({ col: 0, row: 0 });
     return false;
   }
 
@@ -129,36 +133,50 @@ export default class EditorView extends React.Component<IProps, IState> {
     if (!this._mouseInfo) {
       return false;
     }
-    if (!this._mapView) {
+    if (!this._tileGrid) {
       return false;
     }
     let { pageX, pageY } = this._mouseInfo;
     // Auto scroll
-    const viewWidth = this._mapView.width;
-    const viewHeight = this._mapView.height;
+    const CELL_SIZE = this._tileGrid.cellSize;
+    const viewWidth = this._tileGrid.width;
+    const viewHeight = this._tileGrid.height;
     const PADDING = Math.min(viewWidth, viewHeight) * 0.35;
     const MIN_X = PADDING;
     const MIN_Y = PADDING;
     const MAX_X = viewWidth - PADDING;
     const MAX_Y = viewHeight - PADDING;
+    let maxSpeed: Position = new Position();
+    let minSpeed: Position = new Position();
     let moveX = 0;
     let moveY = 0;
     if (pageX < MIN_X) {
       moveX = pageX - MIN_X;
+      minSpeed.col = (moveX / CELL_SIZE) * AUTO_SCROLL_MAX_SPEED_RATIO;
+      this._velocity.col -= AUTO_SCROLL_ACCELERATION;
     } else if (pageX > MAX_X) {
       moveX = pageX - MAX_X;
+      maxSpeed.col = (moveX / CELL_SIZE) * AUTO_SCROLL_MAX_SPEED_RATIO;
+      this._velocity.col += AUTO_SCROLL_ACCELERATION;
+    } else {
+      this._velocity.col = 0;
     }
     if (pageY < MIN_Y) {
       moveY = pageY - MIN_Y;
+      minSpeed.row = (moveY / CELL_SIZE) * AUTO_SCROLL_MAX_SPEED_RATIO;
+      this._velocity.row -= AUTO_SCROLL_ACCELERATION;
     } else if (pageY > MAX_Y) {
       moveY = pageY - MAX_Y;
+      maxSpeed.row = (moveY / CELL_SIZE) * AUTO_SCROLL_MAX_SPEED_RATIO;
+      this._velocity.row += AUTO_SCROLL_ACCELERATION;
+    } else {
+      this._velocity.row = 0;
     }
-    this._mapView.position = this._mapView.position.add({
-      col: moveX * AUTO_SCROLL_SPEED_RATIO,
-      row: moveY * AUTO_SCROLL_SPEED_RATIO,
-    });
+    this._tileGrid.position = this._tileGrid.position.add(
+      this._velocity.max(minSpeed).min(maxSpeed)
+    );
     // Check Position
-    const position = this._mapView.getPosition(pageX, pageY).floor();
+    const position = this._tileGrid.getPosition(pageX, pageY).floor();
     // Position unchanged
     if (this._prevDragPosition && this._prevDragPosition.equals(position)) {
       return;
@@ -172,13 +190,13 @@ export default class EditorView extends React.Component<IProps, IState> {
     // Have tool
     if (this._editor.toolType == Editor.TOOL_TILE_BRUSH) {
       if (this._tool_tileBrush(position)) {
-        this._mapView.updateTileDisplay(position);
+        this._tileGrid.updateTileDisplay(position);
       }
     }
   }
 
   private _tool_tileBrush(position: Position): boolean {
-    let tile = this._game.map.getTile(position);
+    let tile = this._game.tileManager.getTile(position);
     if (!tile) {
       return false;
     }
@@ -191,7 +209,7 @@ export default class EditorView extends React.Component<IProps, IState> {
   }
 
   private _tool_characterPlacer(position: Position): boolean {
-    let tile = this._game.map.getTile(position);
+    let tile = this._game.tileManager.getTile(position);
     if (!tile) {
       return false;
     }
@@ -218,13 +236,13 @@ export default class EditorView extends React.Component<IProps, IState> {
     }
     let data = this._editor.templateCharacter.getData();
     data.position = position.toObject();
-    let character = this._game.characterGroup.new(data);
-    character.init();
+    this._game.characterGroup.new(data);
+    this._game.characterGroup.apply();
     return true;
   }
 
   private _tool_itemPlacer(position: Position): boolean {
-    let tile = this._game.map.getTile(position);
+    let tile = this._game.tileManager.getTile(position);
     if (!tile) {
       return false;
     }
@@ -240,13 +258,14 @@ export default class EditorView extends React.Component<IProps, IState> {
     }
     let data = this._editor.templateItem.getData();
     data.position = position.toObject();
-    let item = this._game.itemGroup.new(data);
-    item.init();
+    console.log("_tool_itemPlacer", data);
+    this._game.itemGroup.new(data);
+    this._game.itemGroup.apply();
     return true;
   }
 
   private _tool_playerPlacer(position: Position): boolean {
-    let tile = this._game.map.getTile(position);
+    let tile = this._game.tileManager.getTile(position);
     if (!tile) {
       return false;
     }
@@ -269,7 +288,7 @@ export default class EditorView extends React.Component<IProps, IState> {
     character.position = position;
     character.update<IActionPhase>("action");
     character.apply();
-    //this._mapView.updateTileDisplay(oldPosition);
+    //this._tileGrid.updateTileDisplay(oldPosition);
     //return true;
     return false;
   }
@@ -280,7 +299,12 @@ export default class EditorView extends React.Component<IProps, IState> {
       this._editor.selectedTile.isSelected = false;
     }
     //Select new tile
-    let tile = this._game.map.getTile(position);
+    let tile = this._game.tileManager.getTile(position);
+    console.log(
+      "_tool_tileSelector",
+      position.toString(),
+      this._tileGrid?.position.toString()
+    );
     if (tile) {
       //Highlight new tile
       tile.isSelected = true;
@@ -299,23 +323,23 @@ export default class EditorView extends React.Component<IProps, IState> {
   ) {
     let object = event.target as Character | Item;
     if (event.data.changes.isChanged) {
-      this._mapView?.updateTileDisplay(object);
+      this._tileGrid?.updateTileDisplay(object);
     }
   }
   private _onObjectReposition(event: AnyEvent<IRepositionEvent>) {
     if (event.data.currentTile) {
-      this._mapView?.updateTileDisplay(event.data.currentTile);
+      this._tileGrid?.updateTileDisplay(event.data.currentTile);
     }
     if (event.data.prevTile) {
-      this._mapView?.updateTileDisplay(event.data.prevTile);
+      this._tileGrid?.updateTileDisplay(event.data.prevTile);
     }
   }
   private _onTargetUpdate(event: AnyEvent<ITargetUpdateEvent>) {
     if (event.data.target) {
-      this._mapView?.updateTileDisplay(event.data.target);
+      this._tileGrid?.updateTileDisplay(event.data.target);
     }
     if (event.data.prevTarget) {
-      this._mapView?.updateTileDisplay(event.data.prevTarget);
+      this._tileGrid?.updateTileDisplay(event.data.prevTarget);
     }
   }
 
@@ -325,9 +349,9 @@ export default class EditorView extends React.Component<IProps, IState> {
   }
 
   private _removeObjectEventListener(object: Character | Item | Tile) {
-    this._mapView?.updateTileDisplay(object);
+    this._tileGrid?.updateTileDisplay(object);
     if (object instanceof Character) {
-      object.prevTile && this._mapView?.updateTileDisplay(object.prevTile);
+      object.prevTile && this._tileGrid?.updateTileDisplay(object.prevTile);
       object.on<ITargetUpdateEvent>("targetUpdate", this._onTargetUpdate);
     }
     object.off<IDidApplyEvent>("didApply", this._onObjectApply);
@@ -362,9 +386,11 @@ export default class EditorView extends React.Component<IProps, IState> {
       "didAddMember",
       this._onDidAddObject
     );
+    this._game.once<IWillDestroyEvent>("willDestroy", this._onGameWillDestroy);
   }
 
-  public componentWillUnmount() {
+  // public componentWillUnmount() {
+  public _onGameWillDestroy() {
     if (this._autoScrollIntervalID) {
       clearInterval(this._autoScrollIntervalID);
       this._autoScrollIntervalID = null;
@@ -388,14 +414,15 @@ export default class EditorView extends React.Component<IProps, IState> {
   }
 
   public render() {
+    console.log("EditorView.render");
     return (
-      <MapView
+      <TileGrid
         className="gameView editorView"
         game={this._game}
         initPosition={{ col: 0, row: 0 }}
         minVisibleTileCount={MIN_VISIBLE_TILE_COUNT}
         paddingCellCount={1}
-        ref={this._mapViewRef}
+        ref={this._tileGridRef}
         onClick={this._onViewClick}
         onDrag={this._onViewDrag}
         onMouseUp={this._onViewMouseUp}

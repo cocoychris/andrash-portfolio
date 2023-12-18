@@ -20,25 +20,36 @@ export interface IDidDestroyEvent extends IEventType {
  * To use this class, simply extend it and attach a destroy event listener to the object for whatever it needs to be done when the object's lifecycle ends.
  */
 export default abstract class Destroyable extends AnyEventEmitter {
-  private _isDistroyed: boolean = false;
+  private _didDestroy: boolean = false;
+  private _willDestroy: boolean = false;
   /**
-   * Whether the object is destroyed.
+   * Indicate if the object is destroyed.
    */
   public get isDestroyed(): boolean {
-    return this._isDistroyed;
+    return this._didDestroy;
   }
-
   /**
    * Destroy the object.
    * This will mark the object as destroyed and emit a destroy event.
    * This is a one-way operation. Once an object is destroyed, it cannot be undone.
    */
   public destroy(): void {
-    if (this._isDistroyed) {
+    if (this._didDestroy || this._willDestroy) {
       return;
     }
+    this._willDestroy = true;
     this.emit<IWillDestroyEvent>(new AnyEvent("willDestroy", null));
-    this._isDistroyed = true;
+    this._willDestroy = false;
+    this._didDestroy = true;
     this.emit<IDidDestroyEvent>(new AnyEvent("didDestroy", null));
+  }
+
+  /**
+   * Check if this object is destroyed.
+   */
+  protected checkDestroyed() {
+    if (this.isDestroyed) {
+      throw new Error("Failed to perform operation on destroyed object.");
+    }
   }
 }

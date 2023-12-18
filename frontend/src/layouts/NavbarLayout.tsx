@@ -1,30 +1,28 @@
-import ASSET_MAP, { SVGComponent } from "./../assets/gameDef/asset";
 import { Component, ReactNode, useEffect, useRef, useState } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import { IDropItemData } from "../components/DropdownMenu";
 import screenfull from "screenfull";
-import { ReactComponent as MenuIcon } from "../assets/icons/menu-svgrepo-com.svg";
-import { ReactComponent as BellIcon } from "../assets/icons/bell-svgrepo-com.svg";
-import { ReactComponent as RightIcon } from "../assets/icons/chevron-right-svgrepo-com.svg";
-import { ReactComponent as CommentIcon } from "../assets/icons/comment-svgrepo-com.svg";
-import { ReactComponent as LockIcon } from "../assets/icons/lock-svgrepo-com.svg";
-import { ReactComponent as LeftIcon } from "../assets/icons/chevron-left-svgrepo-com.svg";
-import { ReactComponent as PersonIcon } from "../assets/icons/person-svgrepo-com.svg";
-import { ReactComponent as PeopleIcon } from "../assets/icons/people-svgrepo-com.svg";
-import { ReactComponent as HomeIcon } from "../assets/icons/home-svgrepo-com.svg";
-import { ReactComponent as LinkIcon } from "../assets/icons/link-svgrepo-com.svg";
-import { ReactComponent as GiftIcon } from "../assets/icons/gift-svgrepo-com.svg";
+import { ReactComponent as MenuIcon } from "../icons/menu-svgrepo-com.svg";
+import { ReactComponent as BellIcon } from "../icons/bell-svgrepo-com.svg";
+import { ReactComponent as RightIcon } from "../icons/chevron-right-svgrepo-com.svg";
+import { ReactComponent as CommentIcon } from "../icons/comment-svgrepo-com.svg";
+import { ReactComponent as LockIcon } from "../icons/lock-svgrepo-com.svg";
+import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.svg";
+import { ReactComponent as PersonIcon } from "../icons/person-svgrepo-com.svg";
+import { ReactComponent as PeopleIcon } from "../icons/people-svgrepo-com.svg";
+import { ReactComponent as HomeIcon } from "../icons/home-svgrepo-com.svg";
+import { ReactComponent as LinkIcon } from "../icons/link-svgrepo-com.svg";
+import { ReactComponent as GiftIcon } from "../icons/gift-svgrepo-com.svg";
 import AnyEvent from "../lib/events/AnyEvent";
-import { IDidSetUpdateEvent } from "../lib/DataHolder";
+import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Game from "../lib/Game";
 import PopupLayout from "./PopupLayout";
+import SVGDisplay from "../components/game/SVGDisplay";
 
 interface IProps {
   gameClient: GameClient;
   popupRef: React.RefObject<PopupLayout>;
-  onRunServerGame: (mapID: string) => void;
-  onRunLocalGame: (mapID: string) => void;
 }
 interface IState {
   game: Game | null;
@@ -101,20 +99,13 @@ export default class NavbarLayout extends Component<IProps, IState> {
         icon: "🕹️",
         menuData: getGameMenu(this.props),
       },
-      {
-        id: "notification",
-        icon: <BellIcon />,
-        onClick: (navItem) => {
-          return false;
-        },
-      },
     ];
     return <Navbar data={nevbarData} />;
   }
 }
 
 function getGameMenu(props: IProps): Array<IDropItemData> {
-  const { gameClient, popupRef, onRunLocalGame, onRunServerGame } = props;
+  const { gameClient, popupRef } = props;
   let playerGroup = gameClient.game?.playerGroup;
   let hostPlayer = playerGroup?.hostPlayer;
   let mainPlayer = playerGroup?.mainPlayer;
@@ -148,11 +139,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
       label: "New Game",
       leftIcon: "♟️",
       onClick: () => {
-        if (gameClient.isLocalGame) {
-          onRunLocalGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
-        } else {
-          onRunServerGame(GameClient.DEFAULT_MAP_ID); //Specify mapID to start a new game
-        }
+        gameClient.newGame(Game.DEFAULT_MAP_ID);
         return true;
       },
       isEnabled: isHost && gameClient.mode != GameClient.MODE_EDITOR,
@@ -198,7 +185,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
 
 function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
   const { gameClient, popupRef } = props;
-  let game = gameClient.game;
+  let game = gameClient.game as Game;
   if (!game) {
     return null;
   }
@@ -212,21 +199,22 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
     label: <h3>Game Players</h3>,
   });
   if (hostPlayer) {
-    const HostSvg: SVGComponent = ASSET_MAP.svg(
-      hostPlayer.character.frameDef.svgID
-    ) as SVGComponent;
-    const svgStype = {
-      fill: hostPlayer.character.color,
-      transform: "scale(1.8)",
-    };
-
     playerDataList.push({
       id: "host",
       label: `${hostPlayer?.name} [Host]${
         hostPlayer?.isOccupied ? "" : " [Offline]"
       }${hostPlayer == mainPlayer ? " [You]" : ""}`,
       //prince icon
-      leftIcon: <HostSvg style={svgStype} /> || "🤴",
+      leftIcon: (
+        <SVGDisplay
+          assetPack={game.assetPack}
+          svgName={hostPlayer.character.frameDef.svgName}
+          svgStyle={{
+            fill: hostPlayer.character.color,
+            transform: "scale(1.3)",
+          }}
+        />
+      ),
       isEnabled: hostPlayer?.isOccupied,
     });
   }
@@ -249,19 +237,21 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
         if (!player.isOccupied) {
           playerAvailable = true;
         }
-        const CharacterSVG = ASSET_MAP.svg(
-          player.character.frameDef.svgID
-        ) as SVGComponent;
-        const svgStype = {
-          fill: player.character.color,
-          transform: "scale(1.8)",
-        };
         return {
           id: String(player.id),
           label: `${player.name}${player.isOccupied ? "" : " [offline]"}${
             player == mainPlayer ? " [You]" : ""
           }`,
-          leftIcon: <CharacterSVG style={svgStype} /> || <PersonIcon />,
+          leftIcon: (
+            <SVGDisplay
+              assetPack={game.assetPack}
+              svgName={player.character.frameDef.svgName}
+              svgStyle={{
+                fill: player.character.color,
+                transform: "scale(1.3)",
+              }}
+            />
+          ),
           isEnabled: player.isOccupied,
         };
       })
@@ -284,7 +274,7 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
           onClick: () => {
             // Copy current URL to clipboard
             if (!navigator.clipboard) {
-              popupRef.current?.open({
+              popupRef.current?.show({
                 type: "info",
                 title: "Please copy the link manually",
                 content: (

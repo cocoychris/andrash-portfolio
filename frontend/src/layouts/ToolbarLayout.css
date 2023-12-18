@@ -30,7 +30,7 @@
 .toolbar .tile > svg.itemSVG {
   z-index: 1;
 }
-.toolbar .tile > img.fgImage {
+.toolbar .tile > img.fgSVG {
   z-index: 5;
 }
 

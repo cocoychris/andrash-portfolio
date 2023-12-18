@@ -7,12 +7,25 @@ import { withTimeout } from "../frontend/src/lib/data/util";
 import Transmitter from "../frontend/src/lib/events/Transmitter";
 import TransEvent from "../frontend/src/lib/events/TransEvent";
 import Room from "./Room";
+import AssetPack from "../frontend/src/lib/data/AssetPack";
+import path from "path";
+import fs from "fs";
 
 const SEC = 1000;
 const MIN = 60 * SEC;
 const SESSION_GC_INTERVAL = 1 * MIN;
 const AUTHENTICATE_TIMEOUT = 10 * SEC;
 const SESSION_LIFETIME = 10 * MIN;
+const ASSET_DIR = path.join(__dirname, "../../frontend/public/assets");
+AssetPack.init({
+  basePath: ASSET_DIR,
+  pathSeparator: path.sep,
+  loadSVG: false,
+  fileFetcher: async (filePath: string) => {
+    let buffer = await fs.promises.readFile(path.normalize(filePath));
+    return buffer.toString("utf-8");
+  },
+});
 
 export default class GameServer {
   private _io: Server;
@@ -33,7 +46,9 @@ export default class GameServer {
     );
     Session.startGC(SESSION_GC_INTERVAL);
   }
-
+  /**
+   * Set up the socket.io events
+   */
   private _setUpTransEvents(io: Server): void {
     io.on("connection", (socket: Socket) => {
       console.log(`[Server] New connection: ${socket.id}`);
@@ -123,13 +138,18 @@ export default class GameServer {
       socket.on("connect_error", onConnectError);
     });
   }
-
+  /**
+   * Set up the Express middlewares
+   * @param app
+   */
   private _setUpMiddlewares(app: Express) {
-    app.get("/api", (req: Request, res: Response): void => {
-      res.send("You have reached the API! 123");
-    });
-    app.delete("/api/delete", (req: Request, res: Response): void => {
-      res.send("DELETED!");
-    });
+    // This is reserved for future use.
+    // Implement the game server RESTful API here.
+    // app.get("/api", (req: Request, res: Response): void => {
+    //   res.send("You have reached the API! 123");
+    // });
+    // app.delete("/api/delete", (req: Request, res: Response): void => {
+    //   res.send("DELETED!");
+    // });
   }
 }

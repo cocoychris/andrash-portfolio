@@ -1,13 +1,5 @@
-import ASSET_MAP, { SVGComponent } from "../assets/gameDef/asset";
-import {
-  Component,
-  ReactNode,
-  RefObject,
-  createRef,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import SVGDisplay from "../components/game/SVGDisplay";
+import { Component, ReactNode, RefObject, createRef } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import {
@@ -15,28 +7,31 @@ import {
   IDropItemData,
 } from "../components/DropdownMenu";
 import screenfull from "screenfull";
-import { ReactComponent as MenuIcon } from "../assets/icons/menu-svgrepo-com.svg";
-import { ReactComponent as BellIcon } from "../assets/icons/bell-svgrepo-com.svg";
-import { ReactComponent as RightIcon } from "../assets/icons/chevron-right-svgrepo-com.svg";
-import { ReactComponent as CommentIcon } from "../assets/icons/comment-svgrepo-com.svg";
-import { ReactComponent as LockIcon } from "../assets/icons/lock-svgrepo-com.svg";
-import { ReactComponent as LeftIcon } from "../assets/icons/chevron-left-svgrepo-com.svg";
-import { ReactComponent as PersonIcon } from "../assets/icons/person-svgrepo-com.svg";
-import { ReactComponent as PeopleIcon } from "../assets/icons/people-svgrepo-com.svg";
-import { ReactComponent as HomeIcon } from "../assets/icons/home-svgrepo-com.svg";
-import { ReactComponent as LinkIcon } from "../assets/icons/link-svgrepo-com.svg";
-import { ReactComponent as GiftIcon } from "../assets/icons/gift-svgrepo-com.svg";
-import { ReactComponent as PencilIcon } from "../assets/icons/pencil-svgrepo-com.svg";
+import { ReactComponent as MenuIcon } from "../icons/menu-svgrepo-com.svg";
+import { ReactComponent as BellIcon } from "../icons/bell-svgrepo-com.svg";
+import { ReactComponent as RightIcon } from "../icons/chevron-right-svgrepo-com.svg";
+import { ReactComponent as CommentIcon } from "../icons/comment-svgrepo-com.svg";
+import { ReactComponent as LockIcon } from "../icons/lock-svgrepo-com.svg";
+import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.svg";
+import { ReactComponent as PersonIcon } from "../icons/person-svgrepo-com.svg";
+import { ReactComponent as PeopleIcon } from "../icons/people-svgrepo-com.svg";
+import { ReactComponent as HomeIcon } from "../icons/home-svgrepo-com.svg";
+import { ReactComponent as LinkIcon } from "../icons/link-svgrepo-com.svg";
+import { ReactComponent as GiftIcon } from "../icons/gift-svgrepo-com.svg";
+import { ReactComponent as PencilIcon } from "../icons/pencil-svgrepo-com.svg";
 import AnyEvent from "../lib/events/AnyEvent";
-import { IDidApplyEvent, IDidSetUpdateEvent } from "../lib/DataHolder";
+import {
+  DataObject,
+  IDidApplyEvent,
+  IDidSetUpdateEvent,
+} from "../lib/data/DataHolder";
 import Game, { IActionPhase } from "../lib/Game";
 import PopupLayout from "./PopupLayout";
 import Editor, {
-  IDidLoadMapEvent,
-  IDisposeMapEvent,
+  IDidLoadGameEvent,
   ITileSelectEvent,
   IToolChangeEvent,
-  IToolData,
+  IWillUnloadGameEvent,
 } from "../lib/Editor";
 import TileDisplay from "../components/game/TileDisplay";
 import Tile, {
@@ -51,7 +46,7 @@ import "./ToolbarLayout.css";
 import Character, { ICharacterData } from "../lib/Character";
 import CharacterDisplay from "../components/game/CharacterDisplay";
 import CharacterGroup from "../lib/CharacterGroup";
-import { IGroupData } from "../lib/Group";
+import { IGroupData } from "../lib/data/Group";
 import Item, { IRepositionEvent } from "../lib/Item";
 import Player from "../lib/Player";
 import { IIndexable, applyDefault } from "../lib/data/util";
@@ -61,15 +56,10 @@ import { IWillDestroyEvent } from "../lib/Destroyable";
 interface IProps {
   gameClient: GameClient;
   popupRef: React.RefObject<PopupLayout>;
-  // onRunServerGame: (mapID: string) => void;
-  // onRunLocalGame: (mapID: string) => void;
-}
-interface IState extends IToolData {
-  game: Game | null;
 }
 
-export default class ToolbarLayout extends Component<IProps, IState> {
-  private _gameClient: GameClient;
+export default class ToolbarLayout extends Component<IProps> {
+  private _game: Game | null = null;
   private _editor: Editor;
   private _navbarRef: React.RefObject<Navbar> = createRef<Navbar>();
 
@@ -80,69 +70,68 @@ export default class ToolbarLayout extends Component<IProps, IState> {
   constructor(props: IProps) {
     console.log("ToolbarLayout.constructor");
     super(props);
-    this._gameClient = props.gameClient;
     if (!props.gameClient.editor) {
       throw new Error("ToolbarLayout requires an editor");
     }
     this._editor = props.gameClient.editor;
-    this._onDidLoadMap = this._onDidLoadMap.bind(this);
+    // Saving a reference to the game object so we can do the cleanup in componentWillUnmount even editor.game is null
+    this._game = this._editor.game;
+    this._onDidLoadGame = this._onDidLoadGame.bind(this);
+    this._onWillUnloadGame = this._onWillUnloadGame.bind(this);
     this._onToolChange = this._onToolChange.bind(this);
     this._onObjectApply = this._onObjectApply.bind(this);
     this._onTileSelect = this._onTileSelect.bind(this);
-    this.state = {
-      game: this._editor.game,
-      ...this._editor.getToolData(),
-    };
   }
 
   public componentDidMount(): void {
     console.log("ToolbarLayout.componentDidMount");
-    this._editor.on<IDidLoadMapEvent>("didLoadMap", this._onDidLoadMap);
-    this._editor.on<IDisposeMapEvent>("disposeMap", this._onDidLoadMap);
+    this._editor.on<IDidLoadGameEvent>("didLoadGame", this._onDidLoadGame);
+    this._editor.on<IWillUnloadGameEvent>(
+      "willUnloadGame",
+      this._onWillUnloadGame
+    );
     this._editor.on<IToolChangeEvent>("toolChanged", this._onToolChange);
     this._editor.on<ITileSelectEvent>("tileSelect", this._onTileSelect);
   }
 
   public componentWillUnmount(): void {
     console.log("ToolbarLayout.componentWillUnmount");
-    this._editor.off<IDidLoadMapEvent>("didLoadMap", this._onDidLoadMap);
-    this._editor.off<IDisposeMapEvent>("disposeMap", this._onDidLoadMap);
+    this._editor.off<IDidLoadGameEvent>("didLoadGame", this._onDidLoadGame);
+    this._editor.off<IWillUnloadGameEvent>(
+      "willUnloadGame",
+      this._onWillUnloadGame
+    );
     this._editor.off<IToolChangeEvent>("toolChanged", this._onToolChange);
     this._editor.off<ITileSelectEvent>("tileSelect", this._onTileSelect);
-    let game = this.state.game;
-    if (game) {
-      game.playerGroup.forEach((player: Player) => {
-        player.off<IDidApplyEvent>("didApply", this._onObjectApply);
-        player.character.off<IDidApplyEvent>("didApply", this._onObjectApply);
-      });
-      game.map.off<IDidApplyEvent>("didApply", this._onObjectApply);
-    }
   }
 
-  private _onDidLoadMap() {
+  private _onWillUnloadGame(event: AnyEvent<IWillUnloadGameEvent>) {
+    console.log("ToolbarLayout._onWillUnloadGame");
     // Clean up listeners for old game
-    let game = this.state.game;
-    if (game) {
-      game.playerGroup.forEach((player: Player) => {
-        player.off<IDidApplyEvent>("didApply", this._onObjectApply);
-        player.character.off<IDidApplyEvent>("didApply", this._onObjectApply);
-      });
-      game.map.off<IDidApplyEvent>("didApply", this._onObjectApply);
-    }
-    // Handle new game
-    game = this._editor.game;
-    this.setState({
-      game: game,
+    this._game?.playerGroup.forEach((player: Player) => {
+      player.off<IDidApplyEvent>("didApply", this._onObjectApply);
+      player.character.off<IDidApplyEvent>("didApply", this._onObjectApply);
     });
-    if (game) {
-      game.playerGroup.forEach((player: Player) => {
+    this._game?.mapInfo.off<IDidApplyEvent>("didApply", this._onObjectApply);
+
+    this._navbarRef.current?.clearSelection();
+    // this.forceUpdate();
+  }
+  private _onDidLoadGame() {
+    console.log("ToolbarLayout._onDidLoadGame");
+    // Handle new game
+    this._game = this._editor.game;
+    if (this._game) {
+      this._game.playerGroup.forEach((player: Player) => {
         player.on<IDidApplyEvent>("didApply", this._onObjectApply);
         player.character.on<IDidApplyEvent>("didApply", this._onObjectApply);
       });
-      game.map.on<IDidApplyEvent>("didApply", this._onObjectApply);
+      this._game.mapInfo.on<IDidApplyEvent>("didApply", this._onObjectApply);
     }
+    this.forceUpdate();
   }
   private _onTileSelect(event: AnyEvent<ITileSelectEvent>) {
+    console.log("ToolbarLayout._onTileSelect");
     if (event.data.prevTile) {
       event.data.prevTile.off<IDidApplyEvent>("didApply", this._onObjectApply);
       event.data.prevTile.characters.forEach((character: Character) => {
@@ -213,20 +202,14 @@ export default class ToolbarLayout extends Component<IProps, IState> {
     this.forceUpdate();
   }
 
-  private _onToolChange(event: AnyEvent<IToolChangeEvent>) {
-    let toolType = event.data.toolType;
-    this.setState({
-      toolType: toolType,
-      templateTile: event.data.templateTile,
-      templateCharacter: event.data.templateCharacter,
-      templateItem: event.data.templateItem,
-      selectedPlayer: event.data.selectedPlayer,
-    });
-    if (toolType) {
-      this._navbarRef.current?.select(toolType);
+  private _onToolChange() {
+    console.log("ToolbarLayout._onToolChange", this._editor.selectedTile);
+    if (this._editor.toolType) {
+      this._navbarRef.current?.select(this._editor.toolType);
     } else {
       this._navbarRef.current?.clearSelection();
     }
+    this.forceUpdate();
   }
 
   render(): ReactNode {
@@ -250,7 +233,7 @@ export default class ToolbarLayout extends Component<IProps, IState> {
             ? "[👆]"
             : "👆",
         menuData: getSelectedTileMenu(this._editor, this._popupRef),
-        isEnabled: this.state.game != null,
+        isEnabled: this._editor.game != null,
         onClick: () => {
           this._editor.setToolData({
             toolType: Editor.TOOL_TILE_SELECTOR,
@@ -260,11 +243,11 @@ export default class ToolbarLayout extends Component<IProps, IState> {
       },
       {
         id: Editor.TOOL_PLAYER_PLACER,
-        icon: this.state.selectedPlayer
-          ? getPlayerDisplay(this.state.selectedPlayer)
+        icon: this._editor.selectedPlayer
+          ? getPlayerDisplay(this._editor.selectedPlayer)
           : "👤",
         menuData: getPlayersMenu(this._editor, this._popupRef),
-        isEnabled: this.state.game != null,
+        isEnabled: this._editor.game != null,
         onClick: () => {
           this._editor.setToolData({
             toolType: Editor.TOOL_PLAYER_PLACER,
@@ -274,12 +257,12 @@ export default class ToolbarLayout extends Component<IProps, IState> {
       },
       {
         id: Editor.TOOL_TILE_BRUSH,
-        icon: this.state.templateTile
-          ? getTileDisplay(this.state.templateTile)
+        icon: this._editor.templateTile
+          ? getTileDisplay(this._editor.templateTile)
           : "🧱",
         // menuData: this.state.tilesMenuData,
         menuData: getTilesMenu(this._editor),
-        isEnabled: this.state.game != null,
+        isEnabled: this._editor.game != null,
         onClick: () => {
           this._editor.setToolData({
             toolType: Editor.TOOL_TILE_BRUSH,
@@ -290,11 +273,11 @@ export default class ToolbarLayout extends Component<IProps, IState> {
       },
       {
         id: Editor.TOOL_CHARACTER_PLACER,
-        icon: this.state.templateCharacter
-          ? getCharacterDisplay(this.state.templateCharacter)
+        icon: this._editor.templateCharacter
+          ? getCharacterDisplay(this._editor.templateCharacter)
           : "🧑‍🤝‍🧑",
         menuData: getCharactersMenu(this._editor),
-        isEnabled: this.state.game != null,
+        isEnabled: this._editor.game != null,
         onClick: () => {
           this._editor.setToolData({
             toolType: Editor.TOOL_CHARACTER_PLACER,
@@ -305,11 +288,11 @@ export default class ToolbarLayout extends Component<IProps, IState> {
       },
       {
         id: Editor.TOOL_ITEM_PLACER,
-        icon: this.state.templateItem
-          ? getItemDisplay(this.state.templateItem)
+        icon: this._editor.templateItem
+          ? getItemDisplay(this._editor.templateItem)
           : "🎁",
         menuData: getItemsMenu(this._editor),
-        isEnabled: this.state.game != null,
+        isEnabled: this._editor.game != null,
         onClick: () => {
           this._editor.setToolData({
             toolType: Editor.TOOL_ITEM_PLACER,
@@ -448,11 +431,10 @@ function getPlayersMenu(
     let apply = (value: any): boolean => {
       let result = fieldDef.validate(value);
       if (!result.isValid) {
-        // alert(`Path: ${result.errorPath}\nError: ${result.message}`);
         invalidValueAlert(popupRef, result.message);
         return false;
       }
-      player.setData(value);
+      player.setData(value as DataObject);
       player.updateCharacter();
       player.apply();
       player.character.apply();
@@ -496,7 +478,7 @@ function getEditorMenu(
   return [
     {
       id: "mapName",
-      label: `Map: ${game?.map.name || "(No Map)"}`,
+      label: `Map: ${game?.mapInfo.name || "(No Map)"}`,
       leftIcon: "🗺️",
       rightIcon: <RightIcon />,
       isEnabled: game != null,
@@ -504,17 +486,16 @@ function getEditorMenu(
         new FieldDef<string>(
           {
             type: "string",
-            // regExp: /[^\\/:*?"<>|]/,
-            regExp: /^[^\\\/:*?"<>\|]+$/,
+            regExp: Editor.MAP_NAME_REGEXP,
           },
-          game?.map.name
+          game?.mapInfo.name
         ),
         (value: string) => {
           if (!game) {
             return false;
           }
-          game.map.name = value;
-          game.map.apply();
+          game.mapInfo.name = value;
+          game.mapInfo.apply();
           return true;
         },
         popupRef
@@ -554,7 +535,7 @@ function getEditorMenu(
       label: "New Map",
       leftIcon: "🆕",
       onClick: () => {
-        editor.disposeMap();
+        editor.unloadMap();
         return true;
       },
     },
@@ -563,7 +544,7 @@ function getEditorMenu(
       label: "Exit Editor",
       leftIcon: "🚪",
       onClick: () => {
-        gameClient.mode = GameClient.MODE_SERVER;
+        gameClient.mode = GameClient.MODE_ONLINE;
         return true;
       },
     },
@@ -590,7 +571,6 @@ function getSelectedTileMenu(
   let apply = (value: any): boolean => {
     let result = fieldDef.validate(value);
     if (!result.isValid) {
-      // alert(`Path: ${result.errorPath}\nError: ${result.message}`);
       invalidValueAlert(popupRef, result.message);
       return false;
     }
@@ -598,10 +578,12 @@ function getSelectedTileMenu(
     tile.apply();
     return true;
   };
+
+  let templateTile = editor.getTemplateTile(tile.type);
   menuData.push({
     id: `tile-${tile.position.toString()}`,
     label: `[Tile ${tile.col},${tile.row}] ${tile.type}`,
-    leftIcon: getTileDisplay(tile),
+    leftIcon: getTileDisplay(templateTile || tile),
     rightIcon: <RightIcon />,
     menuData: getPropsMenu(fieldDef, apply, popupRef),
   });
@@ -617,7 +599,6 @@ function getSelectedTileMenu(
       let apply = (value: any): boolean => {
         let result = fieldDef.validate(value);
         if (!result.isValid) {
-          // alert(`Path: ${result.errorPath}\nError: ${result.message}`);
           invalidValueAlert(popupRef, result.message);
           return false;
         }
@@ -626,18 +607,38 @@ function getSelectedTileMenu(
         character.apply();
         return true;
       };
-      let isPlayerCharacter = editor.playerCharacterList.includes(character);
-      let subMenu = getPropsMenu(fieldDef, apply, popupRef) || [];
-      subMenu.push({
-        id: "delete",
-        label: "Delete Character",
-        leftIcon: "🗑️",
-        isEnabled: !isPlayerCharacter,
-        onClick: () => {
-          !isPlayerCharacter && character.destroy();
-          return true;
-        },
+      let characterPlayer: Player | null = null;
+      editor.game?.playerGroup.forEach((player: Player) => {
+        if (player.character == character) {
+          characterPlayer = player;
+        }
       });
+      let subMenu = getPropsMenu(fieldDef, apply, popupRef) || [];
+      if (characterPlayer) {
+        subMenu.push({
+          id: "movePlayer",
+          label: "Move Player",
+          leftIcon: "♟️",
+          onClick: () => {
+            editor.setToolData({
+              selectedPlayer: characterPlayer,
+              selectedTile: null,
+              toolType: Editor.TOOL_PLAYER_PLACER,
+            });
+            return true;
+          },
+        });
+      } else {
+        subMenu.push({
+          id: "delete",
+          label: "Delete Character",
+          leftIcon: "🗑️",
+          onClick: () => {
+            character.destroy();
+            return true;
+          },
+        });
+      }
       menuData.push({
         id: `character-${character.id}`,
         label: `[Character #${character.id}] ${character.type}`,
@@ -659,7 +660,6 @@ function getSelectedTileMenu(
       let apply = (value: any): boolean => {
         let result = fieldDef.validate(value);
         if (!result.isValid) {
-          // alert(`Path: ${result.errorPath}\nError: ${result.message}`);
           invalidValueAlert(popupRef, result.message);
           return false;
         }
@@ -799,7 +799,6 @@ function getPropsMenu<T>(
             onClick: () => {
               let result = fieldDef.parseString(String(value));
               if (!result.isValid) {
-                // alert(`Path: ${result.errorPath}\nError: ${result.message}`);
                 invalidValueAlert(popupRef, result.message);
                 return false;
               }
@@ -812,13 +811,13 @@ function getPropsMenu<T>(
     }
   } else {
     // Not end node
-    fieldDef.objectChildren?.forEach((childDef, key) => {
+    fieldDef.forEachChild((childDef, key) => {
       let displayValue = childDef.fallbackValue;
-      if (childDef.type == "object" && childDef.objectChildren) {
+      if (childDef.type == "object" && childDef.childCount > 0) {
         displayValue = JSON.stringify(childDef.fallbackValue);
       }
       let itemData: IDropItemData = {
-        id: key,
+        id: String(key),
         label: `${key}: ${String(displayValue).slice(0, 50)}`,
         isEnabled: childDef.editable,
       };
@@ -849,7 +848,6 @@ function getPropsMenu<T>(
       onClick: () => {
         let result = fieldDef.parseString(value);
         if (!result.isValid) {
-          // alert(`${result.errorPath}: ${result.message}`);
           invalidValueAlert(popupRef, result.message);
           return false;
         }
@@ -864,30 +862,41 @@ function getTileDisplay(tile: Tile) {
   let style: React.CSSProperties = {
     width: "100%",
     height: "100%",
-    top: "0px",
-    left: "0px",
     transform: "scale(1.2)",
     borderRadius: "50%",
-    border: tile.walkable ? "none" : "1px solid red",
+    border: "none",
   };
+  if (!tile.walkable) {
+    style.margin = "-1px";
+    style.border = "1px solid red";
+  }
+
   return <TileDisplay tile={tile} style={style} />;
 }
 
 function getCharacterDisplay(character: Character) {
-  const CharacterSVG = ASSET_MAP.svg(character.frameDef.svgID) as SVGComponent;
-  const svgStype = {
-    fill: character.color,
-    transform: "scale(1.8)",
-  };
-  return <CharacterSVG style={svgStype} />;
+  return (
+    <SVGDisplay
+      assetPack={character.group.game.assetPack}
+      svgName={character.frameDef.svgName}
+      svgStyle={{
+        fill: character.color,
+        transform: "scale(1.2)",
+      }}
+    />
+  );
 }
 
 function getItemDisplay(item: Item) {
-  const ItemSVG = ASSET_MAP.svg(item.frameDef.svgID) as SVGComponent;
-  const svgStype = {
-    transform: "scale(1.8)",
-  };
-  return <ItemSVG style={svgStype} />;
+  return (
+    <SVGDisplay
+      assetPack={item.group.game.assetPack}
+      svgName={item.frameDef.svgName}
+      svgStyle={{
+        transform: "scale(1.2)",
+      }}
+    />
+  );
 }
 
 function getPlayerDisplay(player: Player) {
@@ -897,7 +906,7 @@ function getPlayerDisplay(player: Player) {
 
 function invalidValueAlert(popupRef: RefObject<PopupLayout>, message: string) {
   if (popupRef.current) {
-    popupRef.current.open({
+    popupRef.current.show({
       type: "warning",
       title: "Invalid Value",
       content: message,

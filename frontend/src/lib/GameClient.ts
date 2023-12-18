@@ -1,5 +1,5 @@
 import Editor from "../lib/Editor";
-import Game, { IGameData, IGameDef } from "./Game";
+import Game, { IGameData } from "./Game";
 import { io, Socket } from "socket.io-client";
 import {
   IAuthenticateEvent,
@@ -18,44 +18,12 @@ import Transmitter, {
 import TransEvent from "./events/TransEvent";
 import AnyEventEmitter from "./events/AnyEventEmitter";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
-import DEFAULT_GAME_DATA from "../assets/gameData/default";
-import tileDefPack from "../assets/gameDef/tile";
-import characterDefPack from "../assets/gameDef/character";
-import itemDefPack from "../assets/gameDef/item";
-import { delay } from "./data/util";
-import { IDataChangeEvent } from "./DataHolder";
+import { applyDefault, delay, randomInterger, withTimeout } from "./data/util";
+import { IDataChangeEvent } from "./data/DataHolder";
 import { IWillDestroyEvent } from "./Destroyable";
 import FruitNameGenerator from "./FruitNameGenerator";
-
-let DEFAULT_GAME_DEF: IGameDef = {
-  characterDefPack,
-  tileDefPack,
-  itemDefPack,
-};
-
-export interface ILoadGameOptions {
-  /**
-   * Will load the game with the specified map ID.
-   * If not specified, previous game session will be loaded.
-   * If no previous game session is found, the default map will be loaded.
-   */
-  mapID?: string;
-  /**
-   * Load the game with the specified game data instead of loading with the map ID.
-   * Only works when running the game locally.
-   */
-  gameData?: IGameData;
-  /**
-   * The player ID of the local player. (aka mainPlayerID)
-   */
-  playerID?: number;
-  /**
-   * The tick interval of the game in milliseconds.
-   * If running the game locally, this value will be used to run the game.
-   * If running the game on the server, there is no guarantee that the game will run at this interval.
-   */
-  tickInterval?: number;
-}
+import AssetPack from "./data/AssetPack";
+import Player, { IPlayerData } from "./Player";
 
 export interface IErrorEvent extends IEventType {
   type: "error";
@@ -65,49 +33,63 @@ export interface IErrorEvent extends IEventType {
   };
 }
 
-// export interface IWillNewGameEvent extends IEventType {
-//   type: "willNewGame";
-//   data: null;
-// }
+export interface IWillNewGameEvent extends IEventType {
+  type: "willNewGame";
+  data: null;
+}
 export interface IDidNewGameEvent extends IEventType {
   type: "didNewGame";
   data: { game: Game };
 }
 
+const MAPS_BASE_URL = "/maps";
+const CONNECTION_TIMEOUT = 5000;
 const EVENT_TIMEOUT = 5000;
 const EVENT_RETRY_COUNT = 3;
 const EVENT_RETRY_INTERVAL = 200;
-
 /**
  * Client that connects to the server and keeps local status synchronized with the server.
  */
 export default class GameClient extends AnyEventEmitter {
-  public static readonly DEFAULT_MAP_ID: string =
-    DEFAULT_GAME_DATA.mapData?.id || "default";
   public static readonly MODE_LOCAL: string = "local";
-  public static readonly MODE_SERVER: string = "server";
+  public static readonly MODE_ONLINE: string = "online";
   public static readonly MODE_EDITOR: string = "editor";
+  public static readonly DEFAULT_MODE: string = GameClient.MODE_LOCAL;
+  public static readonly INIT_STATE_NONE: string = "none";
+  public static readonly INIT_STATE_INITIALIZING: string = "initializing";
+  public static readonly INIT_STATE_READY: string = "ready";
+  public static readonly INIT_STATE_FAILED: string = "failed";
+
   private static readonly _VALID_MODES: Array<string> = [
     GameClient.MODE_LOCAL,
-    GameClient.MODE_SERVER,
+    GameClient.MODE_ONLINE,
     GameClient.MODE_EDITOR,
   ];
 
   private _mode: string = "";
   private _game: Game | null = null;
-  private _gameDef: IGameDef;
   private _isSyncing: boolean = false;
   private _localSession: LocalSession;
   private _isAuthenticated: boolean = false;
   private _transmitter: Transmitter<Socket>;
   private _isHost: boolean = false;
   private _gameStopTimeoutID: NodeJS.Timeout | null = null;
+  private _defaultMapData: IGameData | null = null;
+  private _currentMapData: IGameData | null = null;
+  private _joinRoomWarning: string = "";
+  private _initState: string = GameClient.INIT_STATE_NONE;
 
   /**
    * The mode of the game client.
    */
   public get mode(): string {
     return this._mode;
+  }
+  /**
+   * The initial state of the game client.
+   */
+  public get initState(): string {
+    return this._initState;
   }
   /**
    * Set the mode of the game client.
@@ -120,7 +102,6 @@ export default class GameClient extends AnyEventEmitter {
     //Change and go to new URL
     let url = new URL(window.location.href);
     url.searchParams.set("mode", value);
-    // window.history.pushState("", "", url.toString());
     window.location.assign(url);
   }
   /**
@@ -159,6 +140,14 @@ export default class GameClient extends AnyEventEmitter {
     return this.isLocalGame || this._isHost;
   }
 
+  public get joinRoomWarning(): string {
+    return this._joinRoomWarning;
+  }
+
+  public get publicID(): string {
+    return this._localSession.publicID;
+  }
+
   /**
    * Initialize a new GameClient instance.
    * @param serverURL The URL of the game server.
@@ -174,7 +163,6 @@ export default class GameClient extends AnyEventEmitter {
       EVENT_RETRY_COUNT,
       EVENT_RETRY_INTERVAL
     );
-    this._gameDef = DEFAULT_GAME_DEF;
     this._localSession = new LocalSession();
 
     this._transmitter.on<IConnectEvent>("connect", async (event) => {
@@ -217,14 +205,10 @@ export default class GameClient extends AnyEventEmitter {
 
     this._onGameTick = this._onGameTick.bind(this);
     this._onMainPlayerDataChange = this._onMainPlayerDataChange.bind(this);
+    AssetPack.init();
     console.log("GameClient created");
   }
-  /**
-   * Start the client and connect to the server.
-   */
-  public connect(): void {
-    this._transmitter.connect();
-  }
+
   /**
    * Will clear the session ID stored at the client.
    * The next time you call `authenticate()`, the client will get a new session instead of trying to reconnect the old session.
@@ -246,88 +230,101 @@ export default class GameClient extends AnyEventEmitter {
   public clearPublicID(): void {
     this._localSession.publicID = "";
   }
-  /**
-   * Authenticate the client with the server.
-   * Will create new session if the client is not authenticated.
-   * Client will be joined to a room when authenticated.
-   * `publicID` and `sessionID` property will be updated after authentication.
-   * The room ID in the URL will be updated after authentication.
-   */
-  public async authenticate(): Promise<IAuthenticateEvent["response"]> {
-    console.log("authenticate");
-    if (!this._transmitter.isConnected) {
-      throw new Error("Client not connected");
-    }
-    this._isAuthenticated = false;
-    let response = await this._transmitter.transmit<IAuthenticateEvent>(
-      "authenticate",
-      {
-        sessionID: this._localSession.sessionID,
-        publicID: this._localSession.publicID,
-      }
-    );
-    if (response.error) {
-      throw new Error(response.error);
-    }
-    console.log(`authenticate response`, response);
-    this._localSession.sessionID = response.sessionID;
-    this._localSession.publicID = response.publicID;
-    this._isHost = response.isHost;
-    this._isAuthenticated = true;
-    console.log(`authenticated`, this._localSession);
-    return response;
-  }
 
-  /**
-   * Load game data from the server and create a new game with the data.
-   * Property `game` will be updated after loading.
-   * @param options
-   * @returns
-   */
-  public async loadGame(options: ILoadGameOptions): Promise<Game> {
-    console.log("loadGame");
-    // Loading default map from local
-    if (this.isLocalGame) {
-      let localGameData: IGameData | null =
-        options.gameData || this._getLocalGameData(options.mapID);
-      if (localGameData) {
-        this._transmitter.disconnect();
-        this._localSession.publicID = "";
-        let newGameOptions = {
-          gameData: localGameData,
-          isLocalGame: true,
-          tickInterval: options.tickInterval,
-          playerID: options.playerID || 0,
+  public async init(): Promise<void> {
+    if (
+      this._initState != GameClient.INIT_STATE_NONE &&
+      this._initState != GameClient.INIT_STATE_FAILED
+    ) {
+      return;
+    }
+    this._initState = GameClient.INIT_STATE_INITIALIZING;
+
+    console.log(`Running in ${this.mode} mode`);
+    if (this.mode == GameClient.MODE_EDITOR) {
+      // await this._loadMap(Game.DEFAULT_MAP_ID);
+      this._initState = GameClient.INIT_STATE_READY;
+      return;
+    }
+    if (this.mode == GameClient.MODE_LOCAL) {
+      if (this._localSession.gameData) {
+        await this._loadLocalGame(
+          this._localSession.gameData,
+          undefined,
+          undefined,
+          false
+        );
+      } else {
+        let gameData = await this._loadMap(Game.DEFAULT_MAP_ID);
+        await this._loadLocalGame(gameData);
+      }
+      await this.startGame();
+      this._initState = GameClient.INIT_STATE_READY;
+      return;
+    }
+    if (this.mode == GameClient.MODE_ONLINE) {
+      return new Promise<void>((resolve, reject) => {
+        let timeoutID = setTimeout(() => {
+          this._transmitter.off<IConnectEvent>("connect", onConnect);
+          this._transmitter.disconnect();
+          reject(new Error("Connection timeout"));
+        }, CONNECTION_TIMEOUT);
+        let onConnect = async (event: AnyEvent<IConnectEvent>) => {
+          clearTimeout(timeoutID);
+          try {
+            await this._authenticate();
+            await this._loadOnlineGame();
+            await this.startGame();
+            this._initState = GameClient.INIT_STATE_READY;
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
         };
-        console.log("Creating new local game...", newGameOptions);
-        return await this._newGame(newGameOptions);
-      }
+        this._transmitter.on<IConnectEvent>("connect", onConnect);
+        this._transmitter.connect();
+      });
     }
-    // Loading other map from server
-    if (!this._isAuthenticated) {
-      throw new Error("Client not authenticated");
+  }
+  /**
+   * Start a new game with the specified map.
+   * @param mapID The ID of the map to load.
+   * @param mainPlayerID The ID of the main player. Ommit to use a random ID.
+   */
+  public async newGame(
+    mapID: string,
+    mainPlayerID: number = Player.ID_RANDOM
+  ): Promise<void> {
+    if (this.isLocalGame) {
+      await this._loadLocalGame(await this._loadMap(mapID), mainPlayerID);
+    } else {
+      await this._loadOnlineGame(mapID);
     }
-    let response = await this._transmitter.transmit<ILoadGameEvent>(
-      "loadGame",
-      {
-        isLocalGame: this.isLocalGame,
-        mapID: options.mapID,
-        tickInterval: options.tickInterval,
-      }
-    );
-    if (response.error) {
-      throw new Error(response.error);
+    await this.startGame();
+  }
+  /**
+   * Load a game in local mode.
+   * @param gameData The game data to load. Ommit to load the last game data from local storage.
+   * @param mainPlayerID The ID of the main player. Ommit to use a random ID.
+   * @returns Returns the loaded game. Returns null if no game data is available.
+   */
+  public async loadLocalGame(
+    gameData: IGameData | null = null,
+    mainPlayerID: number = Player.ID_RANDOM
+  ): Promise<Game | null> {
+    if (!this.isLocalGame) {
+      throw new Error("Not running in local mode");
     }
-    if (response.isLocalGame) {
-      this._transmitter.disconnect();
-      this._localSession.publicID = "";
+    gameData = gameData || this._localSession.gameData;
+    if (!gameData) {
+      return null;
     }
-    console.log("Creating new game from server...", response);
-    return await this._newGame(response);
+    return await this._loadLocalGame(gameData, mainPlayerID);
   }
 
   public async startGame(force: boolean = false): Promise<void> {
     console.log("startGame");
+    this._checkInit();
     if (!this._game) {
       throw new Error("No game has been loaded");
     }
@@ -363,6 +360,7 @@ export default class GameClient extends AnyEventEmitter {
 
   public async stopGame(endGame: boolean = false): Promise<void> {
     console.log("stopGame");
+    this._checkInit();
     if (!this._game) {
       throw new Error("No game has been loaded");
     }
@@ -401,45 +399,177 @@ export default class GameClient extends AnyEventEmitter {
     console.log("GameClient destroyed");
   }
 
+  /**
+   * Authenticate the client with the server.
+   * Will create new session if the client is not authenticated.
+   * Client will be joined to a room when authenticated.
+   * `publicID` and `sessionID` property will be updated after authentication.
+   * The room ID in the URL will be updated after authentication.
+   */
+  private async _authenticate(): Promise<IAuthenticateEvent["response"]> {
+    console.log("authenticate");
+    if (!this._transmitter.isConnected) {
+      throw new Error("Client not connected");
+    }
+    this._isAuthenticated = false;
+    let response = await this._transmitter.transmit<IAuthenticateEvent>(
+      "authenticate",
+      {
+        sessionID: this._localSession.sessionID,
+        publicID: this._localSession.publicID,
+      }
+    );
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    console.log(`authenticate response`, response);
+    this._localSession.sessionID = response.sessionID;
+    this._localSession.publicID = response.publicID;
+    this._isHost = response.isHost;
+    this._isAuthenticated = true;
+    this._joinRoomWarning = response.joinRoomWarning;
+    console.log(`authenticated`, this._localSession);
+    return response;
+  }
+
+  private async _loadMap(mapID: string): Promise<IGameData> {
+    // Use cached map data if available
+    if (mapID == Game.DEFAULT_MAP_ID && this._defaultMapData) {
+      return this._defaultMapData;
+    }
+    if (this._currentMapData && this._currentMapData.mapInfoData?.id) {
+      return this._currentMapData;
+    }
+    // Load map data from server
+    let url = `${MAPS_BASE_URL}/${mapID}.json`;
+    let response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to load map ${mapID} - ${response.statusText}`);
+    }
+    let mapData: IGameData = await response.json();
+    // Validate map data
+    if (mapID !== mapData.mapInfoData?.id) {
+      console.warn(
+        `Map ID mismatch: expected ${mapID}, got ${mapData.mapInfoData?.id}`
+      );
+      if (!mapData.mapInfoData) {
+        throw new Error(`Invalid map data (ID: ${mapID}). Missing mapInfoData`);
+      }
+      mapData.mapInfoData.id = mapID;
+    }
+    // Store the map data
+    this._currentMapData = mapData;
+    if (mapID == Game.DEFAULT_MAP_ID) {
+      this._defaultMapData = mapData;
+    }
+    return mapData;
+  }
+
+  /**
+   * Load game data from the server and create a new game with the data.
+   * Property `game` will be updated after loading.
+   * @returns
+   */
+  private async _loadLocalGame(
+    gameData: IGameData,
+    mainPlayerID: number = Player.ID_RANDOM,
+    tickInterval?: number,
+    isMapData?: boolean
+  ): Promise<Game> {
+    this._transmitter.disconnect();
+    this._localSession.publicID = "";
+    console.log("Creating new local game...");
+    return await this._newGame({
+      gameData,
+      mainPlayerID,
+      tickInterval,
+      isMapData,
+    });
+  }
+
+  private async _loadOnlineGame(
+    mapID?: string,
+    tickInterval?: number
+  ): Promise<Game> {
+    // Loading gameData from server
+    if (!this._isAuthenticated) {
+      throw new Error("Client not authenticated");
+    }
+    let response = await this._transmitter.transmit<ILoadGameEvent>(
+      "loadGame",
+      {
+        isLocalGame: false,
+        mapID: mapID,
+        tickInterval: tickInterval,
+      }
+    );
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    //Redirected as local game
+    if (response.isLocalGame) {
+      this._localSession.gameData = response.gameData;
+      this.mode = GameClient.MODE_LOCAL;
+      return Promise.reject("Redirected as local game");
+    }
+    console.log("Creating new game from server...", response);
+    return await this._newGame({
+      ...response,
+      mainPlayerID: response.playerID,
+    });
+  }
+
   private async _newGame(options: {
     gameData: IGameData;
+    mainPlayerID?: number;
     tickInterval?: number;
-    playerID: number;
     tickNum?: number;
+    isMapData?: boolean;
   }): Promise<Game> {
-    // this.emit<IWillNewGameEvent>(new AnyEvent("willNewGame", null));
+    this.emit<IWillNewGameEvent>(new AnyEvent("willNewGame", null));
     await delay(50); // Important: Wait for the event to be handled by the UI.
     if (this._game) {
       this._game.destroy();
     }
     // Create the game.
-    this._game = new Game(this._gameDef, options.gameData);
-    this._game.init(options.tickNum, options.tickInterval, options.playerID);
+    let isMapData =
+      options.isMapData === undefined ? this.isLocalGame : options.isMapData;
+    this._game = new Game(options.gameData, isMapData);
+    const { tickNum, tickInterval, mainPlayerID } = options;
+    await this._game.init({
+      tickNum,
+      tickInterval,
+      mainPlayerID,
+    });
     console.log(
-      `New ${this.isLocalGame ? "local" : "remote"} game created`,
+      `New ${this.isLocalGame ? "local" : "online"} game created`,
       this._game.id
     );
-    // Monitor the data change of the main player and update it to the game.
-    let player = this._game?.playerGroup.mainPlayer;
-    if (!player) {
-      throw new Error("Client main player not found");
-    }
-    // Assign local player
-    if (this.isLocalGame) {
-      player.isOccupied = true;
-      player.name = FruitNameGenerator.newName();
-      this._game.hostPlayerID = player.id;
-    }
-    player.dataChangeEventDelay = 10;
-    player.on<IDataChangeEvent>("dataChange", this._onMainPlayerDataChange);
-    player.on<IWillDestroyEvent>("willDestroy", () => {
-      player?.off<IDataChangeEvent>("dataChange", this._onMainPlayerDataChange);
-    });
     // Clean up the game when it is destroyed.
     this._game.once<IWillDestroyEvent>("willDestroy", async (event) => {
       this._stopSyncing();
       this._game = null;
     });
+    // Set up the main player
+    let mainPlayer = this._game.playerGroup.mainPlayer;
+    if (mainPlayer) {
+      if (this.isLocalGame) {
+        mainPlayer.isOccupied = true;
+        mainPlayer.name = FruitNameGenerator.newName();
+        this._game.hostPlayerID = mainPlayer.id;
+      }
+      mainPlayer.dataChangeEventDelay = 10;
+      mainPlayer.on<IDataChangeEvent>(
+        "dataChange",
+        this._onMainPlayerDataChange
+      );
+      mainPlayer.on<IWillDestroyEvent>("willDestroy", () => {
+        mainPlayer?.off<IDataChangeEvent>(
+          "dataChange",
+          this._onMainPlayerDataChange
+        );
+      });
+    }
     this.emit<IDidNewGameEvent>(
       new AnyEvent("didNewGame", { game: this._game })
     );
@@ -539,7 +669,7 @@ export default class GameClient extends AnyEventEmitter {
     if (!player) {
       throw new Error("Client main player not found");
     }
-    let playerData = player.getUpdate();
+    let playerData = player.getUpdate() as IPlayerData;
     if (!playerData) {
       return;
     }
@@ -548,7 +678,7 @@ export default class GameClient extends AnyEventEmitter {
       player.updateCharacter();
       return;
     }
-    // Remote game
+    // Online game
     if (this._isSyncing) {
       // Send the update to the server.
       this._transmitter
@@ -602,25 +732,22 @@ export default class GameClient extends AnyEventEmitter {
     }
   }
 
-  private _getLocalGameData(mapID?: string): IGameData | null {
-    // Load previous game data
-    if (!mapID) {
-      return this._localSession.gameData || DEFAULT_GAME_DATA;
-    }
-    // Load default game data
-    if (mapID == DEFAULT_GAME_DATA.id) {
-      return DEFAULT_GAME_DATA;
-    }
-    return null;
-  }
-
   private _getMode() {
     let url = new URL(window.location.href);
     let mode = url.searchParams.get("mode");
     if (mode && GameClient._VALID_MODES.includes(mode)) {
       return mode;
     }
-    return GameClient.MODE_SERVER;
+    return GameClient.DEFAULT_MODE;
+  }
+
+  private _checkInit() {
+    if (this._initState == GameClient.INIT_STATE_NONE) {
+      throw new Error("GameClient not initialized");
+    }
+    if (this._initState == GameClient.INIT_STATE_FAILED) {
+      throw new Error("GameClient initialization failed");
+    }
   }
 }
 
@@ -648,11 +775,11 @@ class LocalSession {
     if (publicID) {
       let url = new URL(window.location.href);
       url.searchParams.set("room", publicID);
-      window.history.pushState("", "", url.toString());
+      window.history.replaceState("", "", url.toString());
     } else {
       let url = new URL(window.location.href);
       url.searchParams.delete("room");
-      window.history.pushState("", "", url.toString());
+      window.history.replaceState("", "", url.toString());
     }
   }
   public get gameData(): IGameData | null {

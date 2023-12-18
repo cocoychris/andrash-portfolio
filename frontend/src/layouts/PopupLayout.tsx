@@ -4,17 +4,16 @@ import GameClient from "../lib/GameClient";
 
 interface IProps {
   gameClient: GameClient;
-  onRunLocalGame: () => void;
 }
 
 export default class PopupLayout extends React.Component<IProps> {
   private popupRef = createRef<Popup>();
 
-  public open(options: IPopupOptions): Promise<any> {
+  public show(options: IPopupOptions): Promise<any> {
     if (!this.popupRef.current) {
       return Promise.reject("PopupLayout is not mounted");
     }
-    return this.popupRef.current.open(options);
+    return this.popupRef.current.show(options);
   }
 
   public close() {
@@ -55,9 +54,11 @@ export default class PopupLayout extends React.Component<IProps> {
         </>
       );
       buttonLabels.push("Local Mode");
-      buttonActions.push(this.props.onRunLocalGame);
+      buttonActions.push(() => {
+        gameClient.mode = GameClient.MODE_LOCAL;
+      });
     }
-    this.open({
+    this.show({
       type: "error",
       title: <>Error｜{title}</>,
       content: (
@@ -113,9 +114,11 @@ export default class PopupLayout extends React.Component<IProps> {
         </>
       );
       buttonLabels.push("Local Mode");
-      buttonActions.push(this.props.onRunLocalGame);
+      buttonActions.push(() => {
+        gameClient.mode = GameClient.MODE_LOCAL;
+      });
     }
-    this.open({
+    this.show({
       type: "warning",
       title,
       content: (

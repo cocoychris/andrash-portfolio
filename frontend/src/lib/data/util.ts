@@ -33,7 +33,7 @@ export function applyDefault<T extends IIndexable>(
       data[key] = defaultData[key] as any;
     }
   });
-  return data;
+  return data as T;
 }
 
 export function compareObject(

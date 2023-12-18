@@ -1,7 +1,8 @@
-import Game from "./Game";
+import Game, { IResetPhase } from "./Game";
 import Player, { IPlayerData } from "./Player";
-import Group, { IGroupData } from "./Group";
+import Group, { IGroupData } from "./data/Group";
 import { IWillDestroyEvent } from "./Destroyable";
+import { randomElement } from "./data/util";
 
 export default class PlayerGroup extends Group<
   PlayerGroup,
@@ -9,7 +10,7 @@ export default class PlayerGroup extends Group<
   Player
 > {
   private _game: Game;
-  private _mainPlayerID: number = -1;
+  private _mainPlayerID: number = Player.ID_UNSET;
 
   /**
    * Get the game instance that created this group.
@@ -45,36 +46,62 @@ export default class PlayerGroup extends Group<
   }
 
   constructor(game: Game, data: IGroupData<IPlayerData>) {
-    super(data, Player);
+    super(Player, data);
+    // Set up properties.
     this._game = game;
+    this._onMainPlayerWillDestroy = this._onMainPlayerWillDestroy.bind(this);
+
+    // Set up event listeners.
+    this.onUpdate<IResetPhase>("reset", (props) => {
+      if (this.mainPlayer) {
+        this.mainPlayer.isOccupied = false;
+        this.mainPlayer.off<IWillDestroyEvent>(
+          "willDestroy",
+          this._onMainPlayerWillDestroy
+        );
+        this._mainPlayerID = Player.ID_UNSET;
+      }
+    });
   }
 
-  public init(mainPlayerID?: number): this {
-    // this.on(GroupEvent.DID_ADD_MEMBER, (event: GroupEvent) => {
-    //   let player = this.get(event.memberID) as Player;
-    // });
-    // this.on(GroupEvent.DID_REMOVE_MEMBER, (event: GroupEvent) => {
-    //   let player = this.get(event.memberID) as Player;
-    // });
-    super.init();
-    if (mainPlayerID !== undefined) {
+  public init(mainPlayerID: number): void {
+    this.initGroup();
+    // Check if there is at least one player.
+    if (this.length === 0) {
+      throw new Error(
+        "Player group is empty. At least one player is required."
+      );
+    }
+    // Set main player.
+    if (mainPlayerID != Player.ID_UNSET) {
+      if (mainPlayerID == Player.ID_RANDOM) {
+        mainPlayerID = randomElement(this.list()).id;
+      }
       let player = this.get(mainPlayerID);
       if (!player) {
         throw new Error(`Player ${mainPlayerID} does not exist`);
       }
       this._mainPlayerID = mainPlayerID;
       player.isOccupied = true;
-      player.once<IWillDestroyEvent>("willDestroy", () => {
-        this._mainPlayerID = -1;
-      });
-    }
-    // Check if there is at least one player.
-    if (this.list().length === 0) {
-      throw new Error(
-        "Player group is empty. At least one player is required."
+      player.once<IWillDestroyEvent>(
+        "willDestroy",
+        this._onMainPlayerWillDestroy
       );
     }
-    return this;
+  }
+
+  /**
+   * Set the main player.
+   * The main player cannot be changed once it is set.
+   */
+  public setMainPlayerID(mainPlayerID: number) {
+    if (this._mainPlayerID !== Player.ID_UNSET) {
+      throw new Error("mainPlayerID has already been set");
+    }
+  }
+
+  private _onMainPlayerWillDestroy() {
+    this._mainPlayerID = Player.ID_UNSET;
   }
 
   public getUnoccupiedPlayers(useStagedValue: boolean = false): Array<Player> {

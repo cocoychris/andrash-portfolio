@@ -35,7 +35,7 @@ interface IObjectFieldDef {
   acceptNull?: boolean;
   acceptUndefined?: boolean;
   valueList?: Array<object | null>;
-  children: { [key: string]: IFieldDef };
+  children?: { [key: string]: IFieldDef };
   editable?: boolean;
 }
 interface IArrayFieldDef {
@@ -44,7 +44,7 @@ interface IArrayFieldDef {
   acceptNull?: boolean;
   acceptUndefined?: boolean;
   valueList?: Array<Array<any> | null>;
-  children: Array<IFieldDef>;
+  children?: Array<IFieldDef>;
   editable?: boolean;
 }
 
@@ -64,7 +64,7 @@ export type IFieldDef =
 
 interface IValidateError<T> {
   isValid: false;
-  errorPath: string;
+  path: string;
   errorType: string;
   message: string;
   value: any;
@@ -83,6 +83,8 @@ const VALID_FIELD_DEF_TYPE_MAP: { [key: string]: boolean } = {
   array: true,
 };
 
+const MAX_VALUE_LIST_DISPLAY_LENGTH = 5;
+
 export default class FieldDef<T> {
   public static readonly DEFAULT_FIELD_DEF: IFieldDef = Object.freeze({
     type: "string",
@@ -98,15 +100,25 @@ export default class FieldDef<T> {
     editable: true,
     regExp: undefined,
   });
-  private _name: string;
   private _fieldDef: IFieldDef;
   private _fallbackValue: T;
-  private _objectChildren?: Map<string, FieldDef<any>>;
+  private _objectChildren?: { [key: string]: FieldDef<any> };
   private _arrayChildren?: Array<FieldDef<any>>;
+  private _childCount: number = 0;
 
-  public get name(): string {
-    return this._name;
-  }
+  /**
+   * The name of this fieldDef
+   */
+  public readonly name: string;
+  /**
+   * The base path of this fieldDef
+   */
+  public readonly basePath: string;
+  /**
+   * The path of this fieldDef
+   */
+  public readonly path: string;
+
   /**
    * The type of this fieldDef
    */
@@ -177,56 +189,62 @@ export default class FieldDef<T> {
     let def = this._fieldDef as IStringFieldDef;
     return def.maxLength === undefined ? null : def.maxLength;
   }
-  /**
-   * The children for this fieldDef
-   */
-  public get objectChildren(): Map<string, FieldDef<any>> | null {
-    return this._objectChildren || null;
-  }
-  /**
-   * The children for this fieldDef
-   */
-  public get arrayChildren(): Array<FieldDef<any>> | null {
-    return this._arrayChildren || null;
-  }
+
   /**
    * The fallback value for this fieldDef
    */
   public get fallbackValue(): T {
     return this._fallbackValue;
   }
+  /**
+   * The number of children for this fieldDef
+   */
+  public get childCount(): number {
+    return this._childCount;
+  }
 
-  constructor(fieldDef: IFieldDef, fallbackValue?: T, name: string = "root") {
+  constructor(
+    fieldDef: IFieldDef,
+    fallbackValue?: T,
+    name: string = "root",
+    basePath: string = ""
+  ) {
     this._checkFieldDef(fieldDef);
-    this._name = name;
+    this.name = name;
+    this.basePath = basePath;
+    this.path = basePath + (basePath ? "." : "") + name;
     this._fieldDef = applyDefault(
       cloneObject(fieldDef),
       FieldDef.DEFAULT_FIELD_DEF
     );
-    if (fallbackValue != null) {
-      if (this._fieldDef.type == "object" && this._fieldDef.children) {
+    if (this._fieldDef.type == "object" && this._fieldDef.children) {
+      if (fallbackValue) {
         let type = typeof fallbackValue;
-        if (fallbackValue && type !== "object") {
+        if (type !== "object") {
           throw new Error(
-            `Field ${this._name} - FieldDef with type 'object' must have an object fallback value, got ${type}`
+            `Field ${this.name} - FieldDef with type 'object' must have an object fallback value, got ${type}`
           );
         }
-        this._objectChildren = this._getObjectChildren(
-          this._fieldDef.children,
-          fallbackValue as IIndexable
-        );
-      } else if (this._fieldDef.type == "array" && this._fieldDef.children) {
-        let type = typeof fallbackValue;
-        if (fallbackValue && !Array.isArray(fallbackValue)) {
-          throw new Error(
-            `Field ${this._name} - FieldDef with type 'array' must have an array fallback value, got ${type}`
-          );
-        }
-        this._arrayChildren = this._getArrayChildren(
-          this._fieldDef.children,
-          fallbackValue as Array<any>
-        );
       }
+      this._objectChildren = this._getObjectChildren(
+        this._fieldDef.children,
+        fallbackValue as IIndexable
+      );
+      this._childCount = Object.keys(this._objectChildren).length;
+    } else if (this._fieldDef.type == "array" && this._fieldDef.children) {
+      if (fallbackValue) {
+        let type = typeof fallbackValue;
+        if (!Array.isArray(fallbackValue)) {
+          throw new Error(
+            `Field ${this.name} - FieldDef with type 'array' must have an array fallback value, got ${type}`
+          );
+        }
+      }
+      this._arrayChildren = this._getArrayChildren(
+        this._fieldDef.children,
+        fallbackValue as Array<any>
+      );
+      this._childCount = this._arrayChildren.length;
     }
     this._fallbackValue = fallbackValue as T;
     if (fallbackValue === undefined) {
@@ -235,8 +253,38 @@ export default class FieldDef<T> {
     let errorResult = this._validate(this._fallbackValue);
     if (errorResult) {
       throw new Error(
-        `Field ${this._name} - Invalid fallback value : ${errorResult.errorType} - ${errorResult.message}`
+        `Field ${this.name} - Invalid fallback value : ${errorResult.message} at ${errorResult.path}`
       );
+    }
+  }
+  /**
+   * Get a child fieldDef by name
+   */
+  public getChild(name: string): FieldDef<any> | null {
+    if (this._objectChildren) {
+      return this._objectChildren[name] || null;
+    }
+    if (this._arrayChildren) {
+      let index = Number(name);
+      if (isNaN(index)) {
+        return null;
+      }
+      return this._arrayChildren[index] || null;
+    }
+    return null;
+  }
+  public forEachChild(
+    callback: (child: FieldDef<any>, name: string | number) => void
+  ) {
+    if (this._objectChildren) {
+      Object.keys(this._objectChildren).forEach((key) => {
+        callback(this._objectChildren![key], key);
+      });
+    }
+    if (this._arrayChildren) {
+      this._arrayChildren.forEach((child, index) => {
+        callback(child, index);
+      });
     }
   }
   /**
@@ -245,6 +293,7 @@ export default class FieldDef<T> {
   public validate(value: any): IValidateResult<T> {
     let errorResult = this._validate(value);
     if (errorResult) {
+      errorResult.message += ` at ${errorResult.path}`;
       return errorResult;
     }
     return {
@@ -263,9 +312,11 @@ export default class FieldDef<T> {
     } catch (error) {
       let errorResult: IValidateError<T> = {
         isValid: false,
-        errorPath: this._name,
+        path: this.path,
         errorType: "parseString",
-        message: (error as Error).message || String(error),
+        message: `${(error as Error).message || String(error)} at ${
+          this.path
+        }}`,
         value: value,
       };
       return errorResult;
@@ -363,13 +414,10 @@ export default class FieldDef<T> {
       }
     }
   }
-  private _validate(
-    value: any,
-    path: string = this._name
-  ): IValidateError<T> | void {
+  private _validate(value: any): IValidateError<T> | void {
     let errorResult: IValidateError<T> = {
       isValid: false,
-      errorPath: path,
+      path: this.path,
       errorType: "unknown",
       message: "Unknown error",
       value: value,
@@ -413,7 +461,15 @@ export default class FieldDef<T> {
       !this._fieldDef.valueList.includes(value)
     ) {
       errorResult.errorType = "valueList";
-      errorResult.message = `Value must be one of ${this._fieldDef.valueList}`;
+      errorResult.message = `Value must be one of: ${this._fieldDef.valueList
+        .slice(0, MAX_VALUE_LIST_DISPLAY_LENGTH)
+        .join(",")}${
+        this._fieldDef.valueList.length > MAX_VALUE_LIST_DISPLAY_LENGTH
+          ? `... (${
+              this._fieldDef.valueList.length - MAX_VALUE_LIST_DISPLAY_LENGTH
+            } more)`
+          : ""
+      }`;
       return errorResult;
     }
     // Check number
@@ -464,19 +520,18 @@ export default class FieldDef<T> {
       }
       return;
     }
+    // Check children
     if (typeof value === "object") {
       if (this._fieldDef.type === "object") {
         if (!this._objectChildren) {
           return;
         }
-        let children = this._objectChildren as Map<string, FieldDef<any>>;
-        let keyList = Array.from(children.keys());
-        for (let i = 0; i < keyList.length; i++) {
-          let key = keyList[i];
-          let childDef = children.get(key) as FieldDef<any>;
+        let keys = Object.keys(this._objectChildren);
+        for (let i = 0; i < keys.length; i++) {
+          let key = keys[i];
+          let childDef = this._objectChildren[key] as FieldDef<any>;
           let childValue = value[key];
-          let childPath = `${path}.${key}`;
-          let childErrorResult = childDef._validate(childValue, childPath);
+          let childErrorResult = childDef._validate(childValue);
           if (childErrorResult) {
             return childErrorResult;
           }
@@ -487,12 +542,10 @@ export default class FieldDef<T> {
         if (!this._arrayChildren) {
           return;
         }
-        let children = this._arrayChildren as Array<FieldDef<any>>;
-        for (let i = 0; i < children.length; i++) {
-          let childDef = children[i];
+        for (let i = 0; i < this._arrayChildren.length; i++) {
+          let childDef = this._arrayChildren[i];
           let childValue = value[i];
-          let childPath = `${path}[${i}]`;
-          let childErrorResult = childDef._validate(childValue, childPath);
+          let childErrorResult = childDef._validate(childValue);
           if (childErrorResult) {
             return childErrorResult;
           }
@@ -512,8 +565,8 @@ export default class FieldDef<T> {
   private _getObjectChildren(
     children: { [key: string]: IFieldDef },
     fallbackValue?: IIndexable
-  ): Map<string, FieldDef<any>> {
-    let result: Map<string, FieldDef<any>> = new Map();
+  ): { [key: string]: FieldDef<any> } {
+    let result: { [key: string]: FieldDef<any> } = {};
     for (let key in children) {
       let def = children[key];
       if (!this.editable) {
@@ -521,10 +574,11 @@ export default class FieldDef<T> {
       }
       let childDef = new FieldDef(
         def,
-        fallbackValue && fallbackValue[key],
-        key
+        fallbackValue ? fallbackValue[key] : undefined,
+        key,
+        this.path
       );
-      result.set(key, childDef);
+      result[key] = childDef;
     }
     return result;
   }
@@ -540,8 +594,9 @@ export default class FieldDef<T> {
       }
       let childDef = new FieldDef(
         def,
-        fallbackValue && fallbackValue[i],
-        `[${i}]`
+        fallbackValue ? fallbackValue[i] : undefined,
+        `[${i}]`,
+        this.path
       );
       result.push(childDef);
     }

@@ -3,23 +3,24 @@ import PageView from "../components/PageView";
 import { create } from "domain";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Game from "../lib/Game";
-import { IDidSetUpdateEvent } from "../lib/DataHolder";
+import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Character from "../lib/Character";
 import AnyEvent from "../lib/events/AnyEvent";
+import "./PageLayout.css";
 
+const WEBSITE_TITLE = "Playground by Andrash";
 const PAGE_BASE_DIR = "/pages";
 
 interface IProps {
   gameClient: GameClient;
 }
-interface IState {
-  //
-}
 
-export default class PageLayout extends Component<IProps, IState> {
+export default class PageLayout extends Component<IProps> {
   private _pageRef = React.createRef<PageView>();
   private _character: Character | null = null;
   constructor(props: IProps) {
+    console.log("PageLayout constructor");
+    document.title = WEBSITE_TITLE;
     super(props);
     this._onDidNewGame = this._onDidNewGame.bind(this);
     this._onCharacterUpdate = this._onCharacterUpdate.bind(this);
@@ -76,13 +77,16 @@ export default class PageLayout extends Component<IProps, IState> {
     );
   }
 
-  private _onOpen(page: string, offsetTop: number) {
+  private _onOpen(page: string, title: string, offsetTop: number) {
+    console.log("PageLayout _onOpen");
+    document.title = `${title && `${title} | `}${WEBSITE_TITLE}`;
     window.scrollTo({
       top: offsetTop || 0,
       behavior: "smooth",
     });
   }
   private _onClose() {
+    document.title = WEBSITE_TITLE;
     if (window.scrollY < 100) {
       return;
     }

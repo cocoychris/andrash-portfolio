@@ -1,44 +1,17 @@
 import { IWillDestroyEvent } from "./Destroyable";
-import Game, { IGameData, IGameDef } from "./Game";
-import { IMapData } from "./GameMap";
+import Game, { IGameData } from "./Game";
+import TileManager, { ITileDataDict } from "./TileManager";
 import Tile, { ITileData } from "./Tile";
 import AnyEventEmitter from "./events/AnyEventEmitter";
-import tileDefPack from "../assets/gameDef/tile";
-import itemDefPack from "../assets/gameDef/item";
-import characterDefPack from "../assets/gameDef/character";
 import Player, { IPlayerData } from "./Player";
-import { IGroupData } from "./Group";
+import { IGroupData } from "./data/Group";
 import Character, { ICharacterData } from "./Character";
 import { randomElement, randomInterger } from "./data/util";
 import GameClient from "./GameClient";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
-import Position, { IPosition } from "./Position";
-import Item from "./Item";
-import { ILoadGameEvent } from "./events/transEventTypes";
-
-let DEFAULT_GAME_DEF: IGameDef = {
-  characterDefPack,
-  tileDefPack,
-  itemDefPack,
-};
-const CHARACTER_TYPE_LIST: Array<string> = Object.keys(characterDefPack);
-const TILE_TYPE_LIST: Array<string> = Object.keys(tileDefPack);
-const ITEM_TYPE_LIST: Array<string> = Object.keys(itemDefPack);
-
-const MIN_COL_COUNT = 10;
-const MIN_ROW_COUNT = 10;
-const MAX_COL_COUNT = 100;
-const MAX_ROW_COUNT = 100;
-const MIN_PLAYER_COUNT = 1;
-const MAX_PLAYER_COUNT = 4;
-const DEFAULT_PLAYER_COLOR_LIST = [
-  "#ff0000",
-  "#00ff00",
-  "#0000ff",
-  "#ffff00",
-  "#00ffff",
-  "#ff00ff",
-];
+import Item, { IItemData } from "./Item";
+import AssetPack from "./data/AssetPack";
+import { IMapInfo } from "./MapInfo";
 
 export interface IToolData {
   toolType: string | null;
@@ -55,11 +28,14 @@ export interface IStartTestingEvent extends IEventType {
 export interface IStopTestingEvent extends IEventType {
   type: "stopTesting";
 }
-export interface IDidLoadMapEvent extends IEventType {
-  type: "didLoadMap";
+export interface IDidLoadGameEvent extends IEventType {
+  type: "didLoadGame";
 }
-export interface IDisposeMapEvent extends IEventType {
-  type: "disposeMap";
+export interface IWillUnloadGameEvent extends IEventType {
+  type: "willUnloadGame";
+  data: {
+    isLoading: boolean;
+  };
 }
 
 export interface IToolChangeEvent extends IEventType {
@@ -85,27 +61,33 @@ export interface ITileSelectEvent extends IEventType {
 
 export interface INewMapOptions {
   name: string;
-  colCount: number;
-  rowCount: number;
+  width: number;
+  height: number;
   tileType: string;
   tileBgColor?: string;
   playerCount: number;
+  assetPack: AssetPack;
 }
 /**
  * Editor class is the core of the Map Editor.
  * It is not a UI component but holds the data and logic of the Map Editor. It emits events to notify the UI components to update themselves.
  */
 export default class Editor extends AnyEventEmitter {
-  public static readonly MAX_COL_COUNT = MAX_COL_COUNT;
-  public static readonly MAX_ROW_COUNT = MAX_ROW_COUNT;
-  public static readonly MIN_COL_COUNT = MIN_COL_COUNT;
-  public static readonly MIN_ROW_COUNT = MIN_ROW_COUNT;
-  public static readonly MIN_PLAYER_COUNT = MIN_PLAYER_COUNT;
-  public static readonly MAX_PLAYER_COUNT = MAX_PLAYER_COUNT;
-  public static readonly DEFAULT_PLAYER_COLOR_LIST = DEFAULT_PLAYER_COLOR_LIST;
-  public static readonly CHARACTER_TYPE_LIST = CHARACTER_TYPE_LIST;
-  public static readonly TILE_TYPE_LIST = TILE_TYPE_LIST;
-  public static readonly ITEM_TYPE_LIST = ITEM_TYPE_LIST;
+  public static readonly MAP_NAME_REGEXP: RegExp = /^[^\\\/:*?"<>\|]+$/;
+  public static readonly MAX_COL_COUNT = 100;
+  public static readonly MAX_ROW_COUNT = 100;
+  public static readonly MIN_COL_COUNT = 10;
+  public static readonly MIN_ROW_COUNT = 10;
+  public static readonly MIN_PLAYER_COUNT = 1;
+  public static readonly MAX_PLAYER_COUNT = 4;
+  public static readonly DEFAULT_PLAYER_COLOR_LIST = Object.freeze([
+    "#ff0000",
+    "#00ff00",
+    "#0000ff",
+    "#ffff00",
+    "#00ffff",
+    "#ff00ff",
+  ]);
   public static readonly TOOL_TILE_BRUSH = "tileBrush";
   public static readonly TOOL_ITEM_PLACER = "itemPlacer";
   public static readonly TOOL_CHARACTER_PLACER = "characterPlacer";
@@ -121,18 +103,16 @@ export default class Editor extends AnyEventEmitter {
   private _templateItem: Item | null = null;
   private _toolType: string | null = Editor.TOOL_TILE_SELECTOR;
   private _templateTileList: Array<Tile> = [];
+  private _templateTileDict: { [key: string]: Tile } = {};
   private _templateCharacterList: Array<Character> = [];
   private _templateItemList: Array<Item> = [];
   private _selectedPlayer: Player | null = null;
   private _playerCharacterList: Array<Character> = [];
+  private _templateGame: Game | null = null;
 
   public get mapID(): string | null {
-    return this._game?.map.id || null;
+    return this._game?.mapInfo.id || null;
   }
-
-  //   public get gameClient(): GameClient | null {
-  //     return this._gameClient;
-  //   }
 
   public get game(): Game | null {
     return this._game;
@@ -192,7 +172,6 @@ export default class Editor extends AnyEventEmitter {
   constructor(gameClient: GameClient) {
     super();
     this._gameClient = gameClient;
-    this._createTemplateGame();
   }
   /**
    * Update the state of current tool.
@@ -264,28 +243,33 @@ export default class Editor extends AnyEventEmitter {
     };
   }
 
+  public getTemplateTile(type: string): Tile | null {
+    return this._templateTileDict[type] || null;
+  }
+
   /**
    * Create a new map for editing.
    */
   public async createMap(options: INewMapOptions): Promise<Game> {
-    options.colCount = Math.max(
-      Math.min(options.colCount, MAX_COL_COUNT),
-      MIN_COL_COUNT
+    console.log("create map", this._templateCharacterList);
+
+    options.width = Math.max(
+      Math.min(options.width, Editor.MAX_COL_COUNT),
+      Editor.MIN_COL_COUNT
     );
-    options.rowCount = Math.max(
-      Math.min(options.rowCount, MAX_ROW_COUNT),
-      MIN_ROW_COUNT
+    options.height = Math.max(
+      Math.min(options.height, Editor.MAX_ROW_COUNT),
+      Editor.MIN_ROW_COUNT
     );
     options.playerCount = Math.max(
-      Math.min(options.playerCount, MAX_PLAYER_COUNT),
-      MIN_PLAYER_COUNT
+      Math.min(options.playerCount, Editor.MAX_PLAYER_COUNT),
+      Editor.MIN_PLAYER_COUNT
     );
     // Generate tile data
-    let tileData2DArray: Array<Array<ITileData>> = [];
-    for (let r = 0; r < options.rowCount; r++) {
-      tileData2DArray[r] = [];
-      for (let c = 0; c < options.colCount; c++) {
-        tileData2DArray[r][c] = {
+    let tileDataDict: ITileDataDict = {};
+    for (let row = 0; row < options.height; row++) {
+      for (let col = 0; col < options.width; col++) {
+        tileDataDict[TileManager.getTileKey({ col, row })] = {
           type: options.tileType,
           walkable: null,
           bgColor: options.tileBgColor,
@@ -293,15 +277,14 @@ export default class Editor extends AnyEventEmitter {
       }
     }
     // Create the map data
-    let mapData: IMapData = {
-      id: generateMapID(),
+    let mapInfoData: IMapInfo = {
+      id: options.name,
       name: options.name,
-      colCount: options.colCount,
-      rowCount: options.rowCount,
-      tileData2DArray,
+      width: options.width,
+      height: options.height,
     };
     // Generate player and character data
-    let playerColors = DEFAULT_PLAYER_COLOR_LIST.slice();
+    let playerColors = Editor.DEFAULT_PLAYER_COLOR_LIST.slice();
     let playerDataDict: IGroupData<IPlayerData> = {};
     let characterDataDict: IGroupData<ICharacterData> = {};
     for (let i = 0; i < options.playerCount; i++) {
@@ -311,22 +294,20 @@ export default class Editor extends AnyEventEmitter {
         characterID: i,
       };
       (characterDataDict as IGroupData<ICharacterData>)[i] = {
-        type: randomElement(CHARACTER_TYPE_LIST),
+        type: randomElement(options.assetPack.characterDefPack.typeNames),
         position: { row: i, col: i },
       };
     }
     // Create the game data
     return this._loadGame({
+      id: "",
+      assetPackName: options.assetPack.name,
       playerDataDict,
       characterDataDict,
       itemDataDict: {},
-      mapData,
+      tileDataDict,
+      mapInfoData,
     });
-  }
-
-  public disposeMap() {
-    this._game = null;
-    this.emit<IDisposeMapEvent>(new AnyEvent("disposeMap", null));
   }
 
   /**
@@ -347,16 +328,13 @@ export default class Editor extends AnyEventEmitter {
       selectedTile: null,
     });
     // Apply the current data
-    this._game.apply();
+    this._game.reset();
     this._backupData = this._game.getData();
     let playerID = this._selectedPlayer
       ? this._selectedPlayer.id
-      : randomElement(this._game.playerGroup.list()).id;
+      : Player.ID_RANDOM;
     console.log("start testing", playerID);
-    await this._gameClient.loadGame({
-      gameData: this._backupData,
-      playerID,
-    });
+    await this._gameClient.loadLocalGame(this._backupData, playerID);
     await this._gameClient.startGame();
     this.emit<IStartTestingEvent>(new AnyEvent("startTesting", null));
   }
@@ -378,7 +356,9 @@ export default class Editor extends AnyEventEmitter {
     if (!this._game) {
       throw new Error("No game is created.");
     }
-    this._game.apply();
+    this._game.mapInfo.id = this._game.mapInfo.name;
+    this._game.reset();
+
     let data = this._game.getData();
     let blob = new Blob([JSON.stringify(data)], {
       type: "application/json",
@@ -386,7 +366,7 @@ export default class Editor extends AnyEventEmitter {
     let url = URL.createObjectURL(blob);
     let a = document.createElement("a");
     a.href = url;
-    a.download = `${data.mapData?.name}.json`;
+    a.download = `${this._game.mapInfo.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -401,6 +381,7 @@ export default class Editor extends AnyEventEmitter {
     input.accept = ".json";
     input.multiple = false;
     input.click();
+    let fileName = "";
     let gameData = await new Promise<IGameData>((resolve, reject) => {
       input.onchange = () => {
         let file = input.files && input.files[0];
@@ -408,6 +389,7 @@ export default class Editor extends AnyEventEmitter {
           reject("No file is selected.");
           return;
         }
+        fileName = file.name;
         let reader = new FileReader();
         reader.onload = () => {
           let text = String(reader.result);
@@ -419,56 +401,91 @@ export default class Editor extends AnyEventEmitter {
         reader.readAsText(file);
       };
     });
-    if (!gameData || !gameData.mapData || !gameData.mapData.id) {
-      throw new Error("Invalid game data.");
+    if (!gameData.mapInfoData) {
+      throw new Error("Invalid game data. Missing mapInfoData.");
     }
     return this._loadGame(gameData);
   }
 
+  public unloadMap() {
+    this.resetToolData();
+    this.emit<IWillUnloadGameEvent>(
+      new AnyEvent("willUnloadGame", { isLoading: false })
+    );
+    if (!this._game) {
+      return;
+    }
+    this._game.destroy();
+    this._game = null;
+  }
+
   private async _loadGame(gameData: IGameData): Promise<Game> {
-    this._game = await this._gameClient.loadGame({
-      gameData,
-    });
-    this._game.on<IWillDestroyEvent>("willDestroy", () => {
-      this.resetToolData();
+    this.emit<IWillUnloadGameEvent>(
+      new AnyEvent("willUnloadGame", { isLoading: true })
+    );
+    await this._createTemplateGame(gameData.assetPackName);
+    let game = await this._gameClient.loadLocalGame(gameData, Player.ID_UNSET);
+
+    if (!game) {
+      throw new Error("Failed to load game.");
+    }
+    game.on<IWillDestroyEvent>("willDestroy", () => {
+      this.unloadMap();
       this._game = null;
     });
-    this._game.playerGroup.forEach((player) => {
+    game.playerGroup.forEach((player) => {
       player.isOccupied = true;
       player.apply();
       player.updateCharacter();
       player.character.apply();
     });
-    this._playerCharacterList = this._game.playerGroup.map((player) => {
+    this._playerCharacterList = game.playerGroup.map((player) => {
       return player.character;
     });
-    this.emit<IDidLoadMapEvent>(new AnyEvent("didLoadMap", null));
-    return this._game;
+    this._game = game;
+    this.emit<IDidLoadGameEvent>(new AnyEvent("didLoadGame", null));
+    return game;
   }
-  private _createTemplateGame() {
+
+  private async _createTemplateGame(assetPackName: string) {
+    let assetPack = await AssetPack.load(assetPackName);
+    // Destroy the previous template game
+    if (this._templateGame) {
+      this._templateCharacterList = [];
+      this._templateTileList = [];
+      this._templateTileDict = {};
+      this._templateItemList = [];
+      this._templateGame.destroy();
+    }
+    // Create a new template game
+    const TILE_TYPE_LIST = assetPack.tileDefPack.typeNames;
+    const CHARACTER_TYPE_LIST = assetPack.characterDefPack.typeNames;
+    const ITEM_TYPE_LIST = assetPack.itemDefPack.typeNames;
+
     let length = Math.max(
-      Editor.TILE_TYPE_LIST.length,
-      Editor.CHARACTER_TYPE_LIST.length,
-      Editor.ITEM_TYPE_LIST.length
+      TILE_TYPE_LIST.length,
+      CHARACTER_TYPE_LIST.length,
+      ITEM_TYPE_LIST.length
     );
     let tileData: ITileData = {
-      type: Editor.TILE_TYPE_LIST[0],
+      type: TILE_TYPE_LIST[0],
       walkable: null,
       bgColor: null,
     };
-    let mapData: IMapData = {
-      id: generateMapID(),
+    let mapInfoData: IMapInfo = {
+      id: undefined,
       name: "Template",
-      colCount: length,
-      rowCount: 3,
-      tileData2DArray: [
-        Array<ITileData>(length).fill(tileData),
-        Array<ITileData>(length).fill(tileData),
-        Array<ITileData>(length).fill(tileData),
-      ],
+      width: length,
+      height: 3,
     };
-    Editor.TILE_TYPE_LIST.forEach((type, index) => {
-      mapData.tileData2DArray[0][index] = {
+    let tileDataDict: ITileDataDict = {};
+    for (let row = 0; row < mapInfoData.height; row++) {
+      for (let col = 0; col < mapInfoData.width; col++) {
+        tileDataDict[TileManager.getTileKey({ col, row })] = tileData;
+      }
+    }
+    TILE_TYPE_LIST.forEach((type, index) => {
+      tileDataDict[TileManager.getTileKey({ row: 0, col: index })] = {
         type,
         walkable: null,
         bgColor: null,
@@ -483,52 +500,51 @@ export default class Editor extends AnyEventEmitter {
       },
     };
     let characterDataDict: IGroupData<ICharacterData> = {};
-    Editor.CHARACTER_TYPE_LIST.forEach((type, index) => {
+    CHARACTER_TYPE_LIST.forEach((type, index) => {
       characterDataDict[index] = {
         type,
         position: { row: 1, col: index },
       };
     });
-    let itemDataDict: IGroupData<ICharacterData> = {};
-    Editor.ITEM_TYPE_LIST.forEach((type, index) => {
+    let itemDataDict: IGroupData<IItemData> = {};
+    ITEM_TYPE_LIST.forEach((type, index) => {
       itemDataDict[index] = {
         type,
         position: { row: 2, col: index },
       };
     });
-    let game = new Game(DEFAULT_GAME_DEF, {
-      mapData,
+    let game = new Game({
+      id: "",
+      assetPackName: AssetPack.DEFAULT_ASSET_PACK_NAME,
       playerDataDict,
       characterDataDict,
       itemDataDict,
+      mapInfoData,
+      tileDataDict,
     });
-    game.init();
+    this._templateGame = game;
+    await game.init();
     // Create template tile list
-    for (let i = 0; i < Editor.TILE_TYPE_LIST.length; i++) {
-      let tile = game.map.getTile({ row: 0, col: i });
+    for (let i = 0; i < TILE_TYPE_LIST.length; i++) {
+      let tile = game.tileManager.getTile({ row: 0, col: i });
       if (tile) {
         this._templateTileList.push(tile);
+        this._templateTileDict[tile.type] = tile;
       }
     }
     // Create template character list
-    for (let i = 0; i < Editor.CHARACTER_TYPE_LIST.length; i++) {
+    for (let i = 0; i < CHARACTER_TYPE_LIST.length; i++) {
       let character = game.characterGroup.get(i);
       if (character) {
         this._templateCharacterList.push(character);
       }
     }
     // Create template item list
-    for (let i = 0; i < Editor.ITEM_TYPE_LIST.length; i++) {
+    for (let i = 0; i < ITEM_TYPE_LIST.length; i++) {
       let item = game.itemGroup.get(i);
       if (item) {
         this._templateItemList.push(item);
       }
     }
   }
-}
-
-function generateMapID(): string {
-  return `M${Date.now().toString(36)}-${randomInterger(10000, 99999).toString(
-    36
-  )}`;
 }

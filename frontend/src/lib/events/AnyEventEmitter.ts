@@ -8,6 +8,7 @@ export type AnyEventListener<T extends IEventType> = (
  * This allows you to declare an event type and its data type in one place with AnyEvent and IEventType interfaces.
  */
 export default class AnyEventEmitter extends EventTarget {
+  private _wrapperMap = new Map<Function, Function>();
   private _emitFunc = <T extends IEventType>(event: AnyEvent<T>) => {
     this.emit(new AnyEvent(event.type, event.data));
   };
@@ -33,6 +34,7 @@ export default class AnyEventEmitter extends EventTarget {
     type: string,
     listener: (event: E) => void
   ): void {
+    listener = (this._wrapperMap.get(listener) as EventListener) || listener;
     super.addEventListener(type, listener as EventListener);
   }
   /**
@@ -45,6 +47,7 @@ export default class AnyEventEmitter extends EventTarget {
     type: string,
     listener: (event: E) => void
   ): void {
+    listener = (this._wrapperMap.get(listener) as EventListener) || listener;
     super.removeEventListener(type, listener as EventListener);
   }
   /**
@@ -62,7 +65,7 @@ export default class AnyEventEmitter extends EventTarget {
     type: T["type"],
     listener: AnyEventListener<T>
   ): void {
-    super.addEventListener(type, listener as EventListener);
+    this.addEventListener(type, listener as EventListener);
   }
   /**
    * Remove an event listener from the event dispatcher.
@@ -73,7 +76,7 @@ export default class AnyEventEmitter extends EventTarget {
     type: T["type"],
     listener: AnyEventListener<T>
   ): void {
-    super.removeEventListener(type, listener as EventListener);
+    this.removeEventListener(type, listener as EventListener);
   }
   /**
    * Add an event listener that will be called only once.
@@ -84,10 +87,14 @@ export default class AnyEventEmitter extends EventTarget {
     type: T["type"],
     listener: AnyEventListener<T>
   ): void {
-    let wrappedCallback = (event: AnyEvent<T>) => {
-      listener(event);
-      super.removeEventListener(type, wrappedCallback as EventListener);
-    };
+    let wrappedCallback = this._wrapperMap.get(listener);
+    if (!wrappedCallback) {
+      wrappedCallback = (event: AnyEvent<T>) => {
+        listener(event);
+        super.removeEventListener(type, wrappedCallback as EventListener);
+      };
+      this._wrapperMap.set(listener, wrappedCallback);
+    }
     super.addEventListener(type, wrappedCallback as EventListener);
   }
   /**

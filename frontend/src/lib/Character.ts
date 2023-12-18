@@ -1,16 +1,16 @@
-import { ICharacterDef, ICharacterFrameDef } from "../lib/IDefinition";
-import characterDefPack from "../assets/gameDef/character";
+import { ICharacterDef } from "./data/DefPack";
 import CharacterGroup from "./CharacterGroup";
-import Game, { IActionPhase } from "./Game";
+import Game, { IActionPhase, IResetPhase } from "./Game";
 import Position, { IPosition } from "./Position";
 import { IIndexable, applyDefault } from "./data/util";
-import Member from "./Member";
-import { IDidApplyEvent, IDidSetUpdateEvent } from "./DataHolder";
+import Member from "./data/Member";
+import { IDidApplyEvent, IDidSetUpdateEvent } from "./data/DataHolder";
 import { IWillDestroyEvent } from "./Destroyable";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Tile from "./Tile";
 import Item from "./Item";
 import FieldDef from "./data/FieldDef";
+import { ISpriteFrameDef } from "./data/DefPack";
 
 export interface IRepositionEvent extends IEventType {
   type: "reposition";
@@ -42,8 +42,10 @@ export interface ICharacterData extends IIndexable {
 }
 
 const DEFAULT_DATA: Partial<ICharacterData> = {
+  prevPosition: undefined,
   frameName: "default",
   color: "#999999",
+  isEnabled: true,
   facingDir: 1,
 };
 
@@ -55,7 +57,7 @@ function getFieldDef(game: Game, data: ICharacterData) {
       children: {
         type: {
           type: "string",
-          valueList: Object.keys(characterDefPack),
+          valueList: game.assetPack.characterDefPack.typeNames,
         },
         position: {
           type: "object",
@@ -63,12 +65,12 @@ function getFieldDef(game: Game, data: ICharacterData) {
             col: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.colCount,
+              maxNum: game.tileManager.colCount,
             },
             row: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.rowCount,
+              maxNum: game.tileManager.rowCount,
             },
           },
         },
@@ -80,12 +82,12 @@ function getFieldDef(game: Game, data: ICharacterData) {
             col: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.colCount,
+              maxNum: game.tileManager.colCount,
             },
             row: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.rowCount,
+              maxNum: game.tileManager.rowCount,
             },
           },
         },
@@ -93,7 +95,6 @@ function getFieldDef(game: Game, data: ICharacterData) {
           type: "string",
           acceptUndefined: true,
           editable: false,
-          // valueList: Object.keys(characterDefPack[data.type].frames),
         },
         color: {
           type: "string",
@@ -128,7 +129,7 @@ export default class Character
 
   private _game: Game;
   private _def: ICharacterDef;
-  private _frameDef: ICharacterFrameDef;
+  private _frameDef: ISpriteFrameDef;
   private _target: Position | null = null;
   private _isStopping: boolean = false;
   private _currentTile: Tile | null = null;
@@ -146,7 +147,7 @@ export default class Character
     return this.data.type;
   }
   public set type(type: string) {
-    if (!this._game.characterDefLoader.getDef(type)) {
+    if (!this.group.characterDefPack.get(type)) {
       throw new Error(`Character type ${type} not found`);
     }
     this.data.type = type;
@@ -160,14 +161,9 @@ export default class Character
   }
 
   public set position(position: IPosition) {
-    if (!this._game.map.isInRange(position)) {
+    if (!this._game.tileManager.isInRange(position)) {
       throw new Error(
         `Position out of range: ${position.col} - ${position.row}`
-      );
-    }
-    if (!this._game.map.isWalkable(position)) {
-      throw new Error(
-        `Position is not walkable: ${position.col} - ${position.row}`
       );
     }
     this.data.position = { col: position.col, row: position.row };
@@ -200,7 +196,7 @@ export default class Character
   }
 
   public set target(target: IPosition | null) {
-    if (target && !this._game.map.isInRange(target)) {
+    if (target && !this._game.tileManager.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
     let prevTarget = this._target;
@@ -242,7 +238,7 @@ export default class Character
   /**
    * Get a copy of the definition of the current frame of the character.
    */
-  public get frameDef(): ICharacterFrameDef {
+  public get frameDef(): ISpriteFrameDef {
     return { ...this._frameDef };
   }
   /**
@@ -289,18 +285,12 @@ export default class Character
    * Do not create a new Character instance with "new Character()" statement.
    * Use CharacterGroup.new() instead.
    */
-  constructor(group: CharacterGroup, data: ICharacterData, id: number) {
+  constructor(group: CharacterGroup, id: number, data: ICharacterData) {
     data = applyDefault(data, DEFAULT_DATA) as ICharacterData;
-    super(group, data, id);
+    super(group, id, data);
     this._game = group.game;
-    this._def = this._game.characterDefLoader.getDef(this.type);
+    this._def = this.group.characterDefPack.get(this.type);
     this._frameDef = this._getFrameDef(this.frameName);
-  }
-  /**
-   * Initialize the character.
-   */
-  public init(): this {
-    super.init();
 
     this.onUpdate<IActionPhase>("action", (event) => {
       let prevPosition = this.data.position;
@@ -313,13 +303,13 @@ export default class Character
         this.data.facingDir = -1;
       }
     });
-    //Set up event listeners
-
-    // Replaced by the above onUpdate event listener - Reserving this for future use
-    // let onWillGetUpdate = (event: AnyEvent<IWillGetUpdateEvent>) => {
-    // };
+    this.onUpdate<IResetPhase>("reset", () => {
+      this.setData({
+        // prevPosition: undefined,
+      });
+    });
     let onDidSetUpdate = (event: AnyEvent<IDidSetUpdateEvent>) => {
-      this._def = this._game.characterDefLoader.getDef(this.type);
+      this._def = this.group.characterDefPack.get(this.type);
       this._frameDef = this._getFrameDef(this.frameName);
       if (this.isMoving) {
         this._isStopping = false;
@@ -330,7 +320,7 @@ export default class Character
       }
     };
     let onDidApply = (event: AnyEvent<IDidApplyEvent>) => {
-      this._def = this._game.characterDefLoader.getDef(this.type);
+      this._def = this.group.characterDefPack.get(this.type);
       this._frameDef = this._getFrameDef(this.frameName);
       this._updateTile();
     };
@@ -346,8 +336,8 @@ export default class Character
     });
     // Register to tile
     this._updateTile();
-    return this;
   }
+
   /**
    * Get characters that this character is colliding with.
    * @param character A specific character to check collision with. If not specified, check collision with all characters in the current tile.
@@ -456,13 +446,16 @@ export default class Character
     return getFieldDef(this._game, this.data);
   }
 
+  public setData(data: Partial<ICharacterData>): void {
+    super.setData(data);
+  }
   private _updateTile(): void {
     // Current tile
     if (this.isMoving || !this._currentTile) {
       if (this._currentTile) {
         this._currentTile["internal"].removeCharacter(this);
       }
-      this._currentTile = this._game.map.getTile(this.position);
+      this._currentTile = this._game.tileManager.getTile(this.position);
       if (!this._currentTile) {
         throw new Error(
           `Tile not found at ${this.position.col} - ${this.position.row}`
@@ -474,7 +467,7 @@ export default class Character
     if (this._prevTile) {
       this._prevTile["internal"].removePrevCharacter(this);
     }
-    this._prevTile = this._game.map.getTile(this.prevPosition);
+    this._prevTile = this._game.tileManager.getTile(this.prevPosition);
     if (!this._prevTile) {
       throw new Error(
         `Tile not found at ${this.prevPosition.col} - ${this.prevPosition.row}`
@@ -491,7 +484,7 @@ export default class Character
     }
   }
 
-  private _getFrameDef(frameName: string): ICharacterFrameDef {
+  private _getFrameDef(frameName: string): ISpriteFrameDef {
     let frameDef = this._def.frames[frameName];
     if (!frameDef) {
       throw new Error(`Unknown frame name: ${frameName}`);
@@ -500,7 +493,7 @@ export default class Character
   }
 
   private _navigate(): void {
-    let map = this._game.map;
+    let tileManager = this._game.tileManager;
     //No target
     if (!this.target) {
       this.frameName = "default";
@@ -515,14 +508,18 @@ export default class Character
     let diff = this.target.subtract(this.position);
     //Navigate - First attempt
     let horizontalFirst = Math.abs(diff.col) > Math.abs(diff.row);
-    let path = map.findPath(this.position, this.target, horizontalFirst);
+    let path = tileManager.findPath(
+      this.position,
+      this.target,
+      horizontalFirst
+    );
     if (path && path.length > 0) {
       this.frameName = "chasing";
       this.position = path[0];
       return;
     }
     //Navigate - Second attempt
-    path = map.findPath(
+    path = tileManager.findPath(
       this.position,
       this.target,
       !horizontalFirst //Different direction (vertical/horizontal)
@@ -533,7 +530,7 @@ export default class Character
       return;
     }
     //Just move somewhere - No guarantee of reaching the this.target. But it's good to keep moving.
-    let position = map.findNext(this);
+    let position = tileManager.findNext(this);
     if (position) {
       this.frameName = "searching";
       this.position = position;

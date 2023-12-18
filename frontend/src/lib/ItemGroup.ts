@@ -1,10 +1,17 @@
 import Game from "./Game";
 import Item, { IItemData } from "./Item";
-import Group, { IGroupData } from "./Group";
+import Group, { IGroupData } from "./data/Group";
+import DefPack, { IItemDef } from "./data/DefPack";
 
 export default class ItemGroup extends Group<ItemGroup, IItemData, Item> {
   private _game: Game;
-  // private _positionMap: IPositionMap = {};
+  /**
+   * Get the item definition pack
+   * This is a shortcut for `game.assetPack.itemDefPack`
+   */
+  public get itemDefPack(): DefPack<IItemDef> {
+    return this._game.assetPack.itemDefPack;
+  }
 
   /**
    * Get the game instance that created this group.
@@ -14,12 +21,10 @@ export default class ItemGroup extends Group<ItemGroup, IItemData, Item> {
   }
 
   constructor(game: Game, data: IGroupData<IItemData>) {
-    super(data, Item);
+    super(Item, data);
     this._game = game;
   }
-
-  public init(): this {
-    super.init();
-    return this;
+  public init() {
+    super.initGroup();
   }
 }

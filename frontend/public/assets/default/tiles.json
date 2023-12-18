@@ -1,0 +1,38 @@
+{
+  "empty": {
+    "bgColor": null,
+    "bgSVGName": null,
+    "fgSVGName": null,
+    "walkable": true
+  },
+  "test1": {
+    "bgColor": "#ffffff",
+    "bgSVGName": "icons/test",
+    "fgSVGName": "icons/gear-svgrepo-com",
+    "walkable": true
+  },
+  "test2": {
+    "bgColor": "#ffffff",
+    "bgSVGName": "icons/test",
+    "fgSVGName": null,
+    "walkable": true
+  },
+  "blocked": {
+    "bgColor": "#ff6666",
+    "bgSVGName": "icons/close-svgrepo-com",
+    "fgSVGName": null,
+    "walkable": false
+  },
+  "gress": {
+    "bgColor": "#66dd66",
+    "bgSVGName": null,
+    "fgSVGName": null,
+    "walkable": true
+  },
+  "gress_home": {
+    "bgColor": "#66dd66",
+    "bgSVGName": null,
+    "fgSVGName": "icons/home-svgrepo-com",
+    "walkable": true
+  }
+}

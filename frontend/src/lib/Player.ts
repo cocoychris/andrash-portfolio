@@ -1,29 +1,26 @@
 import PlayerGroup from "./PlayerGroup";
 import { IIndexable, applyDefault, filterObjectByKey } from "./data/util";
-import Member from "./Member";
+import Member from "./data/Member";
 import Character from "./Character";
 import Position, { IPosition } from "./Position";
 import FieldDef from "./data/FieldDef";
-import Game from "./Game";
+import Game, { IResetPhase } from "./Game";
+import {
+  IDidApplyEvent,
+  IDidSetUpdateEvent,
+  IWillGetUpdateEvent,
+} from "./data/DataHolder";
 
 /**
  * Essential data for creating a new character object.
  */
 export interface IPlayerData extends IIndexable {
   name?: string;
-  color: string;
+  color?: string;
   characterID: number;
   target?: IPosition | null;
   isOccupied?: boolean;
 }
-
-const DEFAULT_PLAYER_DATA: IPlayerData = {
-  name: undefined,
-  color: "#ffffff",
-  characterID: 0,
-  target: null,
-  isOccupied: false,
-};
 
 function getFieldDef(game: Game, data: IPlayerData) {
   return new FieldDef<IPlayerData>(
@@ -37,6 +34,8 @@ function getFieldDef(game: Game, data: IPlayerData) {
         color: {
           type: "string",
           regExp: /#[0-f]{6}/i,
+          inputType: "color",
+          acceptUndefined: true,
         },
         characterID: {
           type: "number",
@@ -50,12 +49,12 @@ function getFieldDef(game: Game, data: IPlayerData) {
             col: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.colCount,
+              maxNum: game.tileManager.colCount,
             },
             row: {
               type: "number",
               minNum: 0,
-              maxNum: game.map.rowCount,
+              maxNum: game.tileManager.rowCount,
             },
           },
         },
@@ -66,11 +65,14 @@ function getFieldDef(game: Game, data: IPlayerData) {
       },
     },
     data,
-    "characterData"
+    "playerData"
   );
 }
 
 export default class Player extends Member<PlayerGroup, IPlayerData> {
+  public static readonly ID_RANDOM = -999;
+  public static readonly ID_UNSET = -1;
+
   private _isSelected: boolean = false;
   /**
    * The name of the player.
@@ -85,7 +87,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
    * The color of the player.
    */
   public get color(): string {
-    return this.data.color;
+    return this.data.color as string;
   }
   public set color(color: string) {
     this.data.color = color;
@@ -124,7 +126,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
     return this.data.target ? new Position(this.data.target) : null;
   }
   public set target(target: IPosition | null) {
-    if (target && !this.group.game.map.isInRange(target)) {
+    if (target && !this.group.game.tileManager.isInRange(target)) {
       throw new Error(`Position out of range: ${target.col} - ${target.row}`);
     }
     this.data.target = target ? { col: target.col, row: target.row } : null;
@@ -175,12 +177,32 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
    * Do not create a new Player instance with "new Player()" statement.
    * Use PlayerGroup.new() instead.
    */
-  constructor(group: PlayerGroup, data: IPlayerData, id: number) {
-    data = applyDefault(data, DEFAULT_PLAYER_DATA) as IPlayerData;
-    if (!data.name) {
-      data.name = "Player " + id;
-    }
-    super(group, data, id);
+  constructor(group: PlayerGroup, id: number, data: IPlayerData) {
+    data = applyDefault(data, {
+      name: (data.name = "Player " + id),
+      color: "#999999",
+      target: null,
+      isOccupied: false,
+    });
+    super(group, id, data);
+
+    this.onUpdate<IResetPhase>("reset", () => {
+      this.setData({
+        name: (data.name = "Player " + id),
+        target: null,
+        isOccupied: false,
+      });
+    });
+
+    this.on<IWillGetUpdateEvent>("willGetUpdate", (event) => {
+      this.updateCharacter();
+    });
+  }
+
+  // Making the method public
+  public setData(data: Partial<IPlayerData>) {
+    super.setData(data);
+    this.updateCharacter();
   }
   /**
    * Sync player data with its character.
@@ -195,7 +217,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
     }
     let target = this.stagedData.target;
     this.character.target = target ? new Position(target) : null;
-    this.character.color = this.stagedData.color;
+    this.character.color = this.stagedData.color as string;
     this.character.isEnabled = true;
   }
 
@@ -208,7 +230,6 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
       return;
     }
     this.character.target = null;
-    // this.character.color = null;
     this.character.isEnabled = false;
   }
 }

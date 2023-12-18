@@ -4,9 +4,9 @@ import "./GameView.css";
 import Position from "../../lib/Position";
 import Character from "../../lib/Character";
 import Player from "../../lib/Player";
-import { IDidSetUpdateEvent } from "../../lib/DataHolder";
+import { IDidSetUpdateEvent } from "../../lib/data/DataHolder";
 import AnyEvent from "../../lib/events/AnyEvent";
-import MapView, { IMouseInfo, IPoint } from "./MapView";
+import TileGrid, { IMouseInfo, IPoint } from "./TileGrid";
 import { IIndexable } from "../../lib/data/util";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
@@ -22,11 +22,11 @@ export default class GameView extends React.Component<IProps, IState> {
   private _game: Game;
   private _mainPlayer: Player;
   private _mainCharacter: Character;
-  private _mapViewRef = React.createRef<MapView>();
+  private _mapViewRef = React.createRef<TileGrid>();
 
-  private get _mapView(): MapView {
+  private get _mapView(): TileGrid {
     if (!this._mapViewRef.current) {
-      throw new Error("MapView is not mounted");
+      throw new Error("TileGrid is not mounted");
     }
     return this._mapViewRef.current;
   }
@@ -95,7 +95,7 @@ export default class GameView extends React.Component<IProps, IState> {
 
   public render() {
     return (
-      <MapView
+      <TileGrid
         className="gameView debugOff"
         game={this._game}
         initPosition={this._mainCharacter.position}

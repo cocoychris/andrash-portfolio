@@ -1,20 +1,26 @@
 # Change Log for This Version
 
-Map Editor implemented.
-FieldDef class introduced for handling object property manipulation.
-Events and data propagation processes refined.
+This version introduces dynamic map and asset loading. The `DataHolder` now manages child `DataHolder`s. Unit testing for `DataHolder` has been implemented with Jest. Each page now has its own URL.
 
 ## Backend
 
-- No changes
+- Updated: The `Room` class has been adapted to handle the new async `game.init()` method. Dynamic map loading has been implemented.
+- Updated: The `GameServer` now uses the `AssetPack` class for dynamic asset loading.
 
-## Frontend
+## Frontend & Common
 
-- Added: Introduced the `Editor` class as the core of the Map Editor. This class, while not a UI component, holds the data and logic of the Map Editor. It emits events to notify the UI components to update themselves.
-- Added: Implemented the Map Editor and related components, including `EditorView`, `MapCreator`, `EditorLayout`, and `ToolbarLayout`.
-- Updated: Enhanced `DropdownMenu`, `Navbar`, `TileDisplay`, `CharacterDisplay`, and `MapView` to support the Map Editor.
-- Added: Introduced `DataUpdater` as a subclass of `DataHolder` to handle more complex data propagation processes in future game development.
-- Added: Created the `FieldDef` class for handling object property manipulation in the Map Editor. It defines the property name, type, and default value of the object and provides a method for validation when assigning a new value to the property.
-- Added: Defined fields for `Player`, `Tile`, `Character`, and `Item` using the `FieldDef` class.
-- Updated: Refined the object destruction process by splitting the destroy event into `willDestroy` and `didDestroy` events. The `willDestroy` event is emitted before the object is destroyed, and the `didDestroy` event is emitted after the object is destroyed. This allows all UI components to unmount themselves before the object is destroyed, preventing errors from accessing the destroyed object.
-- Updated: Tile objects now emit events when characters/items enter or leave them.
+- Added: The `AssetPack` class has been introduced to manage dynamic asset loading.
+- Added: The `DefPack` class has been added to hold the definitions loaded from `AssetPack`. It also replaces the old `DefLoader`.
+- Added: The `SVGDisplay` component has been added to display SVG images from the asset pack.
+- Updated: Dynamic map loading has been implemented in the `GameClient`.
+- Updated: The `GameClient` now uses the `AssetPack` class for dynamic asset loading.
+- Updated: `GameMap` has been renamed to `TileManager` to avoid confusion with map data.
+- Updated: `DataHolder` now manages child `DataHolder`s. Most operations applied to the parent will also be applied to the children. Children can be assigned manually or created automatically by the parent when a `childCreator` callback is provided.
+- Removed: The `init()` method is no longer provided by `DataHolder`. It should be implemented by the subclasses if needed.
+- Updated: All subclasses of `DataHolder` have been updated to adapt to the new `DataHolder`. All redundant code for managing children has been removed.
+- Added: Unit testing for `DataHolder` has been implemented with Jest.
+- Updated: Each page now has its own URL and can be visited directly. The URL will be updated when a new page is loaded.
+- Added: The website now has an icon.
+- Added: The title of the website will be updated when a new page is loaded.
+- Added: When a page is opened by clicking a link, the page will load without refreshing the whole page. The new page will fade in and scroll to the top when loaded.
+- Updated: `Game data` and `Map data` are now distinguished. Game data without a game ID is considered as map data. A `reset` update phase has been added to the game. It will reset any play-time changes in the game data and convert the game data into map data.

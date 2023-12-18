@@ -1,23 +1,23 @@
+import SVGDisplay from "./SVGDisplay";
 import { GridChildComponentProps } from "react-window";
 import React, { ReactNode } from "react";
 import Game from "../../lib/Game";
 import Player from "../../lib/Player";
-import asset from "../../assets/gameDef/asset";
 import CharacterDisplay from "./CharacterDisplay";
-import { ReactComponent as LocationIcon } from "../../assets/icons/location-svgrepo-com.svg";
 import Tile from "../../lib/Tile";
-import GameMap from "../../lib/GameMap";
+import TileManager from "../../lib/TileManager";
+import { SYS_OBJ_KEY } from "../../lib/data/DefPack";
 
-interface IProps1 extends GridChildComponentProps {
+interface IGridChildProps extends GridChildComponentProps {
   game: Game;
 }
 
-interface IProps2 {
+interface IStandaloneProps {
   tile: Tile;
   style: React.CSSProperties;
 }
 
-export type ITileDisplayProps = IProps1 | IProps2;
+export type ITileDisplayProps = IGridChildProps | IStandaloneProps;
 
 const DEFAULT_CLASS_NAME = "tile";
 
@@ -27,17 +27,25 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
   }
 
   public render() {
-    const props1 = this.props as IProps1;
-    const props2 = this.props as IProps2;
-    // const { columnIndex: col, rowIndex: row, tileStyle: _style } = props1;
-    const col = props1.columnIndex == undefined ? -1 : props1.columnIndex;
-    const row = props1.rowIndex == undefined ? -1 : props1.rowIndex;
+    const gridChildProps = this.props as IGridChildProps;
+    const standaloneProps = this.props as IStandaloneProps;
+    const isStandalone = !gridChildProps.game;
+    const col =
+      gridChildProps.columnIndex == undefined ? -1 : gridChildProps.columnIndex;
+    const row =
+      gridChildProps.rowIndex == undefined ? -1 : gridChildProps.rowIndex;
     const tileStyle = { ...this.props.style };
-    const game: Game | null = props1.game || null;
-    const map: GameMap | null = game?.map || null;
-    const tile = props2.tile || map?.getTile({ col, row });
-    let classNameList = [DEFAULT_CLASS_NAME];
+    const game: Game = isStandalone
+      ? standaloneProps.tile.manager.game
+      : gridChildProps.game;
+    const tileManager: TileManager = isStandalone
+      ? standaloneProps.tile.manager
+      : game.tileManager;
+    const tile = isStandalone
+      ? standaloneProps.tile
+      : tileManager.getTile({ col, row });
 
+    let classNameList = [DEFAULT_CLASS_NAME];
     let debugDiv = <div key="debug" className="debug">{`${col},${row}`}</div>;
     // Render Empty Cell
     if (!tile) {
@@ -48,15 +56,16 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
         </div>
       );
     }
-    if (map) {
+    // Set Tile Class Names
+    if (tileManager) {
       if (col == 0) {
         classNameList.push("left");
-      } else if (col == map.colCount - 1) {
+      } else if (col == tileManager.colCount - 1) {
         classNameList.push("right");
       }
       if (row == 0) {
         classNameList.push("top");
-      } else if (row == map.rowCount - 1) {
+      } else if (row == tileManager.rowCount - 1) {
         classNameList.push("bottom");
       }
     }
@@ -66,21 +75,25 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
     if (tile.bgColor) {
       tileStyle.backgroundColor = tile.bgColor;
     }
-    if (tile.bgImageID) {
-      tileStyle.backgroundImage = `url("${asset.image(tile.bgImageID)}")`;
+    if (tile.bgSVGName) {
+      tileStyle.backgroundImage = `url("${game.assetPack.getSVGURL(
+        tile.bgSVGName
+      )}")`;
     }
     if (tile.isSelected) {
       classNameList.push("selected");
     }
     // Render Items
     items.forEach((item) => {
-      const itemSVGStyle = {
-        transform: `scaleX(${item.facingDir})`,
-        zIndex: item.inFront ? 3 : 1,
-      };
-      const SVG = asset.svg(item.frameDef.svgID);
       content.push(
-        <SVG key={item.id} className="itemSVG" style={itemSVGStyle} />
+        <SVGDisplay
+          key={item.id}
+          divClassName={`item${item.facingDir == -1 ? " flip" : ""}${
+            item.inFront ? " inFront" : ""
+          }`}
+          assetPack={game.assetPack}
+          svgName={item.frameDef.svgName}
+        />
       );
     });
     // Render Characters
@@ -96,26 +109,36 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
       );
     });
 
-    // Render Target
-    let mainPlayer = game?.playerGroup.mainPlayer as Player;
+    // Render Target Beacon
+    let mainPlayer = game.playerGroup.mainPlayer as Player;
     if (mainPlayer) {
       let mainCharacter = mainPlayer.character;
       if (mainPlayer.stagedTarget?.equals({ col, row })) {
-        let className = "targetSVG";
+        let className = SYS_OBJ_KEY.TARGET_BEACON;
         if (mainPlayer.stagedTarget.equals(mainCharacter.position)) {
           className += " fade-out";
         }
-        content.push(<LocationIcon key="targetSVG" className={className} />);
+        content.push(
+          <SVGDisplay
+            key={SYS_OBJ_KEY.TARGET_BEACON}
+            divClassName={className}
+            assetPack={game.assetPack}
+            svgName={
+              game.assetPack.sysObjDefPack.get(SYS_OBJ_KEY.TARGET_BEACON)
+                .svgName
+            }
+          />
+        );
       }
     }
     // Render Tile Foreground
-    if (tile.fgImageID) {
+    if (tile.fgSVGName) {
       content.push(
-        <img
-          key="fgImage"
-          className="fgImage"
-          src={asset.image(tile.fgImageID)}
-          draggable="false"
+        <SVGDisplay
+          key="fgSVG"
+          divClassName="foreground"
+          assetPack={game.assetPack}
+          svgName={tile.fgSVGName}
         />
       );
     }

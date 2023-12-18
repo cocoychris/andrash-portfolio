@@ -30,12 +30,12 @@
   display: none;
 }
 
-.CharacterIcon {
+.characterDiv svg {
   display: block;
   width: 100%;
   height: 100%;
 }
-.CharacterDiv {
+.characterDiv {
   --speed: 500ms;
   position: absolute;
   z-index: 2;
@@ -46,48 +46,50 @@
   height: 100%;
   transition: translate var(--speed) ease-out;
 }
-.CharacterDiv.position-left {
+.characterDiv.position-left {
   translate: -100% 0%;
 }
-.CharacterDiv.position-left-up {
+.characterDiv.position-left-up {
   translate: -100% -100%;
 }
-.CharacterDiv.position-left-down {
+.characterDiv.position-left-down {
   translate: -100% 100%;
 }
-.CharacterDiv.position-right {
+.characterDiv.position-right {
   translate: 100% 0%;
 }
-.CharacterDiv.position-right-up {
+.characterDiv.position-right-up {
   translate: 100% -100%;
 }
-.CharacterDiv.position-right-down {
+.characterDiv.position-right-down {
   translate: 100% 100%;
 }
-.CharacterDiv.position-up {
+.characterDiv.position-up {
   translate: 0% -100%;
 }
-.CharacterDiv.position-down {
+.characterDiv.position-down {
   translate: 0% 100%;
 }
-.CharacterDiv.position-center {
+.characterDiv.position-center {
   translate: 0% 0%;
 }
 
-.CharacterDiv.selected svg {
+.characterDiv.selected svg {
   background-color: rgba(255, 255, 255, 0.6);
   border-radius: 50%;
   box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000;
 }
-.CharacterDiv.hitCharacter svg {
+.characterDiv.hitCharacter svg {
   opacity: "0.85";
 }
-.CharacterDiv.hitItem svg {
+.characterDiv.hitItem svg {
   opacity: "0.85";
+}
+.characterDiv.flip svg {
+  scale: -1 1;
 }
 
-.gameView .tile > svg,
-.gameView .tile > img {
+.gameView .tile svg {
   position: absolute;
   top: 0;
   left: 0;
@@ -98,23 +100,33 @@
   user-select: none;
 }
 
-.gameView .tile > svg.itemSVG {
+.gameView .tile div.item svg {
   z-index: 1;
 }
-.gameView .tile > img.fgImage {
+.gameView .tile div.item.inFront svg {
+  z-index: 3;
+}
+.gameView .tile div.item.flip svg {
+  scale: -1 1;
+}
+.gameView .tile div.foreground svg {
   z-index: 5;
 }
 
-.gameView .tile > svg.targetSVG {
+.gameView .tile div.targetBeacon svg {
+  fill: #ff3333;
+}
+.gameView .tile div.targetBeacon {
+  width: 100%;
+  height: 100%;
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 11;
-  fill: #ff3333;
-  transition: opacity 500ms ease;
   opacity: 1;
+  transition: opacity 500ms ease;
+  z-index: 11;
 }
-.gameView .tile > svg.targetSVG.fade-out {
+.gameView .tile div.targetBeacon.fade-out {
   opacity: 0;
 }
 .gameView .tile.selected {

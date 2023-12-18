@@ -32,7 +32,7 @@ export interface IPopupOptions {
   content?: ReactNode;
   /**
    * A callback that will be called when the popup is closed by clicking the close button or calling close().
-   * The return value of this callback will be the return value of the promise returned by open().
+   * The return value of this callback will be the return value of the promise returned by show().
    * @returns
    */
   onClose?: () => void | Promise<void>;
@@ -47,7 +47,7 @@ export interface IPopupOptions {
   /**
    * The callbacks of the buttons (in the same order as buttonLabels)
    * If buttonActions[i] is null, the onClose callback will be called when the button is clicked.
-   * The return value of buttonActions[i] will be the return value of the promise returned by open().
+   * The return value of buttonActions[i] will be the return value of the promise returned by show().
    */
   buttonActions?: Array<(() => void | Promise<void>) | null>;
   /**
@@ -71,7 +71,7 @@ export default class Popup extends React.Component<{}, IState> {
   };
   /**
    * Close the popup
-   * This will also resolve the promise returned by open()
+   * This will also resolve the promise returned by show()
    */
   public close(callOnClose: boolean = true) {
     this._close(callOnClose ? this.state.options?.onClose : null);
@@ -83,7 +83,7 @@ export default class Popup extends React.Component<{}, IState> {
    * The value of the promise is the return value of the onClose callback or buttonActions[i].
    * If return value is undefined, the promise will resolve to a number indicating which button is clicked.
    */
-  public open(options: IPopupOptions): Promise<any> {
+  public show(options: IPopupOptions): Promise<any> {
     // Clear previous timeout
     if (this._timeoutID) {
       clearTimeout(this._timeoutID);
@@ -176,7 +176,7 @@ export default class Popup extends React.Component<{}, IState> {
       <CSSTransition
         in={this.state.options != null}
         nodeRef={this._popupRef}
-        timeout={300}
+        timeout={600}
         classNames="popup"
         unmountOnExit
       >

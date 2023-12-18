@@ -1,5 +1,10 @@
-import React, { Component } from "react";
+import React, { Component, ReactNode } from "react";
 import Markdown from "react-markdown";
+import parse, { DOMNode } from "html-react-parser";
+import { HTMLReactParserOptions, Element } from "html-react-parser";
+
+// Prevent rendering of <html> tag
+const REPLACE_TAGS: Set<string> = new Set(["html", "head", "body"]);
 
 interface IProps {
   pageURL: string;
@@ -24,13 +29,20 @@ const CONTENT_CACHE: { [key: string]: string } = {};
 export default class Page extends Component<IProps, IState> {
   private _isMarkDown: boolean;
   private _content: string = "";
+  private _message: string = "";
+  private _title: string = "";
 
   public get isMarkDown() {
     return this._isMarkDown;
   }
 
+  public get title(): string {
+    return this._title;
+  }
+
   constructor(props: IProps) {
     super(props);
+    this._onParserReplace = this._onParserReplace.bind(this);
     this._isMarkDown = this.props.pageURL.endsWith(".md");
     this.state = {
       status: "loading",
@@ -42,11 +54,7 @@ export default class Page extends Component<IProps, IState> {
       this._loadPage();
     }
   }
-  componentDidUpdate(
-    prevProps: Readonly<IProps>,
-    prevState: Readonly<IState>,
-    snapshot?: any
-  ): void {
+  componentDidUpdate(): void {
     if (this.state.status === "loaded") {
       if (this.props.onLoad) {
         this.props.onLoad();
@@ -77,29 +85,60 @@ export default class Page extends Component<IProps, IState> {
     });
     // Handle error
     if (!response.ok) {
+      this._message = `Error ${response.status}: ${response.statusText}`;
+      this._title = `Error ${response.status}`;
       this.setState({ status: "error" });
       return;
     }
     // Handle success
     this._content = await response.text();
     CONTENT_CACHE[this.props.pageURL] = this._content;
+    // Get title from content
+    if (this._isMarkDown) {
+      let match = this._content.match(/^#+\s*(.+)$/m);
+      this._title = match ? match[1].trim() : "";
+      console.log("Page title: " + this._title);
+    } else {
+      let match = this._content.match(/<title>(.*)<\/title>/);
+      this._title = match ? match[1].trim() : "";
+      console.log("Page title: " + this._title);
+    }
+    // Update state
     this.setState({ status: "loaded" });
+  }
+
+  private _onParserReplace(domNode: DOMNode) {
+    if (domNode instanceof Element && domNode.attribs) {
+      if (REPLACE_TAGS.has(domNode.tagName)) {
+        domNode.tagName = "div";
+        return domNode;
+      }
+    }
   }
 
   render() {
     return (
       <div className="page">
         {this.state.status === "loading" && (
-          <div className="message loading">Loading...</div>
+          <div className="message loading">
+            <h2>Loading...</h2>
+          </div>
         )}
         {this.state.status === "error" && (
-          <div className="message error">Error loading page</div>
+          <div className="message error">
+            <h2>Failed to load page</h2>
+            <p>{this._message ? this._message : ""}</p>
+          </div>
         )}
         {this.state.status === "loaded" && this._isMarkDown && (
           <Markdown className="content markdown">{this._content}</Markdown>
         )}
         {this.state.status === "loaded" && !this._isMarkDown && (
-          <div className="content webPage">{this._content}</div>
+          <div className="content webPage">
+            {parse(this._content, {
+              replace: this._onParserReplace,
+            })}
+          </div>
         )}
       </div>
     );
