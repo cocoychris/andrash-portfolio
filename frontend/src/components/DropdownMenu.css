@@ -38,6 +38,7 @@
   transition: opacity 300ms;
   padding: 0.2rem;
 }
+
 .dropdown .menu-item.enabled.unselectable.connectPrev {
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
@@ -49,6 +50,9 @@
 
 .dropdown .menu-item .standaloneText {
   margin-left: 15px;
+  width: calc(100% - 15px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dropdown .menu-item h2 {
   font-size: 24px;
@@ -128,11 +132,13 @@
 .menu-moveRight {
   width: var(--menuWidth);
   max-height: calc(100vh - 100px);
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .menu-moveLeft {
   width: var(--menuWidth);
   max-height: calc(100vh - 100px);
+  overflow-x: hidden;
   overflow-y: auto;
 }
 

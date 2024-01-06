@@ -3,7 +3,7 @@ import {
   FixedSizeGridProps,
   GridChildComponentProps,
 } from "react-window";
-import React, { ReactNode, RefObject } from "react";
+import React, { ReactElement, ReactNode, RefObject } from "react";
 import Position, { IPosition } from "../../lib/Position";
 import { Easing, Tween } from "@tweenjs/tween.js";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -62,6 +62,7 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
   private _containerRef: RefObject<AutoSizer> = React.createRef<AutoSizer>();
   private _mouseDown: boolean = false;
   private _paddingCellCount: number;
+  private _tileDisplayMap: Map<string, ReactElement> = new Map();
 
   private get _grid(): Grid | null {
     if (!this._gridRef.current) {
@@ -109,7 +110,6 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
   }
 
   constructor(props: ITileGridProps) {
-    console.log("TileGrid");
     super(props);
     // this._mapSize = props.mapSize;
     let tileManager = props.game.tileManager;
@@ -120,10 +120,13 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
+    this._renderTile = this._renderTile.bind(this);
   }
 
   public updateTileDisplay(position: IPosition) {
-    let ref = this._refDict.get(this._toRefKey(position.col, position.row));
+    let ref = this._refDict.get(
+      this._toPositionKey(position.col, position.row)
+    );
     ref?.current?.forceUpdate();
   }
   public componentWillUnmount(): void {
@@ -146,7 +149,7 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
         onPointerDown={this._onMouseDown}
         ref={this._containerRef}
       >
-        {({ width, height }) => {
+        {({ width, height }: { width: number; height: number }) => {
           this._width = width;
           this._height = height;
           this._cellSize = Math.ceil(
@@ -169,26 +172,38 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
                 this._setPosition(this._position);
               }}
             >
-              {(props: GridChildComponentProps) => {
-                props = {
-                  ...props,
-                  rowIndex: props.rowIndex - this._paddingCellCount,
-                  columnIndex: props.columnIndex - this._paddingCellCount,
-                };
-                let ref = React.createRef<TileDisplay>();
-                this._refDict.set(
-                  this._toRefKey(props.columnIndex, props.rowIndex),
-                  ref
-                );
-                return (
-                  <TileDisplay {...props} game={this.props.game} ref={ref} />
-                );
-              }}
+              {this._renderTile}
             </Grid>
           );
         }}
       </AutoSizer>
     );
+  }
+  private _renderTile(props: GridChildComponentProps) {
+    props = {
+      ...props,
+      rowIndex: props.rowIndex - this._paddingCellCount,
+      columnIndex: props.columnIndex - this._paddingCellCount,
+    };
+    let key = this._toPositionKey(props.columnIndex, props.rowIndex);
+    // Try to reuse the tile display
+    let tileDisplay: ReactElement | undefined = this._tileDisplayMap.get(key);
+    if (tileDisplay) {
+      return tileDisplay;
+    }
+    // Create a new tile display
+    let ref = React.createRef<TileDisplay>();
+    this._refDict.set(key, ref);
+    tileDisplay = (
+      <TileDisplay
+        {...props}
+        cellSize={this._cellSize}
+        game={this.props.game}
+        ref={ref}
+      />
+    );
+    this._tileDisplayMap.set(key, tileDisplay);
+    return tileDisplay;
   }
   /**
    * Ease to a position
@@ -196,21 +211,23 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
   public ease(position: IPosition, duration: number = 500, delay: number = 0) {
     this.cancel();
     let target = this._correctPosition(position);
-    // console.log("ease", target);
-    this._tween = new Tween(this._position)
-      .to(target, duration)
-      .delay(delay)
-      .easing(Easing.Quadratic.Out)
-      .onUpdate((position) => {
-        this._setPosition(position);
-      })
-      .onStop((position) => {
-        this._tween = null;
-      })
-      .onComplete((position) => {
-        this._tween = null;
-      })
-      .start();
+    requestAnimationFrame(() => {
+      this._tween = new Tween(this._position)
+        .to(target, duration)
+        .delay(delay)
+        .easing(Easing.Quadratic.InOut)
+        .onUpdate((position) => {
+          // console.log("ease");
+          this._setPosition(position);
+        })
+        .onStop((position) => {
+          this._tween = null;
+        })
+        .onComplete((position) => {
+          this._tween = null;
+        })
+        .start();
+    });
   }
   /**
    * Cancel easing
@@ -237,7 +254,7 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
     return position;
   }
 
-  private _toRefKey(col: number, row: number) {
+  private _toPositionKey(col: number, row: number) {
     return `${col},${row}`;
   }
 

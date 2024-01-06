@@ -65,16 +65,14 @@ To load the existing game, the `mapID` field should be omitted in the request.
 
 To initiate a new game, the `mapID` should be included in the request. However, ensure that the client is the host of the room, otherwise, the request will be rejected.
 
-There is also a feature called "local game". This is a game that is not associated with any room. It runs on client side (browser) only. This is useful when the connection is poor or there are errors in the game server that prevent the game from running. To initiate a local game, the `isLocalGame` field should be set to `true` in the request.
-
 `tickNum` in the response is the number of current tick. For a new game, it is 0. For an existing game, it is the number of ticks that have passed since the game started.
 
 The game will be paused when a `loadGame` request is received by the server until the client confirms that it is ready to start the game by emitting the `startGame` event. This is to prevent the game from going to the next tick before the client is ready causing the game to be out of sync.
 
-| Step | Origin | Type     | Event      | Data                                                                       | Description                                   |
-| ---- | ------ | -------- | ---------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| 1    | Client | emit     | `loadGame` | `mapID?`, `isLocalGame?`, `tickInterval?`                                  | Request to load a game.                       |
-| -    | Server | response | -          | `playerID`, `gameData`, `isOpen`, `isLocalGame`, `tickInterval`, `tickNum` | Server returns the game data in the response. |
+| Step | Origin | Type     | Event      | Data                              | Description                                   |
+| ---- | ------ | -------- | ---------- | --------------------------------- | --------------------------------------------- |
+| 1    | Client | emit     | `loadGame` | `mapID?`                          | Request to load a game.                       |
+| -    | Server | response | -          | `playerID`, `gameData`, `tickNum` | Server returns the game data in the response. |
 
 ## Starting & Resuming the Game
 

@@ -86,12 +86,6 @@ export default class GameClient extends AnyEventEmitter {
     return this._mode;
   }
   /**
-   * The initial state of the game client.
-   */
-  public get initState(): string {
-    return this._initState;
-  }
-  /**
    * Set the mode of the game client.
    * Note that this will reload the page.
    */
@@ -103,6 +97,12 @@ export default class GameClient extends AnyEventEmitter {
     let url = new URL(window.location.href);
     url.searchParams.set("mode", value);
     window.location.assign(url);
+  }
+  /**
+   * The initial state of the game client.
+   */
+  public get initState(): string {
+    return this._initState;
   }
   /**
    * The editor instance.
@@ -250,7 +250,7 @@ export default class GameClient extends AnyEventEmitter {
       if (this._localSession.gameData) {
         await this._loadLocalGame(
           this._localSession.gameData,
-          undefined,
+          this._localSession.mainPlayerID,
           undefined,
           false
         );
@@ -309,15 +309,11 @@ export default class GameClient extends AnyEventEmitter {
    * @returns Returns the loaded game. Returns null if no game data is available.
    */
   public async loadLocalGame(
-    gameData: IGameData | null = null,
+    gameData: IGameData,
     mainPlayerID: number = Player.ID_RANDOM
   ): Promise<Game | null> {
     if (!this.isLocalGame) {
       throw new Error("Not running in local mode");
-    }
-    gameData = gameData || this._localSession.gameData;
-    if (!gameData) {
-      return null;
     }
     return await this._loadLocalGame(gameData, mainPlayerID);
   }
@@ -330,6 +326,13 @@ export default class GameClient extends AnyEventEmitter {
     }
     // Run the game locally
     if (this.isLocalGame) {
+      // Editor mode - do not save game data
+      if (this.mode == GameClient.MODE_EDITOR) {
+        this._game.run();
+        return;
+      }
+      // Local mode - save game data automatically in every tick
+      this._localSession.mainPlayerID = this._game.playerGroup.mainPlayerID;
       this._game.run((tick) => {
         tick();
         this._localSession.gameData = this._game?.getData() || null;
@@ -407,7 +410,6 @@ export default class GameClient extends AnyEventEmitter {
    * The room ID in the URL will be updated after authentication.
    */
   private async _authenticate(): Promise<IAuthenticateEvent["response"]> {
-    console.log("authenticate");
     if (!this._transmitter.isConnected) {
       throw new Error("Client not connected");
     }
@@ -428,7 +430,6 @@ export default class GameClient extends AnyEventEmitter {
     this._isHost = response.isHost;
     this._isAuthenticated = true;
     this._joinRoomWarning = response.joinRoomWarning;
-    console.log(`authenticated`, this._localSession);
     return response;
   }
 
@@ -487,10 +488,7 @@ export default class GameClient extends AnyEventEmitter {
     });
   }
 
-  private async _loadOnlineGame(
-    mapID?: string,
-    tickInterval?: number
-  ): Promise<Game> {
+  private async _loadOnlineGame(mapID?: string): Promise<Game> {
     // Loading gameData from server
     if (!this._isAuthenticated) {
       throw new Error("Client not authenticated");
@@ -498,19 +496,11 @@ export default class GameClient extends AnyEventEmitter {
     let response = await this._transmitter.transmit<ILoadGameEvent>(
       "loadGame",
       {
-        isLocalGame: false,
         mapID: mapID,
-        tickInterval: tickInterval,
       }
     );
     if (response.error) {
       throw new Error(response.error);
-    }
-    //Redirected as local game
-    if (response.isLocalGame) {
-      this._localSession.gameData = response.gameData;
-      this.mode = GameClient.MODE_LOCAL;
-      return Promise.reject("Redirected as local game");
     }
     console.log("Creating new game from server...", response);
     return await this._newGame({
@@ -557,6 +547,9 @@ export default class GameClient extends AnyEventEmitter {
         mainPlayer.isOccupied = true;
         mainPlayer.name = FruitNameGenerator.newName();
         this._game.hostPlayerID = mainPlayer.id;
+        mainPlayer.apply();
+        mainPlayer.updateCharacter();
+        mainPlayer.character.apply();
       }
       mainPlayer.dataChangeEventDelay = 10;
       mainPlayer.on<IDataChangeEvent>(
@@ -722,7 +715,7 @@ export default class GameClient extends AnyEventEmitter {
           continuable: true,
         })
       );
-    }, this._game.tickInterval * 3);
+    }, CONNECTION_TIMEOUT);
   }
 
   private _clearGameTickTimeout() {
@@ -762,9 +755,9 @@ class LocalSession {
   public set sessionID(sessionID: string) {
     this._sessionID = sessionID;
     if (sessionID) {
-      localStorage.setItem("sessionID", sessionID);
+      sessionStorage.setItem("sessionID", sessionID);
     } else {
-      localStorage.removeItem("sessionID");
+      sessionStorage.removeItem("sessionID");
     }
   }
   public get publicID(): string {
@@ -782,29 +775,48 @@ class LocalSession {
       window.history.replaceState("", "", url.toString());
     }
   }
+  public get mainPlayerID(): number {
+    let idString = sessionStorage.getItem("mainPlayerID");
+    if (!idString) {
+      return Player.ID_UNSET;
+    }
+    let id = Number(idString);
+    if (isNaN(id)) {
+      return Player.ID_UNSET;
+    }
+    return id;
+  }
+  public set mainPlayerID(value: number) {
+    if (value === Player.ID_UNSET) {
+      sessionStorage.removeItem("mainPlayerID");
+      return;
+    }
+    sessionStorage.setItem("mainPlayerID", String(value));
+  }
   public get gameData(): IGameData | null {
     return this._gameData;
   }
   public set gameData(gameData: IGameData | null) {
     this._gameData = gameData;
     if (gameData) {
-      localStorage.setItem("gameData", JSON.stringify(gameData));
+      sessionStorage.setItem("gameData", JSON.stringify(gameData));
     } else {
-      localStorage.removeItem("gameData");
+      sessionStorage.removeItem("gameData");
     }
   }
 
   constructor() {
-    this._sessionID = localStorage.getItem("sessionID") || "";
+    this._sessionID = sessionStorage.getItem("sessionID") || "";
     this._publicID =
       new URL(window.location.href).searchParams.get("room") || "";
-    let gameDataString = localStorage.getItem("gameData");
+    let gameDataString = sessionStorage.getItem("gameData");
     this._gameData = gameDataString ? JSON.parse(gameDataString) : null;
   }
 
   public clear() {
     this.sessionID = "";
     this.publicID = "";
+    this.mainPlayerID = Player.ID_UNSET;
     this.gameData = null;
   }
 }

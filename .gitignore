@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+image_design
 dist
 dist-ssr
 *.local

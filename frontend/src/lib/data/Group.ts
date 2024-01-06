@@ -158,6 +158,7 @@ export default abstract class Group<
    */
   public new(data: TMemberData): void {
     this.data[this._generateID()] = data;
+    // console.log("new", this.data);
   }
   /**
    * Get the member instance by id.

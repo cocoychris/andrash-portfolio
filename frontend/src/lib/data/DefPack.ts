@@ -25,173 +25,45 @@ export interface IDefPackDefault<T extends IDefinition> extends IDefPack<T> {
  * Definition a svg image frame.
  */
 export interface ISpriteFrameDef {
-  svgName: string;
+  svgName?: string;
+  imageName?: string;
 }
 /**
- * Definition of a character.
+ * Field definition of a svg image frame.
  */
-export interface ICharacterDef extends IDefinition {
-  isNPC: boolean; //NPCs (none character characters) can only be controlled by computer not character.
-  frames: IDefPackDefault<ISpriteFrameDef>;
-}
-/**
- * Definition of an item.
- */
-export interface IItemDef {
-  collectable: boolean;
-  page: string | null;
-  inFront: boolean; //If true, the item will be displayed in front of the character. If false, the item will be displayed behind the character.
-  frames: IDefPackDefault<ISpriteFrameDef>;
-}
-// ## Tile definitons ##
-/**
- * Definition of a tile.
- */
-export interface ITileDef extends IDefinition {
-  bgColor: string | null;
-  bgSVGName: string | null;
-  fgSVGName: string | null;
-  walkable: boolean;
-}
-
-export interface ISysObjDef extends IDefinition {
-  svgName: string;
-}
-
-const SVG_FRAME_FIELD_DEF: IFieldDef = {
+export const SVG_FRAME_FIELD_DEF: IFieldDef = {
   type: "object",
   children: {
     svgName: {
       type: "string",
+      acceptUndefined: true,
+    },
+    imageName: {
+      type: "string",
+      acceptUndefined: true,
     },
   },
 };
-
-const CHARACTER_FIELD_DEF: FieldDef<ICharacterDef> = new FieldDef({
-  type: "object",
-  children: {
-    isNPC: {
-      type: "boolean",
-    },
-    frames: {
-      type: "object",
-      children: {
-        default: SVG_FRAME_FIELD_DEF,
-        searching: SVG_FRAME_FIELD_DEF,
-        chasing: SVG_FRAME_FIELD_DEF,
-        arrived: SVG_FRAME_FIELD_DEF,
-      },
-    },
-  },
-});
-
-const ITEM_FIELD_DEF: FieldDef<IItemDef> = new FieldDef({
-  type: "object",
-  children: {
-    collectable: {
-      type: "boolean",
-    },
-    page: {
-      type: "string",
-      acceptNull: true,
-    },
-    inFront: {
-      type: "boolean",
-    },
-    frames: {
-      type: "object",
-      children: {
-        default: SVG_FRAME_FIELD_DEF,
-      },
-    },
-  },
-});
-
-const TILE_FIELD_DEF: FieldDef<ITileDef> = new FieldDef({
-  type: "object",
-  children: {
-    bgColor: {
-      type: "string",
-      acceptNull: true,
-    },
-    bgSVGName: {
-      type: "string",
-      acceptNull: true,
-    },
-    fgSVGName: {
-      type: "string",
-      acceptNull: true,
-    },
-    walkable: {
-      type: "boolean",
-    },
-  },
-});
-
-export const SYS_OBJ_KEY = Object.freeze({
-  TARGET_BEACON: "targetBeacon",
-});
-const SYS_OBJ_FIELD_DEF: FieldDef<ISysObjDef> = new FieldDef({
-  type: "object",
-  children: {
-    svgName: {
-      type: "string",
-    },
-  },
-});
-
-const SVG_KEY_DICT: { [key: string]: boolean } = {
-  svgName: true,
-  bgSVGName: true,
-  fgSVGName: true,
-};
+/**
+ * Properties that should be treated as image names.
+ * These images will be preloaded by the AssetPack class before the game starts.
+ */
+const IMAGE_KEY_SET: Set<string> = new Set([
+  "bgImageName",
+  "fgImageName",
+  "imageName",
+]);
+/**
+ * Properties that should be treated as svg names.
+ * These svgs will be preloaded by the AssetPack class before the game starts.
+ */
+const SVG_KEY_SET: Set<string> = new Set(["svgName", "fgSVGName"]);
 
 /**
  * A definition pack that holds a group of definitions of same type.
  */
-export default class DefPack<T extends IDefinition> {
-  private static _allowNew = false;
-
-  public static character(
-    defPack: IDefPack<ICharacterDef>
-  ): DefPack<ICharacterDef> {
-    DefPack._allowNew = true;
-    let instance = new DefPack<ICharacterDef>(
-      "character",
-      defPack,
-      CHARACTER_FIELD_DEF
-    );
-    DefPack._allowNew = false;
-    return instance;
-  }
-
-  public static item(defPack: IDefPack<IItemDef>): DefPack<IItemDef> {
-    DefPack._allowNew = true;
-    let instance = new DefPack<IItemDef>("item", defPack, ITEM_FIELD_DEF);
-    DefPack._allowNew = false;
-    return instance;
-  }
-
-  public static tile(defPack: IDefPack<ITileDef>): DefPack<ITileDef> {
-    DefPack._allowNew = true;
-    let instance = new DefPack<ITileDef>("tile", defPack, TILE_FIELD_DEF);
-    DefPack._allowNew = false;
-    return instance;
-  }
-
-  public static sysObj(defPack: IDefPack<ISysObjDef>): DefPack<ISysObjDef> {
-    DefPack._allowNew = true;
-    let instance = new DefPack<ISysObjDef>(
-      "sysObj",
-      defPack,
-      SYS_OBJ_FIELD_DEF,
-      Object.values(SYS_OBJ_KEY)
-    );
-    DefPack._allowNew = false;
-    return instance;
-  }
-
-  private _defPack: IDefPack<T>;
+export default abstract class DefPack<T extends IDefinition> {
+  protected defPack: IDefPack<T>;
 
   /**
    * Get all definition types.
@@ -202,6 +74,10 @@ export default class DefPack<T extends IDefinition> {
    * Any property name that ends with "svgName" (case insensitive) will be considered as a svg name.
    */
   public readonly svgNames: Array<string>;
+  /**
+   * Get all image names used in the definitions.
+   */
+  public readonly imageNames: Array<string>;
 
   constructor(
     defType: string,
@@ -209,11 +85,7 @@ export default class DefPack<T extends IDefinition> {
     fieldDef: FieldDef<T>,
     requiredKeys?: Array<string>
   ) {
-    if (!DefPack._allowNew) {
-      throw new Error(
-        `Cannot create a new DefPack directly. Use static factory methods instead.`
-      );
-    }
+    // Validate definition pack with field definition.
     for (let key in defPack) {
       let result = fieldDef.validate(defPack[key]);
       if (!result.isValid) {
@@ -222,6 +94,7 @@ export default class DefPack<T extends IDefinition> {
         );
       }
     }
+    // Validate required keys.
     if (requiredKeys) {
       for (let key of requiredKeys) {
         if (!defPack[key]) {
@@ -229,10 +102,10 @@ export default class DefPack<T extends IDefinition> {
         }
       }
     }
-    this._defPack = defPack;
+    this.defPack = defPack;
     this.typeNames = Object.keys(defPack);
-    let svgNameSet = this._getSVGNameSet(defPack);
-    this.svgNames = Array.from(svgNameSet);
+    this.svgNames = Array.from(this._getSVGNameSet(defPack));
+    this.imageNames = Array.from(this._getImageNameSet(defPack));
   }
   /**
    * Get definition of specified type.
@@ -240,7 +113,7 @@ export default class DefPack<T extends IDefinition> {
    * @returns Definition of specified type.
    */
   public get(typeName: string): T {
-    let def = this._defPack[typeName];
+    let def = this.defPack[typeName];
     if (!def) {
       throw new Error(`Cannot find definition of type: ${typeName}`);
     }
@@ -252,12 +125,26 @@ export default class DefPack<T extends IDefinition> {
     svgNameSet: Set<string> = new Set()
   ) {
     for (let key in def) {
-      if (SVG_KEY_DICT[key] && typeof def[key] === "string") {
+      if (SVG_KEY_SET.has(key) && typeof def[key] === "string") {
         svgNameSet.add(def[key]);
       } else if (typeof def[key] === "object") {
         this._getSVGNameSet(def[key], svgNameSet);
       }
     }
     return svgNameSet;
+  }
+
+  private _getImageNameSet(
+    def: IDefinition,
+    imageNameSet: Set<string> = new Set()
+  ) {
+    for (let key in def) {
+      if (IMAGE_KEY_SET.has(key) && typeof def[key] === "string") {
+        imageNameSet.add(def[key]);
+      } else if (typeof def[key] === "object") {
+        this._getImageNameSet(def[key], imageNameSet);
+      }
+    }
+    return imageNameSet;
   }
 }

@@ -18,8 +18,8 @@ interface IProps {
 export default class PageLayout extends Component<IProps> {
   private _pageRef = React.createRef<PageView>();
   private _character: Character | null = null;
+  private _preventOpenPage: string | null = null;
   constructor(props: IProps) {
-    console.log("PageLayout constructor");
     document.title = WEBSITE_TITLE;
     super(props);
     this._onDidNewGame = this._onDidNewGame.bind(this);
@@ -49,22 +49,24 @@ export default class PageLayout extends Component<IProps> {
 
   private _onCharacterUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
     let character = this._character as Character;
-    if (!event.data.changes.isChanged) {
-      return;
-    }
+    // Close page on character move away
     if (this._pageRef.current?.page && character.isMoving) {
       setTimeout(() => {
         this._pageRef.current?.close();
+        this._preventOpenPage = null;
       }, 300);
       return;
     }
+    // Open page on character stopped on item
     let itemList = character.hitItem();
     if (!itemList) {
+      this._preventOpenPage = null;
       return;
     }
     for (let item of itemList) {
-      if (item.page) {
+      if (item.page && item.page !== this._preventOpenPage) {
         this._pageRef.current?.open(item.page);
+        this._preventOpenPage = item.page;
         break;
       }
     }
@@ -78,7 +80,6 @@ export default class PageLayout extends Component<IProps> {
   }
 
   private _onOpen(page: string, title: string, offsetTop: number) {
-    console.log("PageLayout _onOpen");
     document.title = `${title && `${title} | `}${WEBSITE_TITLE}`;
     window.scrollTo({
       top: offsetTop || 0,
@@ -99,6 +100,7 @@ export default class PageLayout extends Component<IProps> {
   public render() {
     return (
       <PageView
+        gameClient={this.props.gameClient}
         ref={this._pageRef}
         baseDir={PAGE_BASE_DIR}
         onOpen={this._onOpen}

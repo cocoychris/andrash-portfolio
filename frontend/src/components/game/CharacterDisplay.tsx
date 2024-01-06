@@ -1,13 +1,15 @@
-import React from "react";
+import React, { SVGTextElementAttributes } from "react";
 import Character from "../../lib/Character";
 import { IPosition } from "../../lib/Position";
 import { ISpriteFrameDef } from "../../lib/data/DefPack";
 import tinycolor from "tinycolor2";
 import SVGDisplay from "./SVGDisplay";
+import TileDisplay from "./TileDisplay";
 
 interface IProps {
   character: Character;
   position: IPosition;
+  onEaseOut?: () => void;
 }
 interface IState {
   className: string;
@@ -15,7 +17,7 @@ interface IState {
 }
 
 const DEFAULT_CLASS_NAME = "characterDiv";
-const TRANSITION_DELAY = 16;
+const EASE_OUT_DURATION = 500;
 
 export default class CharacterDisplay extends React.Component<IProps, IState> {
   private _ref = React.createRef<HTMLDivElement>();
@@ -36,16 +38,20 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
   }
 
   public componentDidMount(): void {
-    this._timeoutID = setTimeout(() => {
+    requestAnimationFrame(() => {
       if (this._isCurrent) {
         this.setState({ className: `${DEFAULT_CLASS_NAME} position-center` });
       } else {
         this.setState({
           className: `${DEFAULT_CLASS_NAME} ${this._getEndPositionName()}`,
         });
+        if (this.props.onEaseOut) {
+          this._timeoutID = setTimeout(() => {
+            this.props.onEaseOut!();
+          }, EASE_OUT_DURATION);
+        }
       }
-      this._timeoutID = null;
-    }, TRANSITION_DELAY);
+    });
   }
 
   public componentWillUnmount(): void {
@@ -56,6 +62,9 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
   }
 
   public render() {
+    if (!this._character.frameDef.svgName) {
+      return null;
+    }
     let svgStyle: React.CSSProperties = {
       fill: this._character.color,
       stroke: "none",
@@ -70,26 +79,57 @@ export default class CharacterDisplay extends React.Component<IProps, IState> {
       svgStyle.stroke = "#ffffff";
       svgStyle.strokeWidth = "4px";
     }
-    if (this._character.hitCharacter()) {
+
+    let itemList = this._character.hitItem();
+    if (itemList) {
+      classList.push("hitItem");
+      if (
+        // Character hit item with page
+        itemList.some((item) => {
+          return !!item.page;
+        })
+      ) {
+        svgStyle.fill = tinycolor(this._character.color)
+          .brighten(30)
+          .toString();
+        svgStyle.stroke = "#ffffff";
+        svgStyle.strokeWidth = "4px";
+      }
+      // Character is in front of item
+      if (
+        itemList.some((item) => {
+          return !item.inFront;
+        })
+      ) {
+        svgStyle.opacity = 0.8;
+      }
+    } else if (this._character.hitCharacter()) {
       classList.push("hitCharacter");
       svgStyle.fill = tinycolor(this._character.color).brighten(30).toString();
       svgStyle.stroke = "#ffffff";
-      svgStyle.strokeWidth = "4px";
-    }
-    if (this._character.hitItem()) {
-      classList.push("hitItem");
-      svgStyle.fill = tinycolor(this._character.color).brighten(30).toString();
-      svgStyle.stroke = "#ffffff";
-      svgStyle.strokeWidth = "4px";
+      svgStyle.strokeWidth = "6px";
+      svgStyle.opacity = 0.8;
     }
     if (this._character.facingDir == -1) {
       classList.push("flip");
     }
 
-    let id =
-      "character" + this._character.id + "-" + this._character.frameDef.svgName;
+    let id = "character" + this._character.id; // + "-" + this._character.frameDef.svgName;
+    let currentZIndex =
+      this._character.position.row * 10 + TileDisplay.Z_INDEX_CHARACTER;
+    let prevZIndex =
+      this._character.prevPosition.row * 10 + TileDisplay.Z_INDEX_CHARACTER;
     return (
-      <div id={id} className={classList.join(" ")} ref={this._ref}>
+      <div
+        id={id}
+        className={classList.join(" ")}
+        ref={this._ref}
+        style={{
+          zIndex: this._character.isMoving
+            ? Math.max(currentZIndex, prevZIndex)
+            : currentZIndex,
+        }}
+      >
         <SVGDisplay
           assetPack={this._character.group.game.assetPack}
           svgName={this._character.frameDef.svgName}

@@ -2,6 +2,8 @@
   --mapBorderRadius: 20px;
   --lightBorder: 3px solid #999999;
   --darkBorder: 3px solid #666666;
+
+  touch-action: none;
 }
 .editorView .tile.top {
   border-top: var(--lightBorder);

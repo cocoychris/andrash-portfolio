@@ -1,6 +1,6 @@
 import "./App.css";
 import GameLayout from "./layouts/GameLayout";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactElement, ReactNode, useEffect, useRef, useState } from "react";
 import GameClient, { IErrorEvent } from "./lib/GameClient";
 import { IGameStopEvent, IGameTickEvent } from "./lib/events/transEventTypes";
 import { IConnectEvent, IDisconnectEvent } from "./lib/events/Transmitter";
@@ -14,24 +14,19 @@ import EditorLayout from "./layouts/EditorLayout";
 import Editor, { IStartTestingEvent, IStopTestingEvent } from "./lib/Editor";
 import preventLongPressMenu from "./components/preventLongPressMenu";
 
-const UPDATE_INTERVAL = 16;
+/**
+ * Keep the game running at 60fps
+ * Do not change this value, otherwise the camera movement will be desynced with the character movement.
+ * The character movement will look laggy.
+ */
+const UPDATE_INTERVAL = 1000 / 60;
 
 // Get parameter `mode` from url
 let gameClient: GameClient = new GameClient("/");
 let started = false;
 preventLongPressMenu();
 
-// import { ReactSVG } from "react-svg";
-// export default function Test() {
-//   // return <ReactSVG src="/before.svg" />;
-//   // return <ReactSVG src="/assets/default/svgs/ghost_arrived.svg" />;
-//   // return <ReactSVG src="/assets/default/svgs/ghost_chasing.svg" />;
-//   // return <ReactSVG src="/assets/default/svgs/ghost_searching.svg" />;
-//   // return <ReactSVG src="/assets/default/svgs/ghost_standing.svg" />;
-// }
-
 export default function App() {
-  console.log("App");
   const popupRef = useRef<PopupLayout>(null);
   const [showEditor, setShowEditor] = useState<boolean>(
     gameClient.editor != null && !gameClient.editor.isTesting
@@ -53,7 +48,7 @@ export default function App() {
   }, []);
 
   // Render layouts
-  let layouts = [
+  let layouts: Array<ReactElement> = [
     <PopupLayout key="popup-layout" gameClient={gameClient} ref={popupRef} />,
   ];
   if (showEditor) {
@@ -69,6 +64,7 @@ export default function App() {
         key="editor-layout"
         editor={gameClient.editor as Editor}
         popupRef={popupRef}
+        updateInterval={UPDATE_INTERVAL}
       />
     );
   } else {
@@ -88,7 +84,7 @@ export default function App() {
     );
   }
   layouts.push(<PageLayout key="page-layout" gameClient={gameClient} />);
-  return layouts;
+  return <>{layouts}</>;
 }
 
 async function initGameClient(
@@ -315,6 +311,7 @@ async function initGameClient(
               If nothing above works, please{" "}
               <b>
                 <a
+                  href="#"
                   onClick={() => {
                     gameClient.clearSession();
                     window.location.reload();

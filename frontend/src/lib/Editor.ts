@@ -6,7 +6,7 @@ import AnyEventEmitter from "./events/AnyEventEmitter";
 import Player, { IPlayerData } from "./Player";
 import { IGroupData } from "./data/Group";
 import Character, { ICharacterData } from "./Character";
-import { randomElement, randomInterger } from "./data/util";
+import { applyDefault, randomElement, randomInterger } from "./data/util";
 import GameClient from "./GameClient";
 import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Item, { IItemData } from "./Item";
@@ -20,6 +20,7 @@ export interface IToolData {
   templateItem: Item | null;
   selectedPlayer: Player | null;
   selectedTile: Tile | null;
+  autoTile: boolean;
 }
 
 export interface IStartTestingEvent extends IEventType {
@@ -63,7 +64,7 @@ export interface INewMapOptions {
   name: string;
   width: number;
   height: number;
-  tileType: string;
+  tileTexture: string;
   tileBgColor?: string;
   playerCount: number;
   assetPack: AssetPack;
@@ -97,18 +98,21 @@ export default class Editor extends AnyEventEmitter {
   private _gameClient: GameClient;
   private _game: Game | null = null;
   private _backupData: IGameData | null = null;
-  private _selectedTile: Tile | null = null;
-  private _templateTile: Tile | null = null;
-  private _templateCharacter: Character | null = null;
-  private _templateItem: Item | null = null;
-  private _toolType: string | null = Editor.TOOL_TILE_SELECTOR;
+  private _templateGame: Game | null = null;
   private _templateTileList: Array<Tile> = [];
   private _templateTileDict: { [key: string]: Tile } = {};
   private _templateCharacterList: Array<Character> = [];
   private _templateItemList: Array<Item> = [];
-  private _selectedPlayer: Player | null = null;
   private _playerCharacterList: Array<Character> = [];
-  private _templateGame: Game | null = null;
+  private _toolData: IToolData = {
+    toolType: Editor.TOOL_TILE_SELECTOR,
+    templateTile: null,
+    templateCharacter: null,
+    templateItem: null,
+    selectedPlayer: null,
+    selectedTile: null,
+    autoTile: true,
+  };
 
   public get mapID(): string | null {
     return this._game?.mapInfo.id || null;
@@ -123,7 +127,7 @@ export default class Editor extends AnyEventEmitter {
   }
 
   public get selectedTile(): Tile | null {
-    return this._selectedTile;
+    return this._toolData.selectedTile;
   }
 
   public get templateTileList(): Array<Tile> {
@@ -137,36 +141,31 @@ export default class Editor extends AnyEventEmitter {
   }
 
   public get templateTile() {
-    if (this._templateTile) {
-      return this._templateTile;
-    }
-    return null;
+    return this._toolData.templateTile;
   }
 
   public get templateCharacter() {
-    if (this._templateCharacter) {
-      return this._templateCharacter;
-    }
-    return null;
+    return this._toolData.templateCharacter;
   }
 
   public get templateItem() {
-    if (this._templateItem) {
-      return this._templateItem;
-    }
-    return null;
+    return this._toolData.templateItem;
   }
 
   public get selectedPlayer(): Player | null {
-    return this._selectedPlayer;
+    return this._toolData.selectedPlayer;
   }
 
   public get toolType(): string | null {
-    return this._toolType;
+    return this._toolData.toolType;
   }
 
   public get playerCharacterList(): Array<Character> {
     return this._playerCharacterList;
+  }
+
+  public get autoTile(): boolean {
+    return this._toolData.autoTile;
   }
 
   constructor(gameClient: GameClient) {
@@ -177,47 +176,39 @@ export default class Editor extends AnyEventEmitter {
    * Update the state of current tool.
    */
   public setToolData(options: Partial<IToolData>) {
-    options.toolType !== undefined && (this._toolType = options.toolType);
-    options.templateTile !== undefined &&
-      (this._templateTile = options.templateTile);
-    options.templateCharacter !== undefined &&
-      (this._templateCharacter = options.templateCharacter);
-    options.templateItem !== undefined &&
-      (this._templateItem = options.templateItem);
+    // Select player
     if (options.selectedPlayer !== undefined) {
-      let prevPlayer = this._selectedPlayer;
-      this._selectedPlayer = options.selectedPlayer;
+      let prevPlayer = this._toolData.selectedPlayer;
+      this._toolData.selectedPlayer = options.selectedPlayer;
       prevPlayer && (prevPlayer.isSelected = false);
-      this._selectedPlayer && (this._selectedPlayer.isSelected = true);
+      this._toolData.selectedPlayer &&
+        (this._toolData.selectedPlayer.isSelected = true);
       this.emit<IPlayerSelectEvent>(
         new AnyEvent("playerSelect", {
           prevPlayer,
-          player: this._selectedPlayer,
+          player: this._toolData.selectedPlayer,
         })
       );
     }
+    // Select tile
     if (options.selectedTile !== undefined) {
-      let prevTile = this._selectedTile;
-      this._selectedTile = options.selectedTile;
+      let prevTile = this._toolData.selectedTile;
+      this._toolData.selectedTile = options.selectedTile;
       prevTile && (prevTile.isSelected = false);
-      this._selectedTile && (this._selectedTile.isSelected = true);
+      this._toolData.selectedTile &&
+        (this._toolData.selectedTile.isSelected = true);
       this.emit<ITileSelectEvent>(
         new AnyEvent("tileSelect", {
           prevTile,
-          tile: this._selectedTile,
+          tile: this._toolData.selectedTile,
         })
       );
     }
+    // Other options
+    this._toolData = applyDefault(options, this._toolData) as IToolData;
 
     this.emit<IToolChangeEvent>(
-      new AnyEvent("toolChanged", {
-        toolType: this._toolType,
-        templateTile: this._templateTile,
-        templateCharacter: this._templateCharacter,
-        templateItem: this._templateItem,
-        selectedPlayer: this._selectedPlayer,
-        selectedTile: this._selectedTile,
-      })
+      new AnyEvent("toolChanged", { ...this._toolData })
     );
   }
 
@@ -229,18 +220,12 @@ export default class Editor extends AnyEventEmitter {
       templateItem: null,
       selectedPlayer: null,
       selectedTile: null,
+      autoTile: true,
     });
   }
 
   public getToolData(): IToolData {
-    return {
-      toolType: this._toolType,
-      templateTile: this._templateTile,
-      templateCharacter: this._templateCharacter,
-      templateItem: this._templateItem,
-      selectedPlayer: this._selectedPlayer,
-      selectedTile: this._selectedTile,
-    };
+    return { ...this._toolData };
   }
 
   public getTemplateTile(type: string): Tile | null {
@@ -265,12 +250,17 @@ export default class Editor extends AnyEventEmitter {
       Math.min(options.playerCount, Editor.MAX_PLAYER_COUNT),
       Editor.MIN_PLAYER_COUNT
     );
+
+    let textureTileTypes =
+      options.assetPack.tileDefPack.getTextureMainTileTypes(
+        options.tileTexture
+      );
     // Generate tile data
     let tileDataDict: ITileDataDict = {};
     for (let row = 0; row < options.height; row++) {
       for (let col = 0; col < options.width; col++) {
         tileDataDict[TileManager.getTileKey({ col, row })] = {
-          type: options.tileType,
+          type: randomElement(textureTileTypes),
           walkable: null,
           bgColor: options.tileBgColor,
         };
@@ -330,8 +320,8 @@ export default class Editor extends AnyEventEmitter {
     // Apply the current data
     this._game.reset();
     this._backupData = this._game.getData();
-    let playerID = this._selectedPlayer
-      ? this._selectedPlayer.id
+    let playerID = this.selectedPlayer
+      ? this.selectedPlayer.id
       : Player.ID_RANDOM;
     console.log("start testing", playerID);
     await this._gameClient.loadLocalGame(this._backupData, playerID);
@@ -358,7 +348,6 @@ export default class Editor extends AnyEventEmitter {
     }
     this._game.mapInfo.id = this._game.mapInfo.name;
     this._game.reset();
-
     let data = this._game.getData();
     let blob = new Blob([JSON.stringify(data)], {
       type: "application/json",
@@ -369,6 +358,14 @@ export default class Editor extends AnyEventEmitter {
     a.download = `${this._game.mapInfo.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
+
+    // Make it occupied so that the color will be displayed
+    this._game.playerGroup.forEach((player) => {
+      player.isOccupied = true;
+      player.apply();
+      player.updateCharacter();
+      player.character.apply();
+    });
   }
   /**
    * Load game data from a file.
@@ -433,6 +430,7 @@ export default class Editor extends AnyEventEmitter {
       this.unloadMap();
       this._game = null;
     });
+    // Make it occupied so that the color will be displayed
     game.playerGroup.forEach((player) => {
       player.isOccupied = true;
       player.apply();

@@ -1,5 +1,5 @@
 import SVGDisplay from "../components/game/SVGDisplay";
-import { Component, ReactNode, RefObject, createRef } from "react";
+import React, { Component, ReactNode, RefObject, createRef } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import {
@@ -10,14 +10,7 @@ import screenfull from "screenfull";
 import { ReactComponent as MenuIcon } from "../icons/menu-svgrepo-com.svg";
 import { ReactComponent as BellIcon } from "../icons/bell-svgrepo-com.svg";
 import { ReactComponent as RightIcon } from "../icons/chevron-right-svgrepo-com.svg";
-import { ReactComponent as CommentIcon } from "../icons/comment-svgrepo-com.svg";
-import { ReactComponent as LockIcon } from "../icons/lock-svgrepo-com.svg";
 import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.svg";
-import { ReactComponent as PersonIcon } from "../icons/person-svgrepo-com.svg";
-import { ReactComponent as PeopleIcon } from "../icons/people-svgrepo-com.svg";
-import { ReactComponent as HomeIcon } from "../icons/home-svgrepo-com.svg";
-import { ReactComponent as LinkIcon } from "../icons/link-svgrepo-com.svg";
-import { ReactComponent as GiftIcon } from "../icons/gift-svgrepo-com.svg";
 import { ReactComponent as PencilIcon } from "../icons/pencil-svgrepo-com.svg";
 import AnyEvent from "../lib/events/AnyEvent";
 import {
@@ -31,6 +24,7 @@ import Editor, {
   IDidLoadGameEvent,
   ITileSelectEvent,
   IToolChangeEvent,
+  IToolData,
   IWillUnloadGameEvent,
 } from "../lib/Editor";
 import TileDisplay from "../components/game/TileDisplay";
@@ -52,6 +46,7 @@ import Player from "../lib/Player";
 import { IIndexable, applyDefault } from "../lib/data/util";
 import FieldDef from "../lib/data/FieldDef";
 import { IWillDestroyEvent } from "../lib/Destroyable";
+import { ChromePicker } from "react-color";
 
 interface IProps {
   gameClient: GameClient;
@@ -107,12 +102,15 @@ export default class ToolbarLayout extends Component<IProps> {
 
   private _onWillUnloadGame(event: AnyEvent<IWillUnloadGameEvent>) {
     console.log("ToolbarLayout._onWillUnloadGame");
+    if (!this._game || this._game.isDestroyed) {
+      return;
+    }
     // Clean up listeners for old game
-    this._game?.playerGroup.forEach((player: Player) => {
+    this._game.playerGroup.forEach((player: Player) => {
       player.off<IDidApplyEvent>("didApply", this._onObjectApply);
       player.character.off<IDidApplyEvent>("didApply", this._onObjectApply);
     });
-    this._game?.mapInfo.off<IDidApplyEvent>("didApply", this._onObjectApply);
+    this._game.mapInfo.off<IDidApplyEvent>("didApply", this._onObjectApply);
 
     this._navbarRef.current?.clearSelection();
     // this.forceUpdate();
@@ -323,12 +321,49 @@ export default class ToolbarLayout extends Component<IProps> {
 }
 
 function getTilesMenu(editor: Editor): Array<IDropItemData> | null {
-  return editor.templateTileList.map((tile: Tile) => {
-    return {
-      id: tile.type,
-      label: tile.type,
-      leftIcon: getTileDisplay(tile),
+  if (!editor.game) {
+    return null;
+  }
+  const MAX_LABEL_LENGTH = 40;
+  let menuData: Array<IDropItemData> = [
+    {
+      id: "autoTile",
+      label: `Auto Tile: ${editor.autoTile ? "On" : "Off"}`,
+      leftIcon: editor.autoTile ? "🐵" : "🙈",
       onClick: () => {
+        let toolData: Partial<IToolData> = {
+          autoTile: !editor.autoTile,
+        };
+        // Main tile only in auto tile mode
+        if (
+          toolData.autoTile &&
+          editor.templateTile &&
+          editor.templateTile.isTransition
+        ) {
+          toolData.templateTile = null;
+        }
+        editor.setToolData(toolData);
+        return false;
+      },
+    },
+  ];
+  // Main tiles (non-pathway tiles)
+  const tileDefPack = editor.game.assetPack.tileDefPack;
+  tileDefPack.tileTextureNames.forEach((textureName: string) => {
+    let mainTileTypes = tileDefPack.getTextureMainTileTypes(textureName);
+    let tileType = mainTileTypes[0];
+    let tile = editor.getTemplateTile(tileType);
+    if (!tile) {
+      throw new Error(`Tile ${tileType} not found`);
+    }
+    let textureItemData: IDropItemData = {
+      id: textureName,
+      label: toDisplayString(textureName, MAX_LABEL_LENGTH),
+      leftIcon: getTileDisplay(tile),
+    };
+    // If autoTile is on, clicking on the texture will select the main tile type
+    if (editor.autoTile) {
+      textureItemData.onClick = () => {
         editor.setToolData({
           templateTile: tile,
           toolType: Editor.TOOL_TILE_BRUSH,
@@ -336,9 +371,97 @@ function getTilesMenu(editor: Editor): Array<IDropItemData> | null {
           selectedTile: null,
         });
         return true;
-      },
-    };
+      };
+    } else {
+      // If autoTile is off, clicking on the texture will show a menu of all the tile types in the texture
+      let transTileTypes =
+        tileDefPack.getTextureTransitionTileTypes(textureName);
+      textureItemData.rightIcon = <RightIcon />;
+      let subMenuData: Array<IDropItemData> = [
+        {
+          id: "back",
+          label: "Back",
+          leftIcon: <LeftIcon />,
+          goBack: true,
+        },
+      ];
+      [...mainTileTypes, ...transTileTypes].forEach((tileType: string) => {
+        let tile = editor.getTemplateTile(tileType);
+        if (!tile) {
+          throw new Error(`Tile ${tileType} not found`);
+        }
+        subMenuData.push({
+          id: tileType,
+          label: toDisplayString(tileType, MAX_LABEL_LENGTH),
+          leftIcon: getTileDisplay(tile),
+          onClick: () => {
+            editor.setToolData({
+              templateTile: tile,
+              toolType: Editor.TOOL_TILE_BRUSH,
+              selectedPlayer: null,
+              selectedTile: null,
+            });
+            return true;
+          },
+        });
+      });
+      textureItemData.menuData = subMenuData;
+    }
+    menuData.push(textureItemData);
   });
+  // Pathway tiles
+  tileDefPack.pathwayTextureNames.forEach((textureName: string) => {
+    let pathwayTileTypes;
+    if (editor.autoTile) {
+      pathwayTileTypes =
+        tileDefPack.getTextureBasicPathwayTileTypes(textureName);
+    } else {
+      pathwayTileTypes = tileDefPack.getTexturePathwayTileTypes(textureName);
+    }
+    let tileType = pathwayTileTypes[0];
+    let tile = editor.getTemplateTile(tileType);
+    if (!tile) {
+      throw new Error(`Tile ${tileType} not found`);
+    }
+    let textureItemData: IDropItemData = {
+      id: textureName,
+      label: toDisplayString(`Pathway: ${textureName}`, MAX_LABEL_LENGTH),
+      leftIcon: getTileDisplay(tile),
+      rightIcon: <RightIcon />,
+    };
+    // If autoTile is off, clicking on the texture will show a menu of all the tile types in the texture
+    let subMenuData: Array<IDropItemData> = [
+      {
+        id: "back",
+        label: "Back",
+        leftIcon: <LeftIcon />,
+        goBack: true,
+      },
+    ];
+    pathwayTileTypes.forEach((tileType: string) => {
+      let tile = editor.getTemplateTile(tileType);
+      if (!tile) {
+        throw new Error(`Tile ${tileType} not found`);
+      }
+      subMenuData.push({
+        id: tileType,
+        label: toDisplayString(tileType, MAX_LABEL_LENGTH),
+        leftIcon: getTileDisplay(tile),
+        onClick: () => {
+          editor.setToolData({
+            templateTile: tile,
+            toolType: Editor.TOOL_TILE_BRUSH,
+            selectedPlayer: null,
+            selectedTile: null,
+          });
+          return true;
+        },
+      });
+    });
+    textureItemData.menuData = subMenuData;
+    menuData.push(textureItemData);
+  });
+  return menuData;
 }
 
 function getCharactersMenu(editor: Editor): Array<IDropItemData> | null {
@@ -475,6 +598,18 @@ function getEditorMenu(
     return null;
   }
   let game = editor.game;
+  const MSG_EXIT_EDITOR = (
+    <>
+      <p>
+        You're about to exit the Map Editor. Make sure you've saved all your
+        changes before you go.
+      </p>
+      <p>
+        Note: Playing custom maps outside the editor isn't supported just yet.
+      </p>
+      <p>Still want to leave?</p>
+    </>
+  );
   return [
     {
       id: "mapName",
@@ -487,6 +622,7 @@ function getEditorMenu(
           {
             type: "string",
             regExp: Editor.MAP_NAME_REGEXP,
+            minLength: 1,
           },
           game?.mapInfo.name
         ),
@@ -544,7 +680,18 @@ function getEditorMenu(
       label: "Exit Editor",
       leftIcon: "🚪",
       onClick: () => {
-        gameClient.mode = GameClient.MODE_ONLINE;
+        popupRef.current?.show({
+          type: "info",
+          title: "Exit Editor",
+          content: MSG_EXIT_EDITOR,
+          buttonLabels: ["Yes", "No"],
+          buttonActions: [
+            () => {
+              gameClient.mode = GameClient.DEFAULT_MODE;
+            },
+            null,
+          ],
+        });
         return true;
       },
     },
@@ -707,7 +854,7 @@ function getPropsMenu<T>(
       goBack: true,
     },
   ];
-  let valueList: Array<any> = [];
+  let valueList: Array<string> = [];
   let isEndNode =
     fieldDef.type !== "object" || fieldDef.fallbackValue == undefined;
   // End node
@@ -760,26 +907,36 @@ function getPropsMenu<T>(
               id: "text",
               label: (
                 <form onSubmit={onSubmit}>
-                  <input
-                    type={fieldDef.inputType || "text"}
-                    defaultValue={String(fieldDef.fallbackValue)}
-                    maxLength={
-                      fieldDef.maxLength === null
-                        ? undefined
-                        : fieldDef.maxLength
-                    }
-                    minLength={
-                      fieldDef.minLength === null
-                        ? undefined
-                        : fieldDef.minLength
-                    }
-                    pattern={
-                      fieldDef.regExp ? fieldDef.regExp.source : undefined
-                    }
-                    onChange={(event) => {
-                      value = event.target.value as T;
-                    }}
-                  />
+                  {fieldDef.inputType == "color" ? (
+                    // Using a custom color picker because the default one doesn't support copy and paste of hex codes
+                    <ColorPicker
+                      color={value as string}
+                      onChange={(color) => {
+                        value = color.hex as T;
+                      }}
+                    />
+                  ) : (
+                    <input
+                      type={fieldDef.inputType || "text"}
+                      defaultValue={String(value)}
+                      maxLength={
+                        fieldDef.maxLength === null
+                          ? undefined
+                          : fieldDef.maxLength
+                      }
+                      minLength={
+                        fieldDef.minLength === null
+                          ? undefined
+                          : fieldDef.minLength
+                      }
+                      pattern={
+                        fieldDef.regExp ? fieldDef.regExp.source : undefined
+                      }
+                      onChange={(event) => {
+                        value = event.target.value as T;
+                      }}
+                    />
+                  )}
                 </form>
               ),
               leftIcon: <PencilIcon />,
@@ -875,28 +1032,60 @@ function getTileDisplay(tile: Tile) {
 }
 
 function getCharacterDisplay(character: Character) {
-  return (
-    <SVGDisplay
-      assetPack={character.group.game.assetPack}
-      svgName={character.frameDef.svgName}
-      svgStyle={{
-        fill: character.color,
-        transform: "scale(1.2)",
-      }}
-    />
-  );
+  const assetPack = character.group.game.assetPack;
+  if (character.frameDef.imageName) {
+    return (
+      <img
+        src={assetPack.getImageURL(character.frameDef.imageName)}
+        style={{
+          width: "100%",
+          height: "100%",
+          transform: "scale(1.2)",
+        }}
+      />
+    );
+  }
+  if (character.frameDef.svgName) {
+    return (
+      <SVGDisplay
+        assetPack={assetPack}
+        svgName={character.frameDef.svgName}
+        svgStyle={{
+          fill: character.color,
+          transform: "scale(1.2)",
+        }}
+      />
+    );
+  }
+  return null;
 }
 
 function getItemDisplay(item: Item) {
-  return (
-    <SVGDisplay
-      assetPack={item.group.game.assetPack}
-      svgName={item.frameDef.svgName}
-      svgStyle={{
-        transform: "scale(1.2)",
-      }}
-    />
-  );
+  const assetPack = item.group.game.assetPack;
+  if (item.frameDef.imageName) {
+    return (
+      <img
+        src={assetPack.getImageURL(item.frameDef.imageName)}
+        style={{
+          width: "100%",
+          height: "100%",
+          transform: "scale(1.2)",
+        }}
+      />
+    );
+  }
+  if (item.frameDef.svgName) {
+    return (
+      <SVGDisplay
+        assetPack={assetPack}
+        svgName={item.frameDef.svgName}
+        svgStyle={{
+          transform: "scale(1.2)",
+        }}
+      />
+    );
+  }
+  return null;
 }
 
 function getPlayerDisplay(player: Player) {
@@ -916,4 +1105,65 @@ function invalidValueAlert(popupRef: RefObject<PopupLayout>, message: string) {
     return;
   }
   alert(message);
+}
+/**
+ * Truncate a string to a certain length and capitalize the first letter
+ */
+function toDisplayString(value: string, maxLength: number) {
+  const endString = "...";
+  value = value.replace(/_/g, " ").trim();
+  if (value.length > maxLength + endString.length) {
+    value = value.slice(0, maxLength) + endString;
+  }
+  value = value.charAt(0).toUpperCase() + value.slice(1);
+  return value;
+}
+
+function ColorPicker(props: {
+  color: string | null;
+  onChange: (color: any) => void;
+}) {
+  const [displayColorPicker, setDisplayColorPicker] = React.useState(false);
+  const [color, setColor] = React.useState(props.color || "#000000");
+  const handleClick = () => {
+    setDisplayColorPicker(!displayColorPicker);
+  };
+  const handleClose = () => {
+    setDisplayColorPicker(false);
+  };
+  const handleChange = (color: any) => {
+    setColor(color.hex);
+    props.onChange(color);
+  };
+  return (
+    <div style={{ width: "100%", height: "100%" }}>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          marginRight: "5px",
+          backgroundColor: color,
+          borderRadius: "5px",
+          border: "none",
+        }}
+        onClick={handleClick}
+      />
+      {displayColorPicker ? (
+        <div
+          style={{
+            position: "relative",
+            zIndex: 99999,
+            borderRadius: "5px",
+            border: "none",
+          }}
+        >
+          <ChromePicker
+            color={color}
+            onChange={handleChange}
+            disableAlpha={true}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }

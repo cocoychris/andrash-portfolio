@@ -6,21 +6,26 @@ import Player from "../../lib/Player";
 import TileGrid, { IMouseInfo, IPoint } from "./TileGrid";
 import Editor, { IPlayerSelectEvent, ITileSelectEvent } from "../../lib/Editor";
 import AnyEvent from "../../lib/events/AnyEvent";
-import { IDidApplyEvent, IDidSetUpdateEvent } from "../../lib/data/DataHolder";
+import {
+  IDidApplyEvent,
+  IDidSetUpdateEvent,
+  IWillApplyEvent,
+} from "../../lib/data/DataHolder";
 import Item, { IRepositionEvent } from "../../lib/Item";
 import { IWillDestroyEvent } from "../../lib/Destroyable";
 import { IDidAddMemberEvent } from "../../lib/data/Group";
 import Tile from "../../lib/Tile";
 import "./GameView.css";
 import "./EditorView.css";
+import { randomElement } from "../../lib/data/util";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
-const AUTO_SCROLL_INTERVAL = 20;
 const AUTO_SCROLL_MAX_SPEED_RATIO = 0.1;
 const AUTO_SCROLL_ACCELERATION = 0.005;
 
 interface IProps {
   editor: Editor;
+  updateInterval: number;
 }
 interface IState {}
 
@@ -114,7 +119,7 @@ export default class EditorView extends React.Component<IProps, IState> {
     if (!this._autoScrollIntervalID) {
       this._autoScrollIntervalID = setInterval(
         this._onAutoScroll,
-        AUTO_SCROLL_INTERVAL
+        this.props.updateInterval
       );
     }
     return false;
@@ -200,11 +205,39 @@ export default class EditorView extends React.Component<IProps, IState> {
     if (!tile) {
       return false;
     }
-    if (!this._editor.templateTile) {
+    const tileDefPack = this._game.assetPack.tileDefPack;
+    const templateTile = this._editor.templateTile;
+    if (!templateTile) {
       return false;
     }
-    tile.type = this._editor.templateTile.type;
-    tile.apply();
+    // Auto transition
+    if (this._editor.autoTile) {
+      // Placing a tile with random tile type of the same texture
+      if (templateTile.pathwayTexture) {
+        tile.type = templateTile.type;
+      } else {
+        let tileTypeList = tileDefPack.getTextureMainTileTypes(
+          templateTile.texture
+        );
+        tile.type = randomElement(tileTypeList);
+      }
+      tile.apply();
+      // Auto transition adjacent tiles
+      const MAX_STEP = 2;
+      for (let step = 0; step < MAX_STEP; step++) {
+        tile.adjacentTiles.forEach((adjacentTile) => {
+          adjacentTile.autoTransition();
+        });
+        tile.adjacentTiles.forEach((adjacentTile) => {
+          adjacentTile.apply();
+          this._tileGrid?.updateTileDisplay(adjacentTile);
+        });
+      }
+    } else {
+      // Placing a tile without auto transition nor randomized tile type
+      tile.type = templateTile.type;
+      tile.apply();
+    }
     return true;
   }
 
@@ -253,12 +286,10 @@ export default class EditorView extends React.Component<IProps, IState> {
         return false;
       }
       item.destroy();
-      //return true;
       return false;
     }
     let data = this._editor.templateItem.getData();
     data.position = position.toObject();
-    console.log("_tool_itemPlacer", data);
     this._game.itemGroup.new(data);
     this._game.itemGroup.apply();
     return true;
@@ -321,7 +352,7 @@ export default class EditorView extends React.Component<IProps, IState> {
   private _onObjectApply(
     event: AnyEvent<IDidApplyEvent> | AnyEvent<IDidSetUpdateEvent>
   ) {
-    let object = event.target as Character | Item;
+    let object = event.target as Character | Item | Tile;
     if (event.data.changes.isChanged) {
       this._tileGrid?.updateTileDisplay(object);
     }

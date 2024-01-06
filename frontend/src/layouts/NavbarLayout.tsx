@@ -19,6 +19,7 @@ import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Game from "../lib/Game";
 import PopupLayout from "./PopupLayout";
 import SVGDisplay from "../components/game/SVGDisplay";
+import Character from "../lib/Character";
 
 interface IProps {
   gameClient: GameClient;
@@ -27,6 +28,12 @@ interface IProps {
 interface IState {
   game: Game | null;
 }
+
+const MODE_ICON_MAP = {
+  [GameClient.MODE_LOCAL]: "🏝️",
+  [GameClient.MODE_ONLINE]: "🌐",
+  [GameClient.MODE_EDITOR]: "📝",
+};
 
 export default class NavbarLayout extends Component<IProps, IState> {
   private _gameClient: GameClient;
@@ -69,6 +76,7 @@ export default class NavbarLayout extends Component<IProps, IState> {
       "didSetUpdate",
       this._onPlayerGroupUpdate
     );
+    this.forceUpdate();
   }
 
   private _onPlayerGroupUpdate(event: AnyEvent<IDidSetUpdateEvent>) {
@@ -89,6 +97,11 @@ export default class NavbarLayout extends Component<IProps, IState> {
         isEnabled: true,
       },
       {
+        id: "mode",
+        icon: MODE_ICON_MAP[gameClient.mode],
+        menuData: getModeMenu(this.props),
+      },
+      {
         id: "players",
         icon: <PeopleIcon />,
         menuData: getPlayersMenu(this.props),
@@ -104,6 +117,177 @@ export default class NavbarLayout extends Component<IProps, IState> {
   }
 }
 
+function getModeMenu(props: IProps): Array<IDropItemData> | null {
+  const { gameClient, popupRef } = props;
+
+  const MSG_ENTER_EDITOR = (
+    <>
+      <p>
+        You're about to switch to editor mode. This will clear your current
+        game.
+      </p>
+      <p>Still want to switch?</p>
+      <details>
+        <summary>Lear more about the Map Editor (click to expand)</summary>
+        <p>
+          The Map Editor is a tool I built for myself to create maps, so I don't
+          have to manually write JSON files.
+        </p>
+        <p>
+          Disclaimer: Think of this tool as a developer tool or an experimental
+          feature. It might not be the most user-friendly, and that's okay.
+        </p>
+        <p>
+          Note: In editor mode, you won't be able to swipe to move the map on
+          mobile devices. To move the map, drag your finger towards the edge of
+          the screen.
+        </p>
+      </details>
+    </>
+  );
+  const MSG_EXIT_EDITOR = (
+    <>
+      <p>
+        You're about to exit the Map Editor. Make sure you've saved all your
+        changes before you go.
+      </p>
+      <p>
+        Note: Playing custom maps outside the editor isn't supported just yet.
+      </p>
+      <p>Still want to leave?</p>
+    </>
+  );
+
+  const MSG_ONLINE_TO_LOCAL = (
+    <>
+      <p>
+        You're about to switch to local mode. This means you'll leave your
+        current room and kick off a new game.
+      </p>
+      <p>Still want to switch?</p>
+      <details>
+        <summary>Lear more about the Local Mode (click to expand)</summary>
+        <p>
+          In local mode, you run the game locally on your device without
+          connecting to the game server.
+        </p>
+        <p>
+          If your network connection's been a bit shaky, this should help your
+          game run smoother. But just remember, you won't be able to play with
+          your friends in this mode.
+        </p>
+      </details>
+    </>
+  );
+
+  const MSG_LOCAL_TO_ONLINE = (
+    <>
+      <p>
+        You're about to switch to online mode. This will clear your current
+        game.
+      </p>
+      <p>Still want to switch?</p>
+      <details>
+        <summary>Learn more about Online Mode (click to expand)</summary>
+        <p>
+          Online mode is perfect for playing with friends. Just share the link
+          to invite them to your room. They'll pop in as soon as they click the
+          link.
+        </p>
+        <p>
+          Keep in mind, online mode does have a few downsides. If your network
+          connection isn't stable, you might experience some lag or even get
+          disconnected. If that happens, switching to local mode could help.
+        </p>
+      </details>
+    </>
+  );
+
+  return [
+    {
+      id: "modeTitle",
+      label: <h3>Mode</h3>,
+    },
+    {
+      id: "localMode",
+      label: "Local Mode",
+      leftIcon: "🏝️",
+      onClick:
+        gameClient.mode == GameClient.MODE_LOCAL
+          ? undefined
+          : () => {
+              popupRef.current?.show({
+                type: "info",
+                title: "Switch to local mode",
+                content:
+                  gameClient.mode == GameClient.MODE_EDITOR
+                    ? MSG_EXIT_EDITOR
+                    : MSG_ONLINE_TO_LOCAL,
+                buttonLabels: ["Yes", "No"],
+                buttonActions: [
+                  () => {
+                    gameClient.mode = GameClient.MODE_LOCAL;
+                  },
+                  null,
+                ],
+              });
+              return true;
+            },
+      // isEnabled: gameClient.mode != GameClient.MODE_LOCAL,
+    },
+    {
+      id: "onlineMode",
+      label: "Online Mode",
+      leftIcon: "🌐",
+      onClick:
+        gameClient.mode == GameClient.MODE_ONLINE
+          ? undefined
+          : () => {
+              popupRef.current?.show({
+                type: "info",
+                title: "Switch to online mode",
+                content:
+                  gameClient.mode == GameClient.MODE_EDITOR
+                    ? MSG_EXIT_EDITOR
+                    : MSG_LOCAL_TO_ONLINE,
+                buttonLabels: ["Yes", "No"],
+                buttonActions: [
+                  () => {
+                    gameClient.mode = GameClient.MODE_ONLINE;
+                  },
+                  null,
+                ],
+              });
+              return true;
+            },
+      // isEnabled: gameClient.mode != GameClient.MODE_ONLINE,
+    },
+    {
+      id: "editorMode",
+      label: "Editor Mode",
+      leftIcon: "📝",
+      onClick:
+        gameClient.mode == GameClient.MODE_EDITOR
+          ? undefined
+          : () => {
+              popupRef.current?.show({
+                type: "info",
+                title: "Switch to editor mode",
+                content: MSG_ENTER_EDITOR,
+                buttonLabels: ["Yes", "No"],
+                buttonActions: [
+                  () => {
+                    gameClient.mode = GameClient.MODE_EDITOR;
+                  },
+                  null,
+                ],
+              });
+              return true;
+            },
+      // isEnabled: gameClient.mode != GameClient.MODE_EDITOR,
+    },
+  ];
+}
 function getGameMenu(props: IProps): Array<IDropItemData> {
   const { gameClient, popupRef } = props;
   let playerGroup = gameClient.game?.playerGroup;
@@ -205,24 +389,15 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
         hostPlayer?.isOccupied ? "" : " [Offline]"
       }${hostPlayer == mainPlayer ? " [You]" : ""}`,
       //prince icon
-      leftIcon: (
-        <SVGDisplay
-          assetPack={game.assetPack}
-          svgName={hostPlayer.character.frameDef.svgName}
-          svgStyle={{
-            fill: hostPlayer.character.color,
-            transform: "scale(1.3)",
-          }}
-        />
-      ),
+      leftIcon: <CharacterIcon character={hostPlayer.character} />,
       isEnabled: hostPlayer?.isOccupied,
     });
   }
   // Local Game
-  if (gameClient.isLocalGame || !hostPlayer) {
+  if (gameClient.isLocalGame) {
     playerDataList.push({
-      id: "local",
-      label: "Multiplayer is not available in local game.",
+      id: "multiplayerNotAvailable",
+      label: `Multiplayer is not available in ${gameClient.mode} mode.`,
       leftIcon: "🚫",
       isEnabled: false,
     });
@@ -242,16 +417,7 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
           label: `${player.name}${player.isOccupied ? "" : " [offline]"}${
             player == mainPlayer ? " [You]" : ""
           }`,
-          leftIcon: (
-            <SVGDisplay
-              assetPack={game.assetPack}
-              svgName={player.character.frameDef.svgName}
-              svgStyle={{
-                fill: player.character.color,
-                transform: "scale(1.3)",
-              }}
-            />
-          ),
+          leftIcon: <CharacterIcon character={player.character} />,
           isEnabled: player.isOccupied,
         };
       })
@@ -331,4 +497,25 @@ function getPlayersMenu(props: IProps): Array<IDropItemData> | null {
     });
   }
   return playerDataList;
+}
+
+function CharacterIcon(props: { character: Character }) {
+  const { character } = props;
+  const assetPack = character.group.game.assetPack;
+  if (character.frameDef.svgName) {
+    return (
+      <SVGDisplay
+        assetPack={assetPack}
+        svgName={character.frameDef.svgName}
+        svgStyle={{
+          fill: character.color,
+          transform: "scale(1.3)",
+        }}
+      />
+    );
+  }
+  if (character.frameDef.imageName) {
+    return <img src={character.frameDef.imageName} alt="player" />;
+  }
+  return <PersonIcon />;
 }

@@ -1,7 +1,7 @@
 import Game from "./Game";
 import Character, { ICharacterData } from "./Character";
 import Group, { IGroupData } from "./data/Group";
-import DefPack, { ICharacterDef } from "./data/DefPack";
+import CharacterDefPack from "./data/CharacterDefPack";
 
 export default class CharacterGroup extends Group<
   CharacterGroup,
@@ -13,7 +13,7 @@ export default class CharacterGroup extends Group<
    * Get the character definition pack
    * This is a shortcut for `game.assetPack.characterDefPack`
    */
-  public get characterDefPack(): DefPack<ICharacterDef> {
+  public get characterDefPack(): CharacterDefPack {
     return this._game.assetPack.characterDefPack;
   }
   /**

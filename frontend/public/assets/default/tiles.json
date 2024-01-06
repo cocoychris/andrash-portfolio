@@ -1,38 +1,630 @@
 {
   "empty": {
     "bgColor": null,
-    "bgSVGName": null,
-    "fgSVGName": null,
-    "walkable": true
+    "bgImageName": null,
+    "walkable": true,
+    "texture": "empty",
+    "transition": null
   },
-  "test1": {
-    "bgColor": "#ffffff",
-    "bgSVGName": "icons/test",
-    "fgSVGName": "icons/gear-svgrepo-com",
-    "walkable": true
+  "gress_01": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_01.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": null
   },
-  "test2": {
-    "bgColor": "#ffffff",
-    "bgSVGName": "icons/test",
-    "fgSVGName": null,
-    "walkable": true
+  "gress_02": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_02.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": null
   },
-  "blocked": {
-    "bgColor": "#ff6666",
-    "bgSVGName": "icons/close-svgrepo-com",
-    "fgSVGName": null,
-    "walkable": false
+  "gress_03": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_03.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": null
   },
-  "gress": {
-    "bgColor": "#66dd66",
-    "bgSVGName": null,
-    "fgSVGName": null,
-    "walkable": true
+  "dirt_01": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/dirt_01.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": null
   },
-  "gress_home": {
-    "bgColor": "#66dd66",
-    "bgSVGName": null,
-    "fgSVGName": "icons/home-svgrepo-com",
-    "walkable": true
+  "dirt_02": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/dirt_02.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": null
+  },
+  "dirt_03": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/dirt_03.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": null
+  },
+  "water_01": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_01.svg",
+    "walkable": false,
+    "texture": "water",
+    "transition": null
+  },
+  "water_02": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_02.svg",
+    "walkable": false,
+    "texture": "water",
+    "transition": null
+  },
+  "water_03": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_03.svg",
+    "walkable": false,
+    "texture": "water",
+    "transition": null
+  },
+  "gress_dirt_top_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_top_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top_left" }
+  },
+  "gress_dirt_top": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_top.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top" }
+  },
+  "gress_dirt_top_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_top_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top_right" }
+  },
+  "gress_dirt_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "left" }
+  },
+  "gress_dirt_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "right" }
+  },
+  "gress_dirt_bottom_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_bottom_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom_left" }
+  },
+  "gress_dirt_bottom": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_bottom.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom" }
+  },
+  "gress_dirt_bottom_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/gress_dirt_bottom_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom_right" }
+  },
+  "dirt_gress_top_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/dirt_gress_top_left.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "top_left" }
+  },
+  "dirt_gress_top_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/dirt_gress_top_right.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "top_right" }
+  },
+  "dirt_gress_bottom_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/dirt_gress_bottom_left.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "bottom_left" }
+  },
+  "dirt_gress_bottom_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/dirt_gress_bottom_right.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "bottom_right" }
+  },
+  "water_gress_top_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_top_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "top_left" }
+  },
+  "water_gress_top": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_top.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "top" }
+  },
+  "water_gress_top_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_top_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "top_right" }
+  },
+  "water_gress_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "left" }
+  },
+  "water_gress_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "right" }
+  },
+  "water_gress_bottom_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_bottom_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "bottom_left" }
+  },
+  "water_gress_bottom": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_bottom.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "bottom" }
+  },
+  "water_gress_bottom_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_gress_bottom_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "gress", "type": "bottom_right" }
+  },
+  "gress_water_top_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/gress_water_top_left.svg",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "water", "type": "top_left" }
+  },
+  "gress_water_top_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/gress_water_top_right.svg",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "water", "type": "top_right" }
+  },
+  "gress_water_bottom_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/gress_water_bottom_left.svg",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "water", "type": "bottom_left" }
+  },
+  "gress_water_bottom_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/gress_water_bottom_right.svg",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "water", "type": "bottom_right" }
+  },
+  "water_dirt_top_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_top_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "top_left" }
+  },
+  "water_dirt_top": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_top.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "top" }
+  },
+  "water_dirt_top_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_top_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "top_right" }
+  },
+  "water_dirt_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "left" }
+  },
+  "water_dirt_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "right" }
+  },
+  "water_dirt_bottom_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_bottom_left.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "bottom_left" }
+  },
+  "water_dirt_bottom": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_bottom.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "bottom" }
+  },
+  "water_dirt_bottom_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/water_dirt_bottom_right.svg",
+    "walkable": true,
+    "texture": "water",
+    "transition": { "texture": "dirt", "type": "bottom_right" }
+  },
+  "dirt_water_top_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/dirt_water_top_left.svg",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "water", "type": "top_left" }
+  },
+  "dirt_water_top_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/dirt_water_top_right.svg",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "water", "type": "top_right" }
+  },
+  "dirt_water_bottom_left": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/dirt_water_bottom_left.svg",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "water", "type": "bottom_left" }
+  },
+  "dirt_water_bottom_right": {
+    "bgColor": "#80e5ff",
+    "bgImageName": "tiles/dirt_water_bottom_right.svg",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "water", "type": "bottom_right" }
+  },
+  "brick_pathway_┼_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┼_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "cross" }
+  },
+  "brick_pathway_┼_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┼_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "cross" }
+  },
+  "brick_pathway_─_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_─_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "horizontal" }
+  },
+  "brick_pathway_─_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_─_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "horizontal" }
+  },
+  "brick_pathway_─_gress_dirt_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_─_gress_dirt_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "left" },
+    "pathway": { "texture": "brick", "type": "horizontal" }
+  },
+  "brick_pathway_─_gress_dirt_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_─_gress_dirt_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "right" },
+    "pathway": { "texture": "brick", "type": "horizontal" }
+  },
+  "brick_pathway_│_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_│_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "vertical" }
+  },
+  "brick_pathway_│_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_│_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "vertical" }
+  },
+  "brick_pathway_│_gress_dirt_bottom": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_│_gress_dirt_bottom.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom" },
+    "pathway": { "texture": "brick", "type": "vertical" }
+  },
+  "brick_pathway_│_gress_dirt_top": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_│_gress_dirt_top.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top" },
+    "pathway": { "texture": "brick", "type": "vertical" }
+  },
+  "brick_pathway_┌_dirt_gress_bottom_right": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┌_dirt_gress_bottom_right.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "bottom_right" },
+    "pathway": { "texture": "brick", "type": "top_left" }
+  },
+  "brick_pathway_┌_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┌_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "top_left" }
+  },
+  "brick_pathway_┌_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┌_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "top_left" }
+  },
+  "brick_pathway_┌_gress_dirt_bottom_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┌_gress_dirt_bottom_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom_right" },
+    "pathway": { "texture": "brick", "type": "top_left" }
+  },
+  "brick_pathway_┐_dirt_gress_bottom_left": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┐_dirt_gress_bottom_left.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "bottom_left" },
+    "pathway": { "texture": "brick", "type": "top_right" }
+  },
+  "brick_pathway_┐_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┐_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "top_right" }
+  },
+  "brick_pathway_┐_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┐_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "top_right" }
+  },
+  "brick_pathway_┐_gress_dirt_bottom_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┐_gress_dirt_bottom_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "bottom_left" },
+    "pathway": { "texture": "brick", "type": "top_right" }
+  },
+  "brick_pathway_└_dirt_gress_top_right": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_└_dirt_gress_top_right.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "top_right" },
+    "pathway": { "texture": "brick", "type": "bottom_left" }
+  },
+  "brick_pathway_└_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_└_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "bottom_left" }
+  },
+  "brick_pathway_└_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_└_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "bottom_left" }
+  },
+  "brick_pathway_└_gress_dirt_top_right": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_└_gress_dirt_top_right.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top_right" },
+    "pathway": { "texture": "brick", "type": "bottom_left" }
+  },
+  "brick_pathway_┘_dirt_gress_top_left": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┘_dirt_gress_top_left.png",
+    "walkable": true,
+    "texture": "dirt",
+    "transition": { "texture": "gress", "type": "top_left" },
+    "pathway": { "texture": "brick", "type": "bottom_right" }
+  },
+  "brick_pathway_┘_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┘_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "bottom_right" }
+  },
+  "brick_pathway_┘_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┘_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "bottom_right" }
+  },
+  "brick_pathway_┘_gress_dirt_top_left": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┘_gress_dirt_top_left.png",
+    "walkable": true,
+    "texture": "gress",
+    "transition": { "texture": "dirt", "type": "top_left" },
+    "pathway": { "texture": "brick", "type": "bottom_right" }
+  },
+  "brick_pathway_┬_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┬_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "top" }
+  },
+  "brick_pathway_┬_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┬_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "top" }
+  },
+  "brick_pathway_├_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_├_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "left" }
+  },
+  "brick_pathway_├_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_├_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "left" }
+  },
+  "brick_pathway_┤_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┤_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "right" }
+  },
+  "brick_pathway_┤_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┤_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "right" }
+  },
+  "brick_pathway_┴_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_┴_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "bottom" }
+  },
+  "brick_pathway_┴_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_┴_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "bottom" }
+  },
+  "brick_pathway_end_top_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_end_top_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "end_top" }
+  },
+  "brick_pathway_end_top_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_end_top_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "end_top" }
+  },
+  "brick_pathway_end_left_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_end_left_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "end_left" }
+  },
+  "brick_pathway_end_left_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_end_left_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "end_left" }
+  },
+  "brick_pathway_end_right_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_end_right_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "end_right" }
+  },
+  "brick_pathway_end_right_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_end_right_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "end_right" }
+  },
+  "brick_pathway_end_bottom_gress": {
+    "bgColor": "#bcd35f",
+    "bgImageName": "tiles/brick_pathway_end_bottom_gress.png",
+    "walkable": true,
+    "texture": "gress",
+    "pathway": { "texture": "brick", "type": "end_bottom" }
+  },
+  "brick_pathway_end_bottom_dirt": {
+    "bgColor": "#c59a57",
+    "bgImageName": "tiles/brick_pathway_end_bottom_dirt.png",
+    "walkable": true,
+    "texture": "dirt",
+    "pathway": { "texture": "brick", "type": "end_bottom" }
   }
 }

@@ -1,26 +1,27 @@
 # Change Log for This Version
 
-This version introduces dynamic map and asset loading. The `DataHolder` now manages child `DataHolder`s. Unit testing for `DataHolder` has been implemented with Jest. Each page now has its own URL.
+Auto tile transition. Tile text display. Image assets. Rendering optimization.
 
 ## Backend
 
-- Updated: The `Room` class has been adapted to handle the new async `game.init()` method. Dynamic map loading has been implemented.
-- Updated: The `GameServer` now uses the `AssetPack` class for dynamic asset loading.
+- Fixed: Issue where joining another player's room with a link failed. The `Room` and `Session` classes have been updated.
 
 ## Frontend & Common
 
-- Added: The `AssetPack` class has been introduced to manage dynamic asset loading.
-- Added: The `DefPack` class has been added to hold the definitions loaded from `AssetPack`. It also replaces the old `DefLoader`.
-- Added: The `SVGDisplay` component has been added to display SVG images from the asset pack.
-- Updated: Dynamic map loading has been implemented in the `GameClient`.
-- Updated: The `GameClient` now uses the `AssetPack` class for dynamic asset loading.
-- Updated: `GameMap` has been renamed to `TileManager` to avoid confusion with map data.
-- Updated: `DataHolder` now manages child `DataHolder`s. Most operations applied to the parent will also be applied to the children. Children can be assigned manually or created automatically by the parent when a `childCreator` callback is provided.
-- Removed: The `init()` method is no longer provided by `DataHolder`. It should be implemented by the subclasses if needed.
-- Updated: All subclasses of `DataHolder` have been updated to adapt to the new `DataHolder`. All redundant code for managing children has been removed.
-- Added: Unit testing for `DataHolder` has been implemented with Jest.
-- Updated: Each page now has its own URL and can be visited directly. The URL will be updated when a new page is loaded.
-- Added: The website now has an icon.
-- Added: The title of the website will be updated when a new page is loaded.
-- Added: When a page is opened by clicking a link, the page will load without refreshing the whole page. The new page will fade in and scroll to the top when loaded.
-- Updated: `Game data` and `Map data` are now distinguished. Game data without a game ID is considered as map data. A `reset` update phase has been added to the game. It will reset any play-time changes in the game data and convert the game data into map data.
+- Added: `PageView` now refuses to open a page and resets the browser location to root when editing a map (using `EditorView`).
+- Fixed: Issue where `Page` did not load when the `popstate` event was triggered.
+- Updated: Scrolling (on mobile, aka `touch-action` in CSS) is now only prevented in `EditorView`. Scrolling is allowed in `GameView` so that users can scroll down to see the page section and scroll back to the game section.
+- Updated: PNG images are now supported in AssetPack.
+- Removed: The `bootstrap` & `axios` packages, as they are not used.
+- Updated: The `react-color` package is now used for the color picker instead of the default HTML color picker, which does not support copying & pasting color codes.
+- Added: A variety of Tile & item asset images have been created. All images were designed by me.
+- Added: A new default map has been created.
+- Updated: Rendering performance has been improved. Animation FPS settings are now unified and set to 60 FPS. `TileGrid` now caches the `TileDisplay` component to reduce unnecessary re-rendering.
+- Added: Dynamic z-index for all objects rendered by `TileDisplay` according to their row position.
+- Added: Auto tile transition feature implemented for `EditorView`. The tile texture system has been added. Each tile can have multiple textures. A suitable transition tile will be selected according to the surrounding tile textures.
+- Updated: `DefPack` has been split into `ItemDefPack`, `TileDefPack`, `CharacterDefPack`, and `SysObjDefPack`.
+- Added: Mode switching menu added to the navbar. Online mode, local mode, and editor mode are supported.
+- Added: Text display feature for `TileDisplay` implemented. Text can be displayed on top of a tile.
+- Added: Items can be set to be walkable or not. If an item is not walkable, the player cannot walk on it.
+- Fixed: Issue where a property was not deleted and was set to `null` after the child `DataHolder` for the property was removed from the parent `DataHolder`.
+- Removed: `isOpen`,`isLocalGame`,`tickInterval` properties from the `loadGame` event. These properties cannot be set from the client side.

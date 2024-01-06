@@ -9,6 +9,7 @@ import MapCreator from "../components/game/MapCreator";
 interface IProps {
   editor: Editor;
   popupRef: RefObject<PopupLayout>;
+  updateInterval: number;
 }
 
 export default class EditorLayout extends React.Component<IProps> {
@@ -56,7 +57,13 @@ export default class EditorLayout extends React.Component<IProps> {
     let showEditor = this._game != null && !this._game.isDestroyed;
     let content: ReactNode;
     if (showEditor) {
-      content = <EditorView key={Date.now()} editor={this._editor} />;
+      content = (
+        <EditorView
+          key={Date.now()}
+          editor={this._editor}
+          updateInterval={this.props.updateInterval}
+        />
+      );
     } else if (this._isLoading) {
       content = null;
     } else {

@@ -1,11 +1,13 @@
-import { url } from "inspector";
 import { IDidDestroyEvent } from "../Destroyable";
 import Game from "../Game";
 import AnyEvent, { IEventType } from "../events/AnyEvent";
 import AnyEventEmitter from "../events/AnyEventEmitter";
-import DefPack, { ISysObjDef } from "./DefPack";
-import { ICharacterDef, IItemDef, ITileDef } from "./DefPack";
+import DefPack from "./DefPack";
 import { applyDefault } from "./util";
+import TileDefPack from "./TileDefPack";
+import CharacterDefPack from "./CharacterDefPack";
+import ItemDefPack from "./ItemDefPack";
+import SysObjDefPack from "./SysObjDefPack";
 
 /**
  * Will be emitted when the asset pack is about to be unloaded.
@@ -29,7 +31,7 @@ export interface IAssetPackInitOptions {
    * This is useful when you are running the game on a server and do not need SVG rendering.
    * @default true
    */
-  loadSVG?: boolean;
+  loadImage?: boolean;
   /**
    * The base URL (or path) of the asset pack.
    * @default "/assets"
@@ -54,7 +56,7 @@ export interface IAssetPackInitOptions {
   autoUnload?: boolean;
 }
 const DEFAULT_OPTIONS = {
-  loadSVG: true,
+  loadImage: true,
   basePath: "/assets",
   pathSeparator: "/",
   fileFetcher: defaultFetcher,
@@ -67,8 +69,7 @@ const CHARACTER_DEF_FILE_NAME = "characters.json";
 const ITEM_DEF_FILE_NAME = "items.json";
 const TILE_DEF_FILE_NAME = "tiles.json";
 const SYS_OBJ_DEF_FILE_NAME = "sysObjs.json";
-const SVG_DIR_NAME = "svgs";
-// const SVG_INDEX_FILE_NAME = `svgs.txt`;
+const IMAGE_DIR_NAME = "images";
 let _allowNew = false;
 
 /**
@@ -161,12 +162,14 @@ export default class AssetPack extends AnyEventEmitter {
 
   private _isLoaded: boolean = false;
   private _name: string;
-  private _characterDefPack: DefPack<ICharacterDef> | null = null;
-  private _itemDefPack: DefPack<IItemDef> | null = null;
-  private _tileDefPack: DefPack<ITileDef> | null = null;
-  private _sysObjDefPack: DefPack<ISysObjDef> | null = null;
+  private _characterDefPack: CharacterDefPack | null = null;
+  private _itemDefPack: ItemDefPack | null = null;
+  private _tileDefPack: TileDefPack | null = null;
+  private _sysObjDefPack: SysObjDefPack | null = null;
   private _svgNameSet: Set<string> | null = null;
-  private _svgURLDict: { [key: string]: string } = {};
+  private _imageNameSet: Set<string> | null = null;
+  private _svgStringDict: { [key: string]: string } = {};
+  private _imageURLDict: { [key: string]: string } = {};
   // private _svgIndexURL: string;
   private _loadingPromise: Promise<this> | null = null;
 
@@ -191,26 +194,26 @@ export default class AssetPack extends AnyEventEmitter {
   /**
    * Get the character definition pack of this asset pack.
    */
-  public get characterDefPack(): DefPack<ICharacterDef> {
-    return this._characterDefPack as DefPack<ICharacterDef>;
+  public get characterDefPack(): CharacterDefPack {
+    return this._characterDefPack as CharacterDefPack;
   }
   /**
    * Get the item definition pack of this asset pack.
    */
-  public get itemDefPack(): DefPack<IItemDef> {
-    return this._itemDefPack as DefPack<IItemDef>;
+  public get itemDefPack(): ItemDefPack {
+    return this._itemDefPack as ItemDefPack;
   }
   /**
    * Get the tile definition pack of this asset pack.
    */
-  public get tileDefPack(): DefPack<ITileDef> {
-    return this._tileDefPack as DefPack<ITileDef>;
+  public get tileDefPack(): TileDefPack {
+    return this._tileDefPack as TileDefPack;
   }
   /**
    * Get the system object definition pack of this asset pack.
    */
-  public get sysObjDefPack(): DefPack<ISysObjDef> {
-    return this._sysObjDefPack as DefPack<ISysObjDef>;
+  public get sysObjDefPack(): SysObjDefPack {
+    return this._sysObjDefPack as SysObjDefPack;
   }
   /**
    * Check if this asset pack is loaded.
@@ -239,20 +242,40 @@ export default class AssetPack extends AnyEventEmitter {
     return Array.from(this._svgNameSet as Set<string>);
   }
   /**
-   * Get the blob URL of the loaded SVG.
+   * Get the list of image names in this asset pack.
+   */
+  public getImageNames(): Array<string> {
+    return Array.from(this._imageNameSet as Set<string>);
+  }
+  /**
+   * Get the SVG string of the specified SVG.
    * Will throw an error if the specified SVG not found or not loaded yet.
    * Use AssetPack.isSVGLoaded() to check if the SVG is loaded before calling this method.
-   * @param svgName The name of the SVG (without the .svg extension).
    */
-  public getSVGURL(svgName: string): string {
-    let url = this._svgURLDict[svgName];
-    if (url) {
-      return url;
+  public getSVGString(svgName: string): string {
+    let svgString = this._svgStringDict[svgName];
+    if (svgString) {
+      return svgString;
     }
     if (this._svgNameSet?.has(svgName)) {
       throw new Error(`SVG ${svgName} is not loaded yet.`);
     }
     throw new Error(`Unknown SVG ID: ${svgName}`);
+  }
+  /**
+   * Get the URL of the specified image.
+   * Will throw an error if the specified image not found or not loaded yet.
+   * Use AssetPack.isImageLoaded() to check if the image is loaded before calling this method.
+   */
+  public getImageURL(imageName: string): string {
+    let imageURL = this._imageURLDict[imageName];
+    if (imageURL) {
+      return imageURL;
+    }
+    if (this._imageNameSet?.has(imageName)) {
+      throw new Error(`Image ${imageName} is not loaded yet.`);
+    }
+    throw new Error(`Unknown image name: ${imageName}`);
   }
   /**
    * Check if the asset pack has the specified SVG.
@@ -264,11 +287,24 @@ export default class AssetPack extends AnyEventEmitter {
     return this._svgNameSet?.has(svgName) || false;
   }
   /**
+   * Check if the asset pack has the specified image.
+   * @param imageName The name of the image.
+   */
+  public hasImage(imageName: string): boolean {
+    return this._imageNameSet?.has(imageName) || false;
+  }
+  /**
    * Check if the specified SVG is loaded.
    * @param svgName The name of the SVG (without the .svg extension).
    */
   public isSVGLoaded(svgName: string): boolean {
-    return !!this._svgURLDict[svgName];
+    return !!this._svgStringDict[svgName];
+  }
+  /**
+   * Check if the specified image is loaded.
+   */
+  public isImageLoaded(imageName: string): boolean {
+    return !!this._imageNameSet?.has(imageName);
   }
   /**
    * Bind the asset pack to a game to prevent it from being unloaded.
@@ -329,12 +365,26 @@ export default class AssetPack extends AnyEventEmitter {
         defPacks.forEach((defPack) => {
           rawSVGNameList.push(...defPack.svgNames);
         });
+        // Using Set to remove duplicates.
         this._svgNameSet = new Set(rawSVGNameList);
       }
-      // Load SVG files.
-      if (AssetPack._options.loadSVG) {
-        await this._loadSvgFiles(this._svgNameSet);
+      // Create image name set.
+      if (!this._imageNameSet) {
+        let rawImageNameList: Array<string> = [];
+        defPacks.forEach((defPack) => {
+          rawImageNameList.push(...defPack.imageNames);
+        });
+        // Using Set to remove duplicates.
+        this._imageNameSet = new Set(rawImageNameList);
       }
+      // Load SVG & image files.
+      if (AssetPack._options.loadImage) {
+        await Promise.all([
+          this._loadSvgFiles(this._svgNameSet),
+          this._loadImageFiles(this._imageNameSet),
+        ]);
+      }
+      // Set loaded flag.
       this._isLoaded = true;
       this._loadingPromise = null;
       return this;
@@ -349,7 +399,9 @@ export default class AssetPack extends AnyEventEmitter {
         AssetPack._options.pathSeparator
       );
       let characterDefText = await this._fetchFile(url);
-      this._characterDefPack = DefPack.character(JSON.parse(characterDefText));
+      this._characterDefPack = new CharacterDefPack(
+        JSON.parse(characterDefText)
+      );
     }
     return this._characterDefPack;
   }
@@ -360,7 +412,7 @@ export default class AssetPack extends AnyEventEmitter {
         AssetPack._options.pathSeparator
       );
       let itemDefText = await this._fetchFile(url);
-      this._itemDefPack = DefPack.item(JSON.parse(itemDefText));
+      this._itemDefPack = new ItemDefPack(JSON.parse(itemDefText));
     }
     return this._itemDefPack;
   }
@@ -371,7 +423,7 @@ export default class AssetPack extends AnyEventEmitter {
         AssetPack._options.pathSeparator
       );
       let tileDefText = await this._fetchFile(url);
-      this._tileDefPack = DefPack.tile(JSON.parse(tileDefText));
+      this._tileDefPack = new TileDefPack(JSON.parse(tileDefText));
     }
     return this._tileDefPack;
   }
@@ -382,30 +434,66 @@ export default class AssetPack extends AnyEventEmitter {
         AssetPack._options.pathSeparator
       );
       let sysObjDefText = await this._fetchFile(url);
-      this._sysObjDefPack = DefPack.sysObj(JSON.parse(sysObjDefText));
+      this._sysObjDefPack = new SysObjDefPack(JSON.parse(sysObjDefText));
     }
     return this._sysObjDefPack;
   }
 
-  protected async _loadSvgFiles(svgNameSet: Set<string>) {
+  private async _loadSvgFiles(svgNameSet: Set<string>) {
     let svgNameList = Array.from(svgNameSet);
-    // Load SVG files.
-    for (let i = 0; i < svgNameList.length; i++) {
-      let svgName = svgNameList[i];
-      if (this._svgURLDict[svgName]) {
-        continue;
+    let promiseList: Array<Promise<string | null>> = svgNameList.map(
+      (svgName) => {
+        if (this._svgStringDict[svgName]) {
+          return Promise.resolve(null);
+        }
+        let svgURL = [this.basePath, this._name, IMAGE_DIR_NAME, svgName].join(
+          AssetPack._options.pathSeparator
+        );
+        return this._fetchFile(svgURL);
       }
-      let svgSrcURL = [
-        this.basePath,
-        this._name,
-        SVG_DIR_NAME,
-        `${svgName}.svg`,
-      ].join(AssetPack._options.pathSeparator);
-      let svgText = await this._fetchFile(svgSrcURL);
-      const svg = new Blob([svgText], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(svg);
-      this._svgURLDict[svgName] = url;
-    }
+    );
+    let svgStringList = await Promise.all(promiseList);
+    // Create SVG string dict.
+    svgStringList.forEach((svgString, index) => {
+      if (svgString) {
+        this._svgStringDict[svgNameList[index]] = svgString;
+      }
+    });
+  }
+
+  private async _loadImageFiles(imageNameSet: Set<string>) {
+    let imageNameList = Array.from(imageNameSet);
+    let promiseList: Array<Promise<HTMLImageElement | null>> =
+      imageNameList.map((imageName) => {
+        if (this._imageURLDict[imageName]) {
+          return Promise.resolve(null);
+        }
+        let imageURL = [
+          this.basePath,
+          this._name,
+          IMAGE_DIR_NAME,
+          imageName,
+        ].join(AssetPack._options.pathSeparator);
+        return this._preloadImage(imageURL);
+      });
+    let imageList = await Promise.all(promiseList);
+    // Create image URL dict.
+    imageList.forEach((image, index) => {
+      if (image) {
+        this._imageURLDict[imageNameList[index]] = image.src;
+      }
+    });
+  }
+
+  private _preloadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      let img = new Image();
+      img.onload = () => {
+        resolve(img);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
   }
 
   private async _clearCache() {
@@ -415,10 +503,11 @@ export default class AssetPack extends AnyEventEmitter {
     this._tileDefPack = null;
     this._sysObjDefPack = null;
     this._svgNameSet = null;
-    Object.keys(this._svgURLDict).forEach((key) => {
-      URL.revokeObjectURL(this._svgURLDict[key]);
+    this._imageNameSet = null;
+    Object.keys(this._svgStringDict).forEach((key) => {
+      URL.revokeObjectURL(this._svgStringDict[key]);
     });
-    this._svgURLDict = {};
+    this._svgStringDict = {};
   }
   // Wrap the file fetcher function to handle errors.
   private async _fetchFile(path: string): Promise<string> {

@@ -19,7 +19,7 @@ const DEFAULT_INPUT_DATA = {
   name: "MyMap",
   width: 20,
   height: 20,
-  tileType: "",
+  tileTexture: "",
   playerCount: Editor.MIN_PLAYER_COUNT,
 };
 
@@ -181,8 +181,7 @@ function MapCreatorForm(props: {
 }) {
   const inputData: Partial<INewMapOptions> = { ...DEFAULT_INPUT_DATA };
   const { assetPack, onConfirm, popupRef } = props;
-  // const tileTypeNames = ["👉 Select 👈", ...assetPack.tileDefPack.typeNames];
-  const tileTypeNames = ["", ...assetPack.tileDefPack.typeNames];
+  const tileTextureNames = ["", ...assetPack.tileDefPack.tileTextureNames];
   const INPUT_FIELD_DEF = new FieldDef<INewMapOptions>(
     {
       type: "object",
@@ -198,9 +197,9 @@ function MapCreatorForm(props: {
           minNum: Editor.MIN_ROW_COUNT,
           maxNum: Editor.MAX_ROW_COUNT,
         },
-        tileType: {
+        tileTexture: {
           type: "string",
-          valueList: assetPack.tileDefPack.typeNames,
+          valueList: assetPack.tileDefPack.tileTextureNames,
         },
         playerCount: {
           type: "number",
@@ -259,19 +258,19 @@ function MapCreatorForm(props: {
           inputData.height = parseInt(event.target.value);
         }}
       />
-      <label htmlFor="tileType">Tile Type</label>
+      <label htmlFor="tileTexture">Tile Texture</label>
       <select
-        id="tileType"
-        defaultValue={inputData.tileType}
+        id="tileTexture"
+        defaultValue={inputData.tileTexture}
         onChange={(event) => {
-          inputData.tileType = event.target.value;
+          inputData.tileTexture = event.target.value;
         }}
         required
       >
-        {tileTypeNames.map((typeName: string) => {
+        {tileTextureNames.map((tileTextureNames: string) => {
           return (
-            <option key={typeName} defaultValue={typeName}>
-              {typeName}
+            <option key={tileTextureNames} defaultValue={tileTextureNames}>
+              {tileTextureNames}
             </option>
           );
         })}

@@ -1052,7 +1052,7 @@ export default abstract class DataHolder<
     this._stagedData[property] = null;
     // Handle child destroy event
     let onWillDestroy = () => {
-      this._removeChild(property, true);
+      this._removeChild(property);
     };
     this._childOnDestroyHandlerDict[property] = onWillDestroy;
     child.once<IWillDestroyEvent>("willDestroy", onWillDestroy);
@@ -1095,8 +1095,10 @@ export default abstract class DataHolder<
     delete this._childDict[property];
     if (replaceWithData) {
       this._currentData[property] = child.getData();
+      this._stagedData[property] = deepClone(child.stagedData);
     } else {
       delete this._currentData[property];
+      delete this._stagedData[property];
     }
     this.emit<IDidRemoveChildEvent>(
       new AnyEvent("didRemoveChild", { property, child })

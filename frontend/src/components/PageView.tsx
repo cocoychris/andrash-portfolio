@@ -1,8 +1,10 @@
 import React, { Component } from "react";
 import Page from "./Page";
 import { CSSTransition } from "react-transition-group";
+import GameClient from "../lib/GameClient";
 
 interface IProps {
+  gameClient: GameClient;
   baseDir: string;
   onOpen?: (page: string, title: string, offsetTop: number) => void;
   onClose?: () => void;
@@ -19,37 +21,45 @@ export default class PageView extends Component<IProps, IState> {
   private _useCache: boolean = true;
   private _sectionRef = React.createRef<HTMLElement>();
   private _pageRef = React.createRef<Page>();
-  public state: Readonly<IState> = {
-    page: "",
-    fadeInPage: "",
-  };
 
   constructor(props: IProps) {
-    console.log("PageView constructor");
     super(props);
+    this.state = {
+      page: "",
+      fadeInPage: "",
+    };
     this._onOpen = this._onOpen.bind(this);
     this._onClickLink = this._onClickLink.bind(this);
     this._onPopState = this._onPopState.bind(this);
   }
 
   public componentDidMount(): void {
-    console.log("PageView componentDidMount");
     this.open(this._getPageFromLocation());
     // Listen to pop state event
-    // window.addEventListener("popstate", this._onPopState);
+    window.addEventListener("popstate", this._onPopState);
     // Intercept all link clicks
     document.addEventListener("click", this._onClickLink);
   }
   public componentWillUnmount(): void {
-    console.log("PageView componentWillUnmount");
     window.removeEventListener("popstate", this._onPopState);
     document.removeEventListener("click", this._onClickLink);
   }
 
   public open(page: string, useCache: boolean = true) {
+    let gameClient = this.props.gameClient;
+    // Do not open page if editing.
+    if (
+      gameClient.mode == GameClient.MODE_EDITOR &&
+      !gameClient.editor?.isTesting
+    ) {
+      this._clearPageFromLocation();
+      return;
+    }
+    // Do not open page is already at the same page
     if (useCache && this.state.page === page) {
       return;
     }
+    //Open page
     this._useCache = useCache;
     this.setState({
       page,
@@ -78,6 +88,12 @@ export default class PageView extends Component<IProps, IState> {
         this._pageRef.current?.title || "",
         this._sectionRef.current?.offsetTop || 0
       );
+  }
+
+  private _clearPageFromLocation() {
+    let url = new URL(window.location.href);
+    url.pathname = "";
+    window.history.replaceState({}, "", url.toString());
   }
 
   private _getPageFromLocation(pathName?: string): string {
@@ -125,12 +141,10 @@ export default class PageView extends Component<IProps, IState> {
   }
 
   private _onPopState(event: PopStateEvent) {
-    console.log("PageView _onPopState");
     this.open(this._getPageFromLocation());
   }
 
   public render() {
-    console.log("PageView render");
     let fadeIn =
       this.state.page != "" && this.state.page == this.state.fadeInPage;
     let isCloseing = this.state.page == "";

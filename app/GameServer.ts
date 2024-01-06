@@ -20,7 +20,7 @@ const ASSET_DIR = path.join(__dirname, "../../frontend/public/assets");
 AssetPack.init({
   basePath: ASSET_DIR,
   pathSeparator: path.sep,
-  loadSVG: false,
+  loadImage: false,
   fileFetcher: async (filePath: string) => {
     let buffer = await fs.promises.readFile(path.normalize(filePath));
     return buffer.toString("utf-8");
@@ -52,7 +52,7 @@ export default class GameServer {
   private _setUpTransEvents(io: Server): void {
     io.on("connection", (socket: Socket) => {
       console.log(`[Server] New connection: ${socket.id}`);
-      let authenticate = (event: TransEvent<IAuthenticateEvent>) => {
+      let authenticate = async (event: TransEvent<IAuthenticateEvent>) => {
         console.log(`[Server] Authenticating: ${socket.id}`);
         socket.off("connect_error", onConnectError);
         let { data, callback } = event;
@@ -66,7 +66,7 @@ export default class GameServer {
           } else {
             console.log(`[Server] Session not found: ${data.sessionID}`);
             // Session not found. Create a new session.
-            session = new Session(socket, SESSION_LIFETIME);
+            session = await Session.new(socket, SESSION_LIFETIME);
             console.log(`[Server] New session created: ${session.id}`);
           }
           // Join target room

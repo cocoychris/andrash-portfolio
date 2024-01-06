@@ -1,26 +1,49 @@
-.gameView {
+/*
+ * Game View - Basic settings
+ */
+*/ .gameView {
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
   user-select: none;
-  touch-action: none;
 }
 
+/*
+ * Tile - Basic settings
+ */
 .gameView .tile {
   text-align: center;
   padding: 0;
   margin: 0;
   overflow: hidden;
   background-size: 100% 100%;
-  background-repeat: no-repeat;
+  background-repeat: repeat; /* prevent weird gaps between tiles */
+  user-select: none;
 }
-
-.gameView .tile div.debug {
+.gameView .tile.selected {
+  box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000,
+    inset 0 0 20px 6px #ffffff;
+}
+.gameView .tile svg,
+.gameView .tile img {
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+.gameView .tile > div {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
-  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Debug UI
+ */
+.gameView .tile div.debug {
+  width: auto;
+  height: auto;
   background-color: rgba(255, 255, 255, 0.6);
   padding: 1px 2px;
   border-radius: 1px;
@@ -29,22 +52,12 @@
 .gameView .tile.empty div.debug {
   display: none;
 }
-
-.characterDiv svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+/*
+ * Character Display
+ */
 .characterDiv {
-  --speed: 500ms;
-  position: absolute;
-  z-index: 2;
-  display: block;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition: translate var(--speed) ease-out;
+  --ease-duration: 500ms;
+  transition: translate var(--ease-duration) ease-in-out;
 }
 .characterDiv.position-left {
   translate: -100% 0%;
@@ -73,63 +86,36 @@
 .characterDiv.position-center {
   translate: 0% 0%;
 }
-
-.characterDiv.selected svg {
+.characterDiv.selected svg,
+.characterDiv.selected img {
   background-color: rgba(255, 255, 255, 0.6);
   border-radius: 50%;
   box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000;
 }
-.characterDiv.hitCharacter svg {
+.characterDiv.hitCharacter svg,
+.characterDiv.hitCharacter img {
   opacity: "0.85";
 }
-.characterDiv.hitItem svg {
+.characterDiv.hitItem svg,
+.characterDiv.hitItem img {
   opacity: "0.85";
 }
-.characterDiv.flip svg {
+.characterDiv.flip {
   scale: -1 1;
 }
-
-.gameView .tile svg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
-  user-select: none;
-}
-
-.gameView .tile div.item svg {
-  z-index: 1;
-}
-.gameView .tile div.item.inFront svg {
-  z-index: 3;
-}
-.gameView .tile div.item.flip svg {
+/*
+ * Item Display
+ */
+.gameView .tile div.item.flip {
   scale: -1 1;
 }
-.gameView .tile div.foreground svg {
-  z-index: 5;
-}
-
-.gameView .tile div.targetBeacon svg {
-  fill: #ff3333;
-}
+/*
+ * Target Beacon Display
+ */
 .gameView .tile div.targetBeacon {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
   opacity: 1;
   transition: opacity 500ms ease;
-  z-index: 11;
 }
 .gameView .tile div.targetBeacon.fade-out {
   opacity: 0;
-}
-.gameView .tile.selected {
-  box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 5px #ff0000,
-    inset 0 0 20px 6px #ffffff;
 }

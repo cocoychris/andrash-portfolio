@@ -11,7 +11,6 @@ import { IIndexable } from "../../lib/data/util";
 
 const MIN_VISIBLE_TILE_COUNT = 5;
 const EASE_DURATION = 500;
-const EASE_DELAY = 16;
 
 interface IProps {
   game: Game;
@@ -34,7 +33,6 @@ export default class GameView extends React.Component<IProps, IState> {
   public state: Readonly<IState> = {};
 
   constructor(props: IProps) {
-    console.log("GameView");
     super(props);
     const { game } = props;
     this._mainPlayer = game.playerGroup.mainPlayer as Player;
@@ -61,18 +59,14 @@ export default class GameView extends React.Component<IProps, IState> {
       this._mapView.updateTileDisplay(position);
     });
     if (this._mainCharacter.isMoving) {
-      this._mapView.ease(
-        this._mainCharacter.position,
-        EASE_DURATION,
-        EASE_DELAY
-      );
+      this._mapView.ease(this._mainCharacter.position, EASE_DURATION);
     }
   }
 
   private _onViewClick(mouseInfo: IMouseInfo): boolean {
     // Clearing previous target
-    if (this._mainPlayer.target) {
-      this._mapView.updateTileDisplay(this._mainPlayer.target);
+    if (this._mainPlayer.stagedTarget) {
+      this._mapView.updateTileDisplay(this._mainPlayer.stagedTarget);
     }
     // Setting new target
     this._mainPlayer.target = mouseInfo.position.floor();

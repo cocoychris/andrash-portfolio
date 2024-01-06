@@ -26,16 +26,11 @@ export interface ILoadGameEvent extends ITransEventType {
   type: "loadGame";
   data: {
     mapID?: string;
-    isOpen?: boolean;
-    isLocalGame?: boolean;
-    tickInterval?: number;
   };
   response: {
     error: null;
     playerID: number;
     gameData: IGameData;
-    isOpen: boolean;
-    isLocalGame: boolean;
     tickInterval: number;
     tickNum: number;
   };

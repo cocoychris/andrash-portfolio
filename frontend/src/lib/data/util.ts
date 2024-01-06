@@ -285,11 +285,16 @@ export function withTimeout(
     onSuccess(...args);
   };
 }
-
+/**
+ * Get a Promise that will be resolved after the specified time.
+ */
 export function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
-
+/**
+ * Keeps only the specified keys of an object.
+ * @returns A new object with only the specified keys. This is a partial and shallow copy of the original object.
+ */
 export function filterObjectByKey(
   obj: IIndexable,
   keyList: Array<string>
@@ -303,11 +308,18 @@ export function filterObjectByKey(
   });
   return newObj;
 }
-
+/**
+ * Get an interger between min and max (inclusive).
+ */
 export function randomInterger(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-
+/**
+ * Pick a random element from an array.
+ * @param array The array to pick from.
+ * @param deleteElement Whether to delete the picked element from the array.
+ * @returns The picked element.
+ */
 export function randomElement<T>(
   array: Array<T>,
   deleteElement: boolean = false

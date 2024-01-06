@@ -4,8 +4,7 @@ import Position, { IPosition } from "./Position";
 import Tile, { ITileData } from "./Tile";
 import { DataObject, IDidRemoveChildEvent } from "./data/DataHolder";
 import DataUpdater from "./data/DataUpdater";
-import DefPack, { ITileDef } from "./data/DefPack";
-import { IDidDestroyEvent } from "./Destroyable";
+import TileDefPack from "./data/TileDefPack";
 
 export interface ITileDataDict extends DataObject {
   [key: string]: ITileData | null;
@@ -28,7 +27,7 @@ export default class TileManager extends DataUpdater<ITileDataDict> {
    * The tile definition pack for the game map.
    * This is a shorthand for `this.game.assetPack.tileDefPack`
    */
-  public get tileDefPack(): DefPack<ITileDef> {
+  public get tileDefPack(): TileDefPack {
     return this.game.assetPack.tileDefPack;
   }
   /**

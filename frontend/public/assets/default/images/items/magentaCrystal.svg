@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="300"
+   height="300"
+   viewBox="0 0 300.00001 300.00001"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="magentaCrystal.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+   <sodipodi:namedview
+      id="namedview1"
+      pagecolor="#ffffff"
+      bordercolor="#cccccc"
+      borderopacity="1"
+      inkscape:showpageshadow="0"
+      inkscape:pageopacity="1"
+      inkscape:pagecheckerboard="0"
+      inkscape:deskcolor="#d1d1d1"
+      inkscape:zoom="3.15"
+      inkscape:cx="150"
+      inkscape:cy="150"
+      inkscape:window-width="2304"
+      inkscape:window-height="1202"
+      inkscape:window-x="-11"
+      inkscape:window-y="-11"
+      inkscape:window-maximized="1"
+      inkscape:current-layer="g3" />
+   <defs
+      id="defs1">
+      <rect
+         style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:7.91228;stroke-linecap:round"
+         id="magentaCrystal:shine"
+         width="61.288254"
+         height="61.288254"
+         x="-72.208855"
+         y="87.679222"
+         transform="matrix(0.97898042,0.20395425,-0.97898042,0.20395425,0,0)" />
+      <g
+         id="magentaCrystal:light">
+         <g
+            id="g6"
+            transform="matrix(0.63447307,-0.61967115,0.61967114,0.63447308,161.96556,-84.837534)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use4-8"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;0.5;0.5"
+                  dur="2s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use5-3"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;0.5;1;0.5;0.5;0.5"
+                  dur="3s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g5"
+            transform="matrix(0.61967114,0.63447308,-0.63447307,0.61967115,304.47667,4.7270653)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use4-0"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;0.5;0.5;1"
+                  dur="2.5"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use5-2"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;0.5;0.5;1;1;0.5;1;0.5"
+                  dur="2.3s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g7"
+            transform="matrix(-0.61967114,0.63447307,0.63447307,0.61967115,-85.593434,162.72146)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use6"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;0.5;0.5;1"
+                  dur="2.6s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use7"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;1;0.5;1;0.5;0.5;1"
+                  dur="2.6s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g9"
+            transform="matrix(-0.63447307,-0.61967115,-0.61967114,0.63447307,294.83929,-4.9103271)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use8"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;1;1;0.5;0.5;0.5;1;0.5"
+                  dur="2.8s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use9"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;0.5;0.5;0.5;1"
+                  dur="2.2s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g11"
+            transform="matrix(0.85388749,0.23963423,-0.23963422,0.8538875,358.66852,43.028225)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use10"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;0.5;1;1;0.5;0.5;1;0.5;0.5"
+                  dur="3s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use11"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;0.5;1;0.5;1;1;0.5;0.5;1"
+                  dur="2.8s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g13"
+            transform="matrix(-0.23963427,0.85388748,-0.85388747,-0.23963427,352.35884,211.22878)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use12"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;0.5;0.5;1"
+                  dur="2.7s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use13"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;1;1;0.5;0.5;0.5"
+                  dur="2.8s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g15"
+            transform="matrix(-0.85930537,-0.21941442,-0.21941442,0.85930538,20.496633,-47.584663)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use14"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;0.5;1;0.5;1;0.5"
+                  dur="2.1s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use15"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;0.5;0.5"
+                  dur="2s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g17"
+            transform="matrix(0.21941442,-0.85930538,-0.85930537,-0.21941442,355.88638,198.06384)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use16"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;0.5;1;1;0.5;0.5;0.5"
+                  dur="2.4s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use17"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;1;0.5;0.5;1;0.5;1;0.5;0.5;1"
+                  dur="2.9s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g19"
+            transform="matrix(0.21941442,0.85930538,-0.85930537,0.21941442,346.88461,277.62462)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use18"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;0.5;1"
+                  dur="2.1s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use19"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;0.5;1;0.5;1;0.5;1;0.5;0.5"
+                  dur="2.7s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g21"
+            transform="matrix(-0.85930538,0.21941437,-0.21941437,-0.85930539,198.06383,356.26056)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use20"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;0.5;0.5;1"
+                  dur="2.8s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use21"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;0.5;1;0.5;1;0.5;0.5"
+                  dur="2.2s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g23"
+            transform="matrix(-0.23963422,-0.85388749,-0.85388748,0.23963423,256.27173,-60.547261)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use22"
+               transform="matrix(0.43144784,0,0,0.43144784,-225.06667,174.46357)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;1;0.5;1;0.5;0.5;1"
+                  dur="2.5s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use23"
+               transform="matrix(0.26203072,0,0,0.26203072,-209.97636,176.6923)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;0.5;1;1;0.5;0.5;1;1;0.5;0.5"
+                  dur="3s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+         <g
+            id="g25"
+            transform="matrix(0.85388748,-0.23963423,-0.23963422,-0.85388749,211.22877,352.73304)"
+            style="stroke:none">
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use24"
+               transform="matrix(0.6190476,0,0,0.6190476,-34.22877,231.99565)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="0.5;1;1;0.5;1;0.5;1;1;0.5"
+                  dur="2.6s"
+                  repeatCount="indefinite" />
+            </use>
+            <use
+               x="0"
+               y="0"
+               xlink:href="#magentaCrystal:shine"
+               id="use25"
+               transform="matrix(0.40942302,0,0,0.40942302,-5.3325,234.75332)"
+               style="stroke:none">
+               <animate
+                  attributeName="opacity"
+                  values="1;0.5;1;0.5;0.5;0.5;1"
+                  dur="2.1s"
+                  repeatCount="indefinite" />
+            </use>
+         </g>
+      </g>
+
+      <g
+         id="magentaCrystal:crystal"
+         transform="matrix(0.93333333,0,0,0.83333333,10,0)">
+         <g
+            id="g2"
+            transform="matrix(1,0,0,-1.2,0,300)">
+            <path
+               style="opacity:1;fill:#de87aa;stroke-width:5.1755;stroke-linecap:round"
+               d="m 75,150 75,100 -40,-85 z"
+               id="path1-5" />
+            <path
+               style="opacity:1;fill:#782144;stroke-width:5.1755;stroke-linecap:round"
+               d="m 190,165 -40,85 75,-100 z"
+               id="rect1-8" />
+            <path
+               id="rect1-6-6"
+               style="fill:#c83771;stroke-width:5.1755;stroke-linecap:round"
+               d="M 190,165 149.99999,250 110,165 Z" />
+            <path
+               style="fill:#d35f8d;stroke-width:5.1755;stroke-linecap:round"
+               d="m 150,50 -75,100 35,15 z"
+               id="path1-2-9" />
+            <path
+               style="fill:#50162d;stroke-width:5.1755;stroke-linecap:round"
+               d="m 150,50 40,115 35,-15 z"
+               id="rect1-1-0" />
+            <path
+               id="rect1-6-9-9"
+               style="fill:#a02c5a;stroke-width:5.1755;stroke-linecap:round"
+               d="M 149.99999,50 190,165 h -80 z" />
+         </g>
+         <g
+            id="g1"
+            transform="matrix(1,0,0,1.2,0,-60)"
+            style="opacity:0.75;stroke-width:1.0351">
+            <path
+               style="opacity:1;fill:#d35f8d;stroke-width:5.1755;stroke-linecap:round"
+               d="m 75,150 75,100 -40,-85 z"
+               id="path1" />
+            <path
+               style="opacity:1;fill:#50162d;stroke-width:5.1755;stroke-linecap:round"
+               d="m 190,165 -40,85 75,-100 z"
+               id="rect1" />
+            <path
+               id="rect1-6"
+               style="fill:#a02c5a;stroke-width:5.1755;stroke-linecap:round"
+               d="M 190,165 149.99999,250 110,165 Z" />
+            <path
+               style="fill:#e9afc6;stroke-width:5.1755;stroke-linecap:round"
+               d="m 150,50 -75,100 35,15 z"
+               id="path1-2" />
+            <path
+               style="fill:#782144;stroke-width:5.1755;stroke-linecap:round"
+               d="m 150,50 40,115 35,-15 z"
+               id="rect1-1" />
+            <path
+               id="rect1-6-9"
+               style="fill:#d35f8d;stroke-width:5.1755;stroke-linecap:round"
+               d="M 149.99999,50 190,165 h -80 z" />
+         </g>
+      </g>
+   </defs>
+   <rect
+      visibility="hidden"
+      style="opacity:1;fill:#6c5367;fill-opacity:1;stroke:none;stroke-width:5;stroke-linecap:round"
+      id="magentaCrystal:background"
+      width="300"
+      height="300"
+      x="0"
+      y="0" />
+   <g
+      transform="scale(1 0.5) translate(0 300)"
+   >
+      <g transform="translate(150 150)">
+         <circle
+            style="opacity:1;fill:#000000;fill-opacity:0.08;stroke:none"
+            id="magentaCrystal:shadow"
+            cx="0"
+            cy="0"
+            r="75" />
+         <g transform="translate(-150 -150)">
+            <use x="0" y="0" xlink:href="#magentaCrystal:light" id="use2"
+               opacity="0.5" style="stroke:none"
+            >
+               <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  values="0 150 150;360 150 150"
+                  dur="60s"
+                  repeatCount="indefinite" />
+
+            </use>
+         </g>
+
+         <animateTransform
+            attributeName="transform"
+            type="scale"
+            additive="sum"
+            values="1 1;0.8 0.8;1 1"
+            dur="3s"
+            repeatCount="indefinite" />
+      </g>
+   </g>
+   <use x="0" y="0" xlink:href="#magentaCrystal:crystal" id="use3">
+      <animateTransform
+         attributeName="transform"
+         type="translate" values="1 1;0 6;0 14;0 21;0 26;0 21;0 14;0 6;1 1"
+         dur="3s"
+         repeatCount="indefinite" />
+   </use>
+
+</svg>

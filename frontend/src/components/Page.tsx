@@ -97,11 +97,9 @@ export default class Page extends Component<IProps, IState> {
     if (this._isMarkDown) {
       let match = this._content.match(/^#+\s*(.+)$/m);
       this._title = match ? match[1].trim() : "";
-      console.log("Page title: " + this._title);
     } else {
       let match = this._content.match(/<title>(.*)<\/title>/);
       this._title = match ? match[1].trim() : "";
-      console.log("Page title: " + this._title);
     }
     // Update state
     this.setState({ status: "loaded" });

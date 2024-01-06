@@ -1,7 +1,7 @@
 import Game from "./Game";
 import Item, { IItemData } from "./Item";
 import Group, { IGroupData } from "./data/Group";
-import DefPack, { IItemDef } from "./data/DefPack";
+import ItemDefPack from "./data/ItemDefPack";
 
 export default class ItemGroup extends Group<ItemGroup, IItemData, Item> {
   private _game: Game;
@@ -9,7 +9,7 @@ export default class ItemGroup extends Group<ItemGroup, IItemData, Item> {
    * Get the item definition pack
    * This is a shortcut for `game.assetPack.itemDefPack`
    */
-  public get itemDefPack(): DefPack<IItemDef> {
+  public get itemDefPack(): ItemDefPack {
     return this._game.assetPack.itemDefPack;
   }
 

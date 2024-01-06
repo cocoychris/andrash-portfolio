@@ -1,7 +1,16 @@
 import { ReactSVG } from "react-svg";
-import React, { Component, ReactNode } from "react";
+import React, {
+  Component,
+  JSXElementConstructor,
+  ReactElement,
+  ReactNode,
+} from "react";
 import AssetPack, { IDidUnloadEvent } from "../../lib/data/AssetPack";
 import { IIndexable } from "../../lib/data/util";
+// import parse, { DOMNode, Element, domToReact } from "html-react-parser";
+// import attributesToProps, {
+//   Attributes,
+// } from "html-react-parser/lib/attributes-to-props";
 
 interface ISVGDisplayProps {
   assetPack: AssetPack;
@@ -9,16 +18,11 @@ interface ISVGDisplayProps {
   divID?: string;
   divClassName?: string;
   svgStyle?: React.CSSProperties;
+  divStyle?: React.CSSProperties;
 }
 
 export default function SVGDisplay(props: ISVGDisplayProps) {
   return SVGCachePack.getElement(props);
-}
-function _setStyle(svg: SVGElement, style: React.CSSProperties) {
-  let keys = Object.keys(style) as Array<keyof React.CSSProperties>;
-  keys.forEach((key) => {
-    (svg.style as IIndexable)[key] = style[key];
-  });
 }
 /**
  * SVGCachePack caches SVG elements for an asset pack.
@@ -33,7 +37,9 @@ class SVGCachePack {
   private static _allowNew = false;
   private static readonly CACHE_PACK_DICT: { [key: string]: SVGCachePack } = {};
 
-  public static getElement(props: ISVGDisplayProps) {
+  public static getElement(
+    props: ISVGDisplayProps
+  ): ReactElement<any, string | JSXElementConstructor<any>> | null {
     let cachePack = SVGCachePack._getPack(props.assetPack);
     return cachePack.getElement(props);
   }
@@ -61,7 +67,9 @@ class SVGCachePack {
     return cachePack;
   }
 
-  private readonly SVG_ELEMENT_DICT: { [key: string]: ReactNode } = {};
+  private readonly SVG_ELEMENT_DICT: {
+    [key: string]: ReactElement<any, string | JSXElementConstructor<any>>;
+  } = {};
   private _assetPack: AssetPack;
 
   constructor(assetPack: AssetPack) {
@@ -74,8 +82,55 @@ class SVGCachePack {
     }
     this._assetPack = assetPack;
   }
+  /**
+   * An alternative way for rendering SVGs.
+   * Using HTML parser to parse the SVG string and render it as a React element instead of using ReactSVG.
+   * It works, but the performance is worse than using ReactSVG.
+   * Also there are some minor issues with the SVGs rendered this way because the HTML parser does not replace the ids of the SVG elements.
+   * Keeping this method here for reference.
+   */
+  // public getElement(props: ISVGDisplayProps) {
+  //   if (props.assetPack !== this._assetPack) {
+  //     throw new Error("AssetPack does not match.");
+  //   }
+  //   let key = this._generateKey(props);
+  //   let svgElement = this.SVG_ELEMENT_DICT[key];
+  //   if (svgElement) {
+  //     return svgElement;
+  //   }
+  //   svgElement = (
+  //     <div
+  //       id={props.divID}
+  //       className={props.divClassName}
+  //       style={props.divStyle}
+  //     >
+  //       {parse(this._assetPack.getSVGString(props.svgName), {
+  //         replace: (domNode: DOMNode) => {
+  //           if (!(domNode instanceof Element)) {
+  //             return;
+  //           }
+  //           if (domNode.name !== "svg") {
+  //             return;
+  //           }
+  //           let attribs = domNode.attribs;
+  //           let children = domNode.children;
+  //           let svgProps = attributesToProps(attribs);
+  //           return (
+  //             <svg {...svgProps} style={props.svgStyle}>
+  //               {domToReact(children as DOMNode[])}
+  //             </svg>
+  //           );
+  //         },
+  //       })}
+  //     </div>
+  //   );
+  //   this.SVG_ELEMENT_DICT[key] = svgElement;
+  //   return svgElement;
+  // }
 
-  public getElement(props: ISVGDisplayProps) {
+  public getElement(
+    props: ISVGDisplayProps
+  ): ReactElement<any, string | JSXElementConstructor<any>> | null {
     if (props.assetPack !== this._assetPack) {
       throw new Error("AssetPack does not match.");
     }
@@ -84,17 +139,19 @@ class SVGCachePack {
     if (svgElement) {
       return svgElement;
     }
+    const svgString = this._assetPack.getSVGString(props.svgName);
     svgElement = (
       <ReactSVG
         id={props.divID}
         className={props.divClassName}
-        src={this._assetPack.getSVGURL(props.svgName)}
+        src={`data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`}
         renumerateIRIElements={true}
         beforeInjection={(svg) => {
           props.svgStyle &&
             this._setStyle(svg, props.svgStyle as React.CSSProperties);
         }}
         useRequestCache={true}
+        style={props.divStyle}
       />
     );
     this.SVG_ELEMENT_DICT[key] = svgElement;
@@ -108,6 +165,8 @@ class SVGCachePack {
       props.assetPack.name,
       props.svgName,
       props.svgStyle && JSON.stringify(props.svgStyle),
+      // props.svgAttributes && JSON.stringify(props.svgAttributes),
+      props.divStyle && JSON.stringify(props.divStyle),
     ].join("&");
     return simpleHash(keyString);
   }

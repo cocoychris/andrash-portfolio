@@ -32,12 +32,24 @@ const DEFAULT_LIFETIME = 2 * HOUR;
 const SESSION_DICT: { [id: string]: Session } = {};
 const MAX_CONNECT_ERROR_COUNT = 3;
 
+let _allowNew = false;
 let _gcIntervalID: NodeJS.Timeout | null = null;
 
 export default class Session extends Destroyable {
   public static get(id: string): Session | null {
     return SESSION_DICT[id] || null;
   }
+  public static async new(
+    socket: Socket,
+    maxLifetime?: number
+  ): Promise<Session> {
+    _allowNew = true;
+    let session = new Session(socket, maxLifetime);
+    _allowNew = false;
+    session.ownRoom = await Room.new(session);
+    return session;
+  }
+
   /**
    * Start the garbage collector.
    * Will destroy all expired sessions every interval.
@@ -71,7 +83,7 @@ export default class Session extends Destroyable {
 
   private _id: string;
   private _transmitter: Transmitter<Socket>;
-  private _ownRoom: Room;
+  private _ownRoom?: Room;
   private _currentRoom: Room | null = null;
   private _prevRoom: Room | null = null;
 
@@ -128,7 +140,13 @@ export default class Session extends Destroyable {
    * The default room that the session owns.
    */
   public get ownRoom(): Room {
-    return this._ownRoom;
+    return this._ownRoom as Room;
+  }
+  public set ownRoom(room: Room) {
+    if (this._ownRoom) {
+      throw `Cannot change ownRoom of session ${this._id}`;
+    }
+    this._ownRoom = room;
   }
   /**
    * The room that the session is currently in.
@@ -160,7 +178,6 @@ export default class Session extends Destroyable {
     this._id = _generateSessionID();
     this.name = FruitNameGenerator.newName();
     SESSION_DICT[this._id] = this;
-    this._ownRoom = new Room(this);
     this.maxLifetime = maxLifetime;
     this.lifetime = maxLifetime;
 
@@ -189,7 +206,7 @@ export default class Session extends Destroyable {
     // Clean up when the session is destroyed.
     this.on<IWillDestroyEvent>("willDestroy", () => {
       console.log(`[Session ${this._id}] Session destroyed.`);
-      if (this._ownRoom.sessionList.length == 0) {
+      if (this._ownRoom?.sessionList.length == 0) {
         this._ownRoom.destroy();
       }
       this._transmitter.disconnect();

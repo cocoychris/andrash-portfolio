@@ -1,4 +1,4 @@
-import { IItemDef, ISpriteFrameDef } from "./data/DefPack";
+import { ISpriteFrameDef } from "./data/DefPack";
 import Game from "./Game";
 import ItemGroup from "./ItemGroup";
 import Position, { IPosition } from "./Position";
@@ -14,6 +14,7 @@ import AnyEvent, { IEventType } from "./events/AnyEvent";
 import Tile from "./Tile";
 import Character from "./Character";
 import FieldDef from "./data/FieldDef";
+import { IItemDef } from "./data/ItemDefPack";
 
 export interface IRepositionEvent extends IEventType {
   type: "reposition";
@@ -33,6 +34,7 @@ export interface IItemData extends DataObject {
   frameName?: string; // The name of the frame. If null, use default frame name.
   page?: string | null; // The page to link to. If null, use item definition.
   facingDir?: 1 | -1;
+  walkable?: boolean | null; // If null, use item definition.
 }
 
 function getFieldDef(game: Game, data: IItemData) {
@@ -80,6 +82,11 @@ function getFieldDef(game: Game, data: IItemData) {
           valueList: [1, -1],
           acceptUndefined: true,
         },
+        walkable: {
+          type: "boolean",
+          acceptUndefined: true,
+          acceptNull: true,
+        },
       },
     },
     data,
@@ -92,6 +99,7 @@ const DEFAULT_ITEM_DATA: Partial<IItemData> = {
   frameName: "default",
   page: null,
   facingDir: 1,
+  walkable: null,
 };
 
 export default class Item
@@ -145,6 +153,12 @@ export default class Item
   }
   public set inFront(inFront: boolean) {
     this.data.inFront = inFront;
+  }
+
+  public get walkable(): boolean {
+    return this.data.walkable == null
+      ? this._itemDef.walkable
+      : this.data.walkable;
   }
 
   /**

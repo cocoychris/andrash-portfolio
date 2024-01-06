@@ -1,51 +1,45 @@
 import { IIndexable, applyDefault, cloneObject } from "./util";
 
-interface IStringFieldDef {
-  type: "string";
+interface IFieldDefBase {
+  type: string;
   inputType?: string;
   acceptNull?: boolean;
   acceptUndefined?: boolean;
-  valueList?: Array<string | null>;
+  valueList?: Array<any>;
   editable?: boolean;
+  validator?: (value: any) => string | void;
+}
+
+interface IStringFieldDef extends IFieldDefBase {
+  type: "string";
+  valueList?: Array<string | null>;
   regExp?: RegExp;
   minLength?: number;
   maxLength?: number;
 }
-interface INumberFieldDef {
+interface INumberFieldDef extends IFieldDefBase {
   type: "number";
-  inputType?: string;
-  acceptNull?: boolean;
-  acceptUndefined?: boolean;
   valueList?: Array<number | null>;
   maxNum?: number;
   minNum?: number;
-  editable?: boolean;
 }
-interface IBooleanFieldDef {
+interface IBooleanFieldDef extends IFieldDefBase {
   type: "boolean";
-  inputType?: string;
-  acceptNull?: boolean;
-  acceptUndefined?: boolean;
   valueList?: Array<boolean | null>;
-  editable?: boolean;
 }
-interface IObjectFieldDef {
+interface IObjectFieldDef extends IFieldDefBase {
   type: "object";
-  inputType?: string;
-  acceptNull?: boolean;
-  acceptUndefined?: boolean;
   valueList?: Array<object | null>;
   children?: { [key: string]: IFieldDef };
-  editable?: boolean;
+  childDef?: FieldDef<any>;
 }
-interface IArrayFieldDef {
+interface IArrayFieldDef extends IFieldDefBase {
   type: "array";
-  inputType?: string;
-  acceptNull?: boolean;
-  acceptUndefined?: boolean;
   valueList?: Array<Array<any> | null>;
   children?: Array<IFieldDef>;
-  editable?: boolean;
+  childDef?: FieldDef<any>;
+  minLength?: number;
+  maxLength?: number;
 }
 
 export type IFieldDefType =
@@ -94,7 +88,7 @@ export default class FieldDef<T> {
     valueList: undefined,
     maxNum: undefined,
     minNum: undefined,
-    minLength: 1,
+    minLength: undefined,
     maxLength: undefined,
     children: undefined,
     editable: true,
@@ -205,14 +199,15 @@ export default class FieldDef<T> {
 
   constructor(
     fieldDef: IFieldDef,
-    fallbackValue?: T,
+    fallbackValue?: T | undefined,
     name: string = "root",
     basePath: string = ""
   ) {
     this._checkFieldDef(fieldDef);
     this.name = name;
     this.basePath = basePath;
-    this.path = basePath + (basePath ? "." : "") + name;
+    this.path =
+      basePath + (basePath && !name.startsWith("[") ? "." : "") + name;
     this._fieldDef = applyDefault(
       cloneObject(fieldDef),
       FieldDef.DEFAULT_FIELD_DEF
@@ -314,9 +309,7 @@ export default class FieldDef<T> {
         isValid: false,
         path: this.path,
         errorType: "parseString",
-        message: `${(error as Error).message || String(error)} at ${
-          this.path
-        }}`,
+        message: `${(error as Error).message || String(error)} at ${this.path}`,
         value: value,
       };
       return errorResult;
@@ -435,6 +428,13 @@ export default class FieldDef<T> {
         errorResult.message = "Value cannot be undefined";
         return errorResult;
       }
+      // Custom validator
+      let message = this._fieldDef.validator && this._fieldDef.validator(value);
+      if (message) {
+        errorResult.errorType = "validator";
+        errorResult.message = message;
+        return errorResult;
+      }
       return;
     }
     // Check null
@@ -442,6 +442,13 @@ export default class FieldDef<T> {
       if (!this._fieldDef.acceptNull) {
         errorResult.errorType = "null";
         errorResult.message = "Value cannot be null";
+        return errorResult;
+      }
+      // Custom validator
+      let message = this._fieldDef.validator && this._fieldDef.validator(value);
+      if (message) {
+        errorResult.errorType = "validator";
+        errorResult.message = message;
         return errorResult;
       }
       return;
@@ -490,6 +497,13 @@ export default class FieldDef<T> {
         errorResult.message = `Value cannot be less than ${this._fieldDef.minNum}`;
         return errorResult;
       }
+      // Custom validator
+      let message = this._fieldDef.validator && this._fieldDef.validator(value);
+      if (message) {
+        errorResult.errorType = "validator";
+        errorResult.message = message;
+        return errorResult;
+      }
       return;
     }
     // Check string
@@ -518,36 +532,112 @@ export default class FieldDef<T> {
         errorResult.message = `Value must match ${this._fieldDef.regExp}`;
         return errorResult;
       }
+      // Custom validator
+      let message = this._fieldDef.validator && this._fieldDef.validator(value);
+      if (message) {
+        errorResult.errorType = "validator";
+        errorResult.message = message;
+        return errorResult;
+      }
       return;
     }
-    // Check children
+    // Check object and array
     if (typeof value === "object") {
       if (this._fieldDef.type === "object") {
-        if (!this._objectChildren) {
-          return;
+        // Custom validator
+        let message =
+          this._fieldDef.validator && this._fieldDef.validator(value);
+        if (message) {
+          errorResult.errorType = "validator";
+          errorResult.message = message;
+          return errorResult;
         }
-        let keys = Object.keys(this._objectChildren);
-        for (let i = 0; i < keys.length; i++) {
-          let key = keys[i];
-          let childDef = this._objectChildren[key] as FieldDef<any>;
-          let childValue = value[key];
-          let childErrorResult = childDef._validate(childValue);
-          if (childErrorResult) {
-            return childErrorResult;
+        // Check object children
+        if (this._objectChildren) {
+          let keys = Object.keys(this._objectChildren);
+          for (let i = 0; i < keys.length; i++) {
+            let key = keys[i];
+            let childDef = this._objectChildren[key] as FieldDef<any>;
+            let childValue = value[key];
+            let childErrorResult = childDef._validate(childValue);
+            if (childErrorResult) {
+              return childErrorResult;
+            }
+          }
+        }
+        // Check each child
+        if (this._fieldDef.childDef) {
+          const templateDef = this._fieldDef.childDef;
+          let keys = Object.keys(value);
+          for (let i = 0; i < keys.length; i++) {
+            let key = keys[i];
+            let childDef = new FieldDef<any>(
+              templateDef._fieldDef,
+              templateDef._fallbackValue,
+              key,
+              this.path
+            );
+            let childValue = value[key];
+            let childErrorResult = childDef._validate(childValue);
+            if (childErrorResult) {
+              return childErrorResult;
+            }
           }
         }
         return;
       }
       if (this._fieldDef.type === "array") {
-        if (!this._arrayChildren) {
-          return;
+        // Check array length
+        if (
+          this._fieldDef.maxLength !== undefined &&
+          value.length > this._fieldDef.maxLength
+        ) {
+          errorResult.errorType = "maxLength";
+          errorResult.message = `Array cannot be longer than ${this._fieldDef.maxLength}`;
+          return errorResult;
         }
-        for (let i = 0; i < this._arrayChildren.length; i++) {
-          let childDef = this._arrayChildren[i];
-          let childValue = value[i];
-          let childErrorResult = childDef._validate(childValue);
-          if (childErrorResult) {
-            return childErrorResult;
+        if (
+          this._fieldDef.minLength !== undefined &&
+          value.length < this._fieldDef.minLength
+        ) {
+          errorResult.errorType = "minLength";
+          errorResult.message = `Array cannot be shorter than ${this._fieldDef.minLength}`;
+          return errorResult;
+        }
+        // Custom validator
+        let message =
+          this._fieldDef.validator && this._fieldDef.validator(value);
+        if (message) {
+          errorResult.errorType = "validator";
+          errorResult.message = message;
+          return errorResult;
+        }
+        // Check array children
+        if (this._arrayChildren) {
+          for (let i = 0; i < this._arrayChildren.length; i++) {
+            let childDef = this._arrayChildren[i];
+            let childValue = value[i];
+            let childErrorResult = childDef._validate(childValue);
+            if (childErrorResult) {
+              return childErrorResult;
+            }
+          }
+        }
+        // Check each child
+        if (this._fieldDef.childDef) {
+          const templateDef = this._fieldDef.childDef;
+          for (let i = 0; i < value.length; i++) {
+            let childDef = new FieldDef<any>(
+              templateDef._fieldDef,
+              templateDef._fallbackValue,
+              `[${i}]`,
+              this.path
+            );
+            let childValue = value[i];
+            let childErrorResult = childDef._validate(childValue);
+            if (childErrorResult) {
+              return childErrorResult;
+            }
           }
         }
         return;

@@ -1,21 +1,78 @@
 {
-  "star": {
+  "nodejsCrystal": {
+    "walkable": true,
     "collectable": true,
     "page": null,
     "inFront": false,
     "frames": {
       "default": {
-        "svgName": "icons/star-svgrepo-com"
+        "svgName": "items/nodejsCrystal.svg"
       }
     }
   },
-  "reactIcon": {
+  "reactCrystal": {
+    "walkable": true,
     "collectable": true,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "svgName": "items/reactCrystal.svg"
+      }
+    }
+  },
+  "tsCrystal": {
+    "walkable": true,
+    "collectable": true,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "svgName": "items/tsCrystal.svg"
+      }
+    }
+  },
+  "ferrisWheel": {
+    "walkable": true,
+    "collectable": false,
     "page": null,
     "inFront": true,
     "frames": {
       "default": {
-        "svgName": "icons/react"
+        "svgName": "items/ferrisWheel.svg"
+      }
+    }
+  },
+  "magentaCrystal": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "svgName": "items/magentaCrystal.svg"
+      }
+    }
+  },
+  "fingerRight": {
+    "walkable": false,
+    "collectable": false,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "imageName": "items/fingerRight.png"
+      }
+    }
+  },
+  "fingerUp": {
+    "walkable": false,
+    "collectable": false,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "imageName": "items/fingerUp.png"
       }
     }
   }

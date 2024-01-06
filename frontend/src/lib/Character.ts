@@ -1,4 +1,3 @@
-import { ICharacterDef } from "./data/DefPack";
 import CharacterGroup from "./CharacterGroup";
 import Game, { IActionPhase, IResetPhase } from "./Game";
 import Position, { IPosition } from "./Position";
@@ -11,6 +10,7 @@ import Tile from "./Tile";
 import Item from "./Item";
 import FieldDef from "./data/FieldDef";
 import { ISpriteFrameDef } from "./data/DefPack";
+import { ICharacterDef } from "./data/CharacterDefPack";
 
 export interface IRepositionEvent extends IEventType {
   type: "reposition";

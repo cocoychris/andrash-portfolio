@@ -3,16 +3,16 @@
     "isNPC": false,
     "frames": {
       "default": {
-        "svgName": "pacMan_standing"
+        "svgName": "characters/pacMan_standing.svg"
       },
       "searching": {
-        "svgName": "pacMan_searching"
+        "svgName": "characters/pacMan_searching.svg"
       },
       "chasing": {
-        "svgName": "pacMan_chasing"
+        "svgName": "characters/pacMan_chasing.svg"
       },
       "arrived": {
-        "svgName": "pacMan_arrived"
+        "svgName": "characters/pacMan_arrived.svg"
       }
     }
   },
@@ -20,16 +20,16 @@
     "isNPC": false,
     "frames": {
       "default": {
-        "svgName": "ghost_standing"
+        "svgName": "characters/ghost_standing.svg"
       },
       "searching": {
-        "svgName": "ghost_searching"
+        "svgName": "characters/ghost_searching.svg"
       },
       "chasing": {
-        "svgName": "ghost_chasing"
+        "svgName": "characters/ghost_chasing.svg"
       },
       "arrived": {
-        "svgName": "ghost_arrived"
+        "svgName": "characters/ghost_arrived.svg"
       }
     }
   }

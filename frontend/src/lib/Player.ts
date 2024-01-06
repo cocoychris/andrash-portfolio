@@ -179,7 +179,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
    */
   constructor(group: PlayerGroup, id: number, data: IPlayerData) {
     data = applyDefault(data, {
-      name: (data.name = "Player " + id),
+      name: "Player " + id,
       color: "#999999",
       target: null,
       isOccupied: false,
@@ -188,7 +188,7 @@ export default class Player extends Member<PlayerGroup, IPlayerData> {
 
     this.onUpdate<IResetPhase>("reset", () => {
       this.setData({
-        name: (data.name = "Player " + id),
+        name: "Player " + id,
         target: null,
         isOccupied: false,
       });
