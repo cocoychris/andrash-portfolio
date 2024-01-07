@@ -1,7 +1,7 @@
 /*
  * Game View - Basic settings
  */
-*/ .gameView {
+.gameView {
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
