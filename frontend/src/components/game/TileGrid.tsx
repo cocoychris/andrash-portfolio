@@ -169,6 +169,7 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
               style={{ overflow: "hidden" }}
               ref={this._gridRef}
               onUpdate={() => {
+                this._tileDisplayMap.clear();
                 this._setPosition(this._position);
               }}
             >
