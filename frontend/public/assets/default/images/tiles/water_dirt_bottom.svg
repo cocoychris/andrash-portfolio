@@ -23,15 +23,15 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.315"
-     inkscape:cx="134.22053"
-     inkscape:cy="-9.5057034"
+     inkscape:zoom="0.46492271"
+     inkscape:cx="161.31714"
+     inkscape:cy="-261.33376"
      inkscape:window-width="2304"
      inkscape:window-height="1202"
      inkscape:window-x="-11"
      inkscape:window-y="-11"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g2"
+     inkscape:current-layer="layer2"
      showguides="true">
     <sodipodi:guide
        position="300.00001,900.00003"
@@ -112,8 +112,20 @@
        x="0"
        y="0"
        xlink:href="#wave_bright"
+       id="use1-5-1"
+       transform="translate(473.11637,601.75991)">
+      <animate
+         attributeName="opacity"
+         values="0;1;0;0;1;1;0"
+         dur="3s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
        id="use1-8-6"
-       transform="matrix(1.5,0,0,1.5,480.06015,627.7869)">
+       transform="translate(396.35731,655.43314)">
       <animate
          attributeName="opacity"
          values="1;0;0;1;1;1;0;0;1"
@@ -123,9 +135,69 @@
     <use
        x="0"
        y="0"
+       xlink:href="#wave_bright"
+       id="use1-8-7-8"
+       transform="matrix(1.1540504,0,0,1.1540504,606.30736,703.55729)">
+      <animate
+         attributeName="opacity"
+         values="0;0;1;1;0;0;0"
+         dur="3s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-1-57"
+       transform="translate(511.4532,647.05808)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;1;0;0;0"
+         dur="3.1s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-3"
+       transform="matrix(0.83518234,0,0,0.83518234,603.81447,593.01902)">
+      <animate
+         attributeName="opacity"
+         values="1;1;0;0;1"
+         dur="3.1s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
+       id="use1-3-2-12-2"
+       transform="matrix(0.66435644,0,0,0.66435644,511.3744,645.68702)">
+      <animate
+         attributeName="opacity"
+         values="1;0;0;0;0;1;1"
+         dur="2.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-6-9-1"
+       transform="matrix(0.67036468,0,0,0.67036468,451.71472,701.22242)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;0;0;0;1;1;0"
+         dur="3.6s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
        xlink:href="#wave_dark"
        id="use2-2-6-3-77"
-       transform="matrix(1.005547,0,0,1.005547,553.41043,650.66479)">
+       transform="matrix(0.67036468,0,0,0.67036468,367.9929,674.4463)">
       <animate
          attributeName="opacity"
          values="0;1;1;0;0;1;1;0;0"
@@ -138,8 +210,7 @@
      id="layer1-4"
      inkscape:label="BG_dirt"
      style="display:inline"
-     transform="scale(3)"
-     sodipodi:insensitive="true">
+     transform="scale(3)">
     <g
        id="g36-5"
        style="fill:#c59a57;fill-opacity:0.4">

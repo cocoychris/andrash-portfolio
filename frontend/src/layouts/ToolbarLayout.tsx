@@ -63,7 +63,6 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   constructor(props: IProps) {
-    console.log("ToolbarLayout.constructor");
     super(props);
     if (!props.gameClient.editor) {
       throw new Error("ToolbarLayout requires an editor");
@@ -79,7 +78,6 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   public componentDidMount(): void {
-    console.log("ToolbarLayout.componentDidMount");
     this._editor.on<IDidLoadGameEvent>("didLoadGame", this._onDidLoadGame);
     this._editor.on<IWillUnloadGameEvent>(
       "willUnloadGame",
@@ -90,7 +88,6 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   public componentWillUnmount(): void {
-    console.log("ToolbarLayout.componentWillUnmount");
     this._editor.off<IDidLoadGameEvent>("didLoadGame", this._onDidLoadGame);
     this._editor.off<IWillUnloadGameEvent>(
       "willUnloadGame",
@@ -101,7 +98,6 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   private _onWillUnloadGame(event: AnyEvent<IWillUnloadGameEvent>) {
-    console.log("ToolbarLayout._onWillUnloadGame");
     if (!this._game || this._game.isDestroyed) {
       return;
     }
@@ -116,7 +112,6 @@ export default class ToolbarLayout extends Component<IProps> {
     // this.forceUpdate();
   }
   private _onDidLoadGame() {
-    console.log("ToolbarLayout._onDidLoadGame");
     // Handle new game
     this._game = this._editor.game;
     if (this._game) {
@@ -129,7 +124,6 @@ export default class ToolbarLayout extends Component<IProps> {
     this.forceUpdate();
   }
   private _onTileSelect(event: AnyEvent<ITileSelectEvent>) {
-    console.log("ToolbarLayout._onTileSelect");
     if (event.data.prevTile) {
       event.data.prevTile.off<IDidApplyEvent>("didApply", this._onObjectApply);
       event.data.prevTile.characters.forEach((character: Character) => {
@@ -196,12 +190,10 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   private _onObjectApply() {
-    console.log("ToolbarLayout._onObjectApply");
     this.forceUpdate();
   }
 
   private _onToolChange() {
-    console.log("ToolbarLayout._onToolChange", this._editor.selectedTile);
     if (this._editor.toolType) {
       this._navbarRef.current?.select(this._editor.toolType);
     } else {
@@ -211,7 +203,6 @@ export default class ToolbarLayout extends Component<IProps> {
   }
 
   render(): ReactNode {
-    console.log("ToolbarLayout.render");
     const { gameClient } = this.props;
     let nevbarData: Array<INavItemData> = [
       {
@@ -302,6 +293,7 @@ export default class ToolbarLayout extends Component<IProps> {
       {
         id: "EditorMenu",
         icon: "🔧",
+        // icon: "☰",
         menuData: getEditorMenu(gameClient, this._popupRef),
       },
     ];

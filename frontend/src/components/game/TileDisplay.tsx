@@ -1,5 +1,4 @@
 import SVGDisplay from "./SVGDisplay";
-import { GridChildComponentProps } from "react-window";
 import React, { CSSProperties, ReactNode } from "react";
 import Game from "../../lib/Game";
 import Player from "../../lib/Player";
@@ -8,8 +7,12 @@ import Tile from "../../lib/Tile";
 import TileManager from "../../lib/TileManager";
 import { SYS_OBJ_KEY } from "../../lib/data/SysObjDefPack";
 import Item from "../../lib/Item";
+import { IGridCellProps } from "./TileGrid";
 
-interface IGridChildProps extends GridChildComponentProps {
+export interface IChildProps extends IGridCellProps {
+  style: React.CSSProperties;
+  columnIndex: number;
+  rowIndex: number;
   game: Game;
   cellSize: number;
 }
@@ -19,7 +22,7 @@ interface IStandaloneProps {
   style: React.CSSProperties;
 }
 
-export type ITileDisplayProps = IGridChildProps | IStandaloneProps;
+export type ITileDisplayProps = IChildProps | IStandaloneProps;
 
 const DEFAULT_CLASS_NAME = "tile";
 const Z_INDEX_SYS_OBJ_BACK = 0;
@@ -37,7 +40,7 @@ export default class TileDisplay extends React.Component<ITileDisplayProps> {
   }
 
   public render() {
-    const gridChildProps = this.props as IGridChildProps;
+    const gridChildProps = this.props as IChildProps;
     const standaloneProps = this.props as IStandaloneProps;
     const isStandalone = !gridChildProps.game;
     const col =
@@ -199,6 +202,7 @@ function ItemDisplay(props: { item: Item; game: Game; row: number }) {
         <img
           src={game.assetPack.getImageURL(item.frameDef.imageName)}
           alt={item.frameDef.imageName}
+          draggable={false}
         />
       </div>
     );
@@ -218,7 +222,7 @@ function ItemDisplay(props: { item: Item; game: Game; row: number }) {
   return null;
 }
 
-function TextDisplay(props: { tile: Tile; gridChildProps: IGridChildProps }) {
+function TextDisplay(props: { tile: Tile; gridChildProps: IChildProps }) {
   const { tile, gridChildProps } = props;
   if (!tile.displayText.text) {
     return null;

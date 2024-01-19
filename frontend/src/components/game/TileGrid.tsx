@@ -1,9 +1,9 @@
-import {
-  FixedSizeGrid,
-  FixedSizeGridProps,
-  GridChildComponentProps,
-} from "react-window";
-import React, { ReactElement, ReactNode, RefObject } from "react";
+import React, {
+  CSSProperties,
+  ReactElement,
+  ReactNode,
+  RefObject,
+} from "react";
 import Position, { IPosition } from "../../lib/Position";
 import { Easing, Tween } from "@tweenjs/tween.js";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -59,10 +59,10 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
   private _mapSize: IPosition = { col: 0, row: 0 };
   private _tween: Tween<IPosition> | null = null;
   private _refDict: Map<string, React.RefObject<TileDisplay>> = new Map();
-  private _containerRef: RefObject<AutoSizer> = React.createRef<AutoSizer>();
   private _mouseDown: boolean = false;
   private _paddingCellCount: number;
   private _tileDisplayMap: Map<string, ReactElement> = new Map();
+  private _isResizing: boolean = false;
 
   private get _grid(): Grid | null {
     if (!this._gridRef.current) {
@@ -111,7 +111,6 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
 
   constructor(props: ITileGridProps) {
     super(props);
-    // this._mapSize = props.mapSize;
     let tileManager = props.game.tileManager;
     this._mapSize = { col: tileManager.colCount, row: tileManager.rowCount };
     this._position = props.initPosition || { col: 0, row: 0 };
@@ -145,11 +144,11 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
       <AutoSizer
         className={this.props.className}
         onClick={this._onClick}
-        // onMouseDown={this._onMouseDown}
         onPointerDown={this._onMouseDown}
-        ref={this._containerRef}
       >
         {({ width, height }: { width: number; height: number }) => {
+          this._isResizing = true;
+          this._tileDisplayMap.clear();
           this._width = width;
           this._height = height;
           this._cellSize = Math.ceil(
@@ -166,11 +165,12 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
               columnWidth={this._cellSize}
               height={this._height}
               width={this._width}
-              style={{ overflow: "hidden" }}
               ref={this._gridRef}
               onUpdate={() => {
-                this._tileDisplayMap.clear();
-                this._setPosition(this._position);
+                if (this._isResizing) {
+                  this._isResizing = false;
+                  this._setPosition(this._position);
+                }
               }}
             >
               {this._renderTile}
@@ -180,7 +180,8 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
       </AutoSizer>
     );
   }
-  private _renderTile(props: GridChildComponentProps) {
+  private _renderTile(props: IGridCellProps) {
+    // console.log("TileGrid._renderTile()", props.columnIndex, props.rowIndex);
     props = {
       ...props,
       rowIndex: props.rowIndex - this._paddingCellCount,
@@ -211,6 +212,9 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
    */
   public ease(position: IPosition, duration: number = 500, delay: number = 0) {
     this.cancel();
+    //Prerender
+    this._setPosition(this._position, true);
+    //Easing
     let target = this._correctPosition(position);
     requestAnimationFrame(() => {
       this._tween = new Tween(this._position)
@@ -218,8 +222,7 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
         .delay(delay)
         .easing(Easing.Quadratic.InOut)
         .onUpdate((position) => {
-          // console.log("ease");
-          this._setPosition(position);
+          this._setPosition(position, false);
         })
         .onStop((position) => {
           this._tween = null;
@@ -279,7 +282,6 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
       }
     }
   }
-  // private _onMouseUp(event: React.MouseEvent<any, MouseEvent>) {
   private _onMouseUp(event: MouseEvent) {
     window.removeEventListener("pointerup", this._onMouseUp);
     window.removeEventListener("pointermove", this._onMouseMove);
@@ -348,13 +350,10 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
     });
   }
 
-  private _setPosition(value: IPosition) {
+  private _setPosition(value: IPosition, prerender: boolean = true) {
     this._position = this._correctPosition(value);
     let scroll = this._toScroll(this._position);
-    this._grid?.scrollTo({
-      scrollLeft: scroll.left,
-      scrollTop: scroll.top,
-    });
+    this._grid?.scrollTo(scroll.left, scroll.top, prerender);
   }
   private _correctPosition(position: IPosition): IPosition {
     let minPosition = {
@@ -395,31 +394,188 @@ export default class TileGrid extends React.Component<ITileGridProps, IState> {
   }
 }
 
-interface IGridProps extends FixedSizeGridProps {
+interface IGridProps {
+  initialScrollTop: number;
+  initialScrollLeft: number;
+  rowCount: number;
+  columnCount: number;
+  rowHeight: number;
+  columnWidth: number;
+  height: number;
+  width: number;
   onUpdate?: Function;
+  children: (props: IGridCellProps) => ReactElement;
 }
+export interface IGridCellProps {
+  style: React.CSSProperties;
+  columnIndex: number;
+  rowIndex: number;
+}
+
 class Grid extends React.Component<IGridProps> {
+  private readonly PRERENDER_CELL_COUNT: number = 1;
+
   private _onUpdate?: Function;
-  private _gridRef: RefObject<FixedSizeGrid> = React.createRef<FixedSizeGrid>();
+  private _divRef: RefObject<HTMLDivElement> =
+    React.createRef<HTMLDivElement>();
+  private _scrollLeft: number = 0;
+  private _scrollTop: number = 0;
+  private _willRenderRect: AreaRect | null = null;
+  private _didRenderRect: AreaRect | null = null;
+
   constructor(props: IGridProps) {
     super(props);
+    // console.log("Grid.constructor()", props);
     this._onUpdate = props.onUpdate;
+    this._scrollLeft = props.initialScrollLeft;
+    this._scrollTop = props.initialScrollTop;
   }
-  public scrollTo(params: {
-    scrollLeft?: number | undefined;
-    scrollTop?: number | undefined;
-  }): void {
-    this._gridRef.current?.scrollTo(params);
+
+  public scrollTo(
+    scrollLeft: number,
+    scrollTop: number,
+    prerender: boolean = true
+  ): void {
+    // console.log("Grid.scrollTo()");
+    scrollLeft = Math.round(scrollLeft);
+    scrollTop = Math.round(scrollTop);
+    this._scrollLeft = scrollLeft;
+    this._scrollTop = scrollTop;
+    const renderRect = this._getRenderRect(scrollLeft, scrollTop, 0);
+    const prerenderRect = this._getRenderRect(
+      scrollLeft,
+      scrollTop,
+      this.PRERENDER_CELL_COUNT
+    );
+    // Check if a new render is needed
+    if (
+      !this._didRenderRect ||
+      !this._didRenderRect.contains(prerender ? prerenderRect : renderRect)
+    ) {
+      this._willRenderRect = prerenderRect;
+      this.forceUpdate();
+      return;
+    }
+    // No need to render, just scroll
+    this._divRef.current!.scrollLeft = this._scrollLeft;
+    this._divRef.current!.scrollTop = this._scrollTop;
   }
+
   public componentDidMount(): void {
-    // This will help TileGrid update its initial position. The init position need to be corrected as it may be out of bound.
+    // console.log(
+    //   "Grid.componentDidMount()",
+    //   this.props.initialScrollLeft,
+    //   this.props.initialScrollTop
+    // );
+
+    this._divRef.current!.scrollLeft = this._scrollLeft;
+    this._divRef.current!.scrollTop = this._scrollTop;
+    // This is necessary for the first scroll correction - editor view need this!
     this._onUpdate && this._onUpdate();
   }
   public componentDidUpdate(): void {
+    // console.log("Grid.componentDidUpdate()");
+
+    this._divRef.current!.scrollLeft = this._scrollLeft;
+    this._divRef.current!.scrollTop = this._scrollTop;
     // This will help TileGrid update its position every time when the grid size changes along with the window size.
     this._onUpdate && this._onUpdate();
   }
+
+  private _getRenderRect(
+    scrollLeft: number,
+    scrollTop: number,
+    prerenderCellCount: number
+  ): AreaRect {
+    const startCol =
+      Math.floor(scrollLeft / this.props.columnWidth) - prerenderCellCount;
+    const startRow =
+      Math.floor(scrollTop / this.props.rowHeight) - prerenderCellCount;
+    const endCol =
+      Math.ceil((scrollLeft + this.props.width) / this.props.columnWidth) +
+      prerenderCellCount;
+    const endRow =
+      Math.ceil((scrollTop + this.props.height) / this.props.rowHeight) +
+      prerenderCellCount;
+    return new AreaRect(startCol, startRow, endCol, endRow);
+  }
+
   public render() {
-    return <FixedSizeGrid {...this.props} ref={this._gridRef} />;
+    // console.log("Grid.render()", this.props.columnWidth, this.props.rowHeight);
+    const contentWidth = this.props.columnCount * this.props.columnWidth;
+    const contentHeight = this.props.rowCount * this.props.rowHeight;
+    this._didRenderRect =
+      this._willRenderRect ||
+      this._getRenderRect(
+        this._scrollLeft,
+        this._scrollTop,
+        this.PRERENDER_CELL_COUNT
+      );
+    const { startCol, startRow, endCol, endRow } = this._didRenderRect;
+    this._willRenderRect = null;
+    const cellList: ReactNode[] = [];
+    for (let col = startCol; col < endCol; col++) {
+      for (let row = startRow; row < endRow; row++) {
+        const style: CSSProperties = {
+          position: "absolute",
+          left: col * this.props.columnWidth,
+          top: row * this.props.rowHeight,
+          width: this.props.columnWidth,
+          height: this.props.rowHeight,
+        };
+        const Cell = this.props.children;
+        cellList.push(
+          <Cell
+            key={`${col},${row}`}
+            style={style}
+            columnIndex={col}
+            rowIndex={row}
+          />
+        );
+      }
+    }
+    return (
+      <div
+        ref={this._divRef}
+        style={{
+          width: this.props.width,
+          height: this.props.height,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: contentWidth,
+            height: contentHeight,
+          }}
+        >
+          {cellList}
+        </div>
+      </div>
+    );
+  }
+}
+
+class AreaRect {
+  constructor(
+    public startCol: number,
+    public startRow: number,
+    public endCol: number,
+    public endRow: number
+  ) {}
+  public get width() {
+    return this.endCol - this.startCol;
+  }
+  public get height() {
+    return this.endRow - this.startRow;
+  }
+  public contains(rect: AreaRect): boolean {
+    return (
+      this.startCol <= rect.startCol &&
+      this.startRow <= rect.startRow &&
+      this.endCol >= rect.endCol &&
+      this.endRow >= rect.endRow
+    );
   }
 }

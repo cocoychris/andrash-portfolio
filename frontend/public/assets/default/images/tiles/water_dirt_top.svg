@@ -23,9 +23,9 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.575"
-     inkscape:cx="169.84127"
-     inkscape:cy="131.74603"
+     inkscape:zoom="0.92984542"
+     inkscape:cx="254.88108"
+     inkscape:cy="113.45972"
      inkscape:window-width="2304"
      inkscape:window-height="1202"
      inkscape:window-x="-11"
@@ -113,7 +113,7 @@
        y="0"
        xlink:href="#wave_bright"
        id="use1-81"
-       transform="matrix(1.5,0,0,1.5,603.18229,228.78035)">
+       transform="translate(605.89872,191.07144)">
       <animate
          attributeName="opacity"
          values="0;0;1;1;0;1;0"
@@ -124,8 +124,20 @@
        x="0"
        y="0"
        xlink:href="#wave_bright"
+       id="use1-8-7-6"
+       transform="matrix(1.1540504,0,0,1.1540504,412.45185,253.15046)">
+      <animate
+         attributeName="opacity"
+         values="0;0;1;1;0;0;0"
+         dur="3s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
        id="use1-3-6"
-       transform="matrix(1.2527735,0,0,1.2527735,434.12608,207.79296)">
+       transform="matrix(0.83518234,0,0,0.83518234,449.25319,183.53569)">
       <animate
          attributeName="opacity"
          values="0;1;0;0;1;1;0;0"
@@ -136,12 +148,60 @@
        x="0"
        y="0"
        xlink:href="#wave_dark"
+       id="use2-2-0"
+       transform="matrix(0.83518234,0,0,0.83518234,484.39242,253.41445)">
+      <animate
+         attributeName="opacity"
+         values="1;1;0;0;1"
+         dur="3.1s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
+       id="use1-3-2-12-7"
+       transform="matrix(0.66435644,0,0,0.66435644,554.40101,248.31059)">
+      <animate
+         attributeName="opacity"
+         values="1;0;0;0;0;1;1"
+         dur="2.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-6-6"
+       transform="matrix(0.67036468,0,0,0.67036468,470.57765,203.39241)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;1;0;0;1;0"
+         dur="3.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
        id="use2-2-6-9-0"
-       transform="matrix(1.005547,0,0,1.005547,498.94296,243.87827)">
+       transform="matrix(0.67036468,0,0,0.67036468,602.60826,261.96768)">
       <animate
          attributeName="opacity"
          values="0;1;1;0;0;0;1;1;0"
          dur="3.6s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-6-3-79"
+       transform="matrix(0.67036468,0,0,0.67036468,371.20964,182.86454)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;0;0;1;1;0;0"
+         dur="3.5s"
          repeatCount="indefinite" />
     </use>
   </g>

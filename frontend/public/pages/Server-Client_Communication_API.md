@@ -10,6 +10,7 @@ _Design and written by [Andrash Yang](mailto:cocoychris@gmail.com)_
 - The `Transmitter` class is used to facilitate event communication between the client and the server. It acts as a wrapper that transforms a socket.io `Socket` instance into an `AnyEventEmitter` instance. This allows for the definition of custom socket.io events using TypeScript interfaces, which is extremely beneficial for maintaining event consistency between the client and the server.
 - All the Transmitter events described in this document are defined in the `transEventTypes.ts` file.
 - Also see `Transmitter.ts` and `TransEvent.ts`.
+- These files can be found on the [GitHub repository](https://github.com/cocoychris/andrash-portfolio/tree/master/frontend/src/lib/events).
 
 ## All Events
 
@@ -52,10 +53,10 @@ Client will be joined to a room according to the `publicID` provided in the requ
 
 If a client (session) is joined to its own room, it is also the host of the room. In this case, the `isHost` field in the response will be `true`. The host can initiate a new game and stop the game.
 
-| Step | Origin | Type     | Event          | Data                                                 | Description                                                                                               |
-| ---- | ------ | -------- | -------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 1    | Client | emit     | `authenticate` | `sessionID?`, `publicID?`                            | Will create new session if sessionID is not provided. Will join default room if publicID is not provided. |
-| -    | Server | response | -              | `joinRoomWarning`, `sessionID`, `publicID`, `isHost` | Authenticated and joined room.                                                                            |
+| Step | Origin | Type     | Event          | Data                                                | Description                                                                                               |
+| ---- | ------ | -------- | -------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1    | Client | emit     | `authenticate` | `sessionID?`, `publicID?`                           | Will create new session if sessionID is not provided. Will join default room if publicID is not provided. |
+| -    | Server | response | -              | `joinRoomWarning`,`sessionID`, `publicID`, `isHost` | Authenticated and joined room.                                                                            |
 
 ## Loading a Game
 

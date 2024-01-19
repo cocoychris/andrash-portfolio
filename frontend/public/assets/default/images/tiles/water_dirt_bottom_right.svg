@@ -23,15 +23,15 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="2.63"
-     inkscape:cx="64.448669"
-     inkscape:cy="32.129277"
+     inkscape:zoom="0.92984542"
+     inkscape:cx="81.734016"
+     inkscape:cy="-47.857417"
      inkscape:window-width="2304"
      inkscape:window-height="1202"
      inkscape:window-x="-11"
      inkscape:window-y="-11"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g2"
+     inkscape:current-layer="layer2"
      showguides="true">
     <sodipodi:guide
        position="300.00001,900.00003"
@@ -113,11 +113,35 @@
        y="0"
        xlink:href="#wave_bright"
        id="use1-3-2-7"
-       transform="matrix(0.99653466,0,0,0.99653466,693.84723,630.94461)">
+       transform="matrix(0.66435644,0,0,0.66435644,672.46154,639.9313)">
       <animate
          attributeName="opacity"
          values="0;1;1;0;0;0"
          dur="2.4s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
+       id="use1-3-2-12-73"
+       transform="matrix(0.66435644,0,0,0.66435644,686.61775,677.28016)">
+      <animate
+         attributeName="opacity"
+         values="1;0;0;0;0;1;1"
+         dur="2.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-6-14"
+       transform="matrix(0.67036468,0,0,0.67036468,726.53962,587.01599)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;1;0;0;1;0"
+         dur="3.5s"
          repeatCount="indefinite" />
     </use>
   </g>

@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, useState, useEffect, useRef } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { CSSTransition } from "react-transition-group";
 import "./DropdownMenu.css";
 import { applyDefault } from "../lib/data/util";
@@ -40,6 +40,13 @@ interface IDropdownMenuProps {
   onClose: () => void;
 }
 
+/*
+ * This is a versatile dropdown menu component that can be used to create multi-level dropdown menus.
+ * There is no limit to the maximum number of levels.
+ * By passing an array of IDropItemData as `data` in props, a single-level dropdown menu can be created.
+ * To add a sub-menu, simply add a `menuData` property to an IDropItemData object in the array.
+ * To generate sub-menu items dynamically, pass an array of IDropItemDataProvider as `menuData` instead.
+ */
 export default function DropdownMenu(props: IDropdownMenuProps) {
   const { data: menuData, onClose } = props;
   const [currentMenuRoute, setCurrentMenuRoute] = useState<Array<string>>([]);

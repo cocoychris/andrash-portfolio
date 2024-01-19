@@ -43,6 +43,72 @@
       }
     }
   },
+  "letter_n": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_n.png"
+      }
+    }
+  },
+  "letter_d": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_d.png"
+      }
+    }
+  },
+  "letter_r": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_r.png"
+      }
+    }
+  },
+  "letter_a": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_a.png"
+      }
+    }
+  },
+  "letter_s": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_s.png"
+      }
+    }
+  },
+  "letter_h": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/letter_h.png"
+      }
+    }
+  },
   "magentaCrystal": {
     "walkable": true,
     "collectable": false,
@@ -50,7 +116,7 @@
     "inFront": false,
     "frames": {
       "default": {
-        "svgName": "items/magentaCrystal.svg"
+        "svgName": "items/magentaCrystal_lite.svg"
       }
     }
   },
@@ -73,6 +139,28 @@
     "frames": {
       "default": {
         "imageName": "items/fingerUp.png"
+      }
+    }
+  },
+  "trafficConeYellow": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/trafficConeYellow.png"
+      }
+    }
+  },
+  "trafficConeRed": {
+    "walkable": false,
+    "collectable": false,
+    "page": null,
+    "inFront": true,
+    "frames": {
+      "default": {
+        "imageName": "items/trafficConeRed.png"
       }
     }
   }

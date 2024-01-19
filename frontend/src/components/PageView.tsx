@@ -101,16 +101,16 @@ export default class PageView extends Component<IProps, IState> {
     pathName = pathName || window.location.pathname;
     const PAGE_PATH_NAME_REGEX = /^\/page\/(md\/)?(.*)$/;
     let match = pathName.match(PAGE_PATH_NAME_REGEX);
-    if (match) {
-      let pageName = match[2];
-      if (!pageName) {
-        return "";
-      }
-      let isMarkDown = match[1] ? true : false;
-      let page = `${pageName}${isMarkDown ? ".md" : ".html"}`;
-      return page;
+    if (!match) {
+      return "";
     }
-    return "";
+    let pageName = match[2];
+    if (!pageName) {
+      return "";
+    }
+    let isMarkDown = match[1] ? true : false;
+    let page = `${pageName}${isMarkDown ? ".md" : ".html"}`;
+    return page;
   }
 
   private _setPageToLocation(page: string) {
@@ -124,19 +124,57 @@ export default class PageView extends Component<IProps, IState> {
 
   private _onClickLink(event: MouseEvent) {
     let target = event.target as HTMLElement;
-    if (target.tagName !== "A") {
+    let anchorElement: HTMLAnchorElement | null = null;
+    // Find the anchor element from the target or its parent
+    while (target) {
+      if (target.tagName == "A") {
+        anchorElement = target as HTMLAnchorElement;
+        break;
+      }
+      if (!target.parentElement) {
+        break;
+      }
+      target = target.parentElement;
+    }
+    // Not an anchor element
+    if (!anchorElement) {
       return;
     }
-    let href = target.getAttribute("href");
-    if (!href) {
+    // Is an anchor element
+    if (!anchorElement.href) {
       return;
     }
-    let url = new URL(href, window.location.href);
-    if (url.origin !== window.location.origin) {
+    let url = new URL(anchorElement.href, window.location.href);
+    // Is root
+    if (url.pathname == "/") {
       return;
     }
     event.preventDefault();
+    // External link
+    if (url.origin !== window.location.origin) {
+      // Open in new tab
+      window.open(url, "_blank");
+      return;
+    }
+    // Internal link
     let page = this._getPageFromLocation(url.pathname);
+    // Not a page link
+    if (!page) {
+      window.open(url, "_blank");
+      return;
+    }
+    // Same page
+    if (page == this.state.page) {
+      if (url.hash) {
+        let hash = url.hash.replace(/^#/, "");
+        let element = document.getElementById(hash);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+      return;
+    }
+    // Different page
     this.open(page);
   }
 

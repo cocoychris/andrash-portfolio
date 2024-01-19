@@ -44,7 +44,6 @@ export default class EditorView extends React.Component<IProps, IState> {
   public state: Readonly<IState> = {};
 
   constructor(props: IProps) {
-    console.log("EditorView.constructor");
     super(props);
     const { editor } = props;
     this._editor = editor;
@@ -304,7 +303,6 @@ export default class EditorView extends React.Component<IProps, IState> {
     if (!character) {
       return false;
     }
-    console.log("_tool_playerPlacer");
     if (tile.characters.includes(character) && character.isMoving) {
       character.update<IActionPhase>("action");
       character.apply();
@@ -331,11 +329,6 @@ export default class EditorView extends React.Component<IProps, IState> {
     }
     //Select new tile
     let tile = this._game.tileManager.getTile(position);
-    console.log(
-      "_tool_tileSelector",
-      position.toString(),
-      this._tileGrid?.position.toString()
-    );
     if (tile) {
       //Highlight new tile
       tile.isSelected = true;
@@ -445,7 +438,6 @@ export default class EditorView extends React.Component<IProps, IState> {
   }
 
   public render() {
-    console.log("EditorView.render");
     return (
       <TileGrid
         className="gameView editorView"

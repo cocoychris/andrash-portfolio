@@ -23,9 +23,9 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.575"
-     inkscape:cx="30.793651"
-     inkscape:cy="122.22222"
+     inkscape:zoom="0.6575"
+     inkscape:cx="205.32319"
+     inkscape:cy="193.91635"
      inkscape:window-width="2304"
      inkscape:window-height="1202"
      inkscape:window-x="-11"
@@ -105,8 +105,20 @@
        x="0"
        y="0"
        xlink:href="#wave_bright"
+       id="use1-54"
+       transform="translate(733.13066,453.94978)">
+      <animate
+         attributeName="opacity"
+         values="0;0;1;1;0;1;0"
+         dur="2.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
        id="use1-5-3"
-       transform="matrix(1.5,0,0,1.5,741.26036,394.46675)">
+       transform="translate(694.75135,353.79412)">
       <animate
          attributeName="opacity"
          values="0;1;0;0;1;1;0"
@@ -116,9 +128,45 @@
     <use
        x="0"
        y="0"
+       xlink:href="#wave_dark"
+       id="use2-1-5"
+       transform="translate(734.51784,505.35086)">
+      <animate
+         attributeName="opacity"
+         values="0;1;1;1;0;0;0"
+         dur="3.1s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_bright"
+       id="use1-3-1"
+       transform="matrix(0.83518234,0,0,0.83518234,680.64103,580.30755)">
+      <animate
+         attributeName="opacity"
+         values="0;1;0;0;1;1;0;0"
+         dur="3s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-4-1"
+       transform="matrix(0.83518234,0,0,0.83518234,682.05918,463.43551)">
+      <animate
+         attributeName="opacity"
+         values="0;1;0;0;1;1;0"
+         dur="3.2s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
        xlink:href="#wave_bright"
        id="use1-3-2-6-1-5"
-       transform="matrix(0.99653466,0,0,0.99653466,737.43922,513.16755)">
+       transform="matrix(0.66435644,0,0,0.66435644,729.95511,393.67018)">
       <animate
          attributeName="opacity"
          values="1;0;0;0;1;1"
@@ -130,7 +178,7 @@
        y="0"
        xlink:href="#wave_dark"
        id="use2-2-6-9-4"
-       transform="matrix(1.005547,0,0,1.005547,695.53386,531.29237)">
+       transform="matrix(0.67036468,0,0,0.67036468,674.25084,391.19581)">
       <animate
          attributeName="opacity"
          values="0;1;1;0;0;0;1;1;0"
@@ -142,7 +190,7 @@
        y="0"
        xlink:href="#wave_dark"
        id="use2-2-6-3-7"
-       transform="matrix(1.005547,0,0,1.005547,732.06238,277.3302)">
+       transform="matrix(0.67036468,0,0,0.67036468,734.29329,285.86454)">
       <animate
          attributeName="opacity"
          values="0;1;1;0;0;1;1;0;0"

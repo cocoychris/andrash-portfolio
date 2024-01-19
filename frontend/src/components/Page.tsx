@@ -1,7 +1,11 @@
-import React, { Component, ReactNode } from "react";
-import Markdown from "react-markdown";
+import React, { Component, LegacyRef, ReactNode } from "react";
+import Markdown, { ExtraProps } from "react-markdown";
 import parse, { DOMNode } from "html-react-parser";
-import { HTMLReactParserOptions, Element } from "html-react-parser";
+import remarkGfm from "remark-gfm";
+import { Element } from "html-react-parser";
+import { ReactSVG } from "react-svg";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { nord as highlightStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // Prevent rendering of <html> tag
 const REPLACE_TAGS: Set<string> = new Set(["html", "head", "body"]);
@@ -129,7 +133,62 @@ export default class Page extends Component<IProps, IState> {
           </div>
         )}
         {this.state.status === "loaded" && this._isMarkDown && (
-          <Markdown className="content markdown">{this._content}</Markdown>
+          <Markdown
+            className="content markdown"
+            remarkPlugins={[remarkGfm]}
+            components={{
+              img: (props) => {
+                props = addImageProps(props);
+                if (props.src?.endsWith(".svg")) {
+                  return (
+                    <ReactSVG
+                      src={props.src}
+                      width={props.width}
+                      height={props.height}
+                      style={props.style}
+                      wrapper="span"
+                    />
+                  );
+                }
+                return <img {...props} />;
+              },
+              h1: (props) => <h1 {...addIDToProps(props)} />,
+              h2: (props) => <h2 {...addIDToProps(props)} />,
+              h3: (props) => <h3 {...addIDToProps(props)} />,
+              h4: (props) => <h4 {...addIDToProps(props)} />,
+              table: (props) => {
+                let { node, ...rest } = props;
+                return (
+                  <div className="tableWrapper">
+                    <table {...rest} />
+                  </div>
+                );
+              },
+              code(props) {
+                const { children, className, node, ref, ...rest } = props;
+                const match = /language-(\w+)/.exec(className || "");
+                if (!match) {
+                  return (
+                    <code {...rest} className={className}>
+                      {children}
+                    </code>
+                  );
+                }
+                return (
+                  <SyntaxHighlighter
+                    {...rest}
+                    ref={ref as any}
+                    PreTag="div"
+                    children={String(children).replace(/\n$/, "")}
+                    language={match[1]}
+                    style={highlightStyle}
+                  />
+                );
+              },
+            }}
+          >
+            {this._content}
+          </Markdown>
         )}
         {this.state.status === "loaded" && !this._isMarkDown && (
           <div className="content webPage">
@@ -141,4 +200,54 @@ export default class Page extends Component<IProps, IState> {
       </div>
     );
   }
+}
+
+function addIDToProps(
+  props: React.ClassAttributes<HTMLHeadingElement> &
+    React.HTMLAttributes<HTMLHeadingElement> &
+    ExtraProps
+) {
+  const { node, ...rest } = props;
+  props = rest;
+  if (!props.children) {
+    return props;
+  }
+  // Remove invalid characters
+  props.id = props.children
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/ /g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  return props;
+}
+
+function addImageProps(
+  props: React.ImgHTMLAttributes<HTMLImageElement> & ExtraProps
+) {
+  const { node, ...rest } = props;
+  props = rest;
+  if (!props.src) {
+    return props;
+  }
+  let url = new URL(props.src, window.location.href);
+  let width = url.searchParams.get("width");
+  let height = url.searchParams.get("height");
+  let borderRadius = url.searchParams.get("borderRadius");
+  let shadowRadius = url.searchParams.get("shadowRadius");
+  let shadowAlpha = url.searchParams.get("shadowAlpha");
+  if (width) {
+    props.width = width;
+  }
+  if (height) {
+    props.height = height;
+  }
+  props.style = {
+    ...props.style,
+    borderRadius: borderRadius || undefined,
+    boxShadow: shadowRadius
+      ? `0 0 ${shadowRadius} rgba(0, 0, 0, ${shadowAlpha || 0.5})`
+      : undefined,
+  };
+  return props;
 }

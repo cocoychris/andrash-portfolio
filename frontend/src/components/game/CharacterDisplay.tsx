@@ -17,7 +17,7 @@ interface IState {
 }
 
 const DEFAULT_CLASS_NAME = "characterDiv";
-const EASE_OUT_DURATION = 500;
+const EASE_OUT_DURATION = 550;
 
 export default class CharacterDisplay extends React.Component<IProps, IState> {
   private _ref = React.createRef<HTMLDivElement>();

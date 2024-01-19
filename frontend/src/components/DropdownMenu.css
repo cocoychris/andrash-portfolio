@@ -49,6 +49,7 @@
 }
 
 .dropdown .menu-item .standaloneText {
+  max-height: var(--itemHeight);
   margin-left: 15px;
   width: calc(100% - 15px);
   overflow: hidden;

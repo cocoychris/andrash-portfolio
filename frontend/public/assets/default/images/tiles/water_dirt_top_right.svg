@@ -23,9 +23,9 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="2.63"
-     inkscape:cx="105.89354"
-     inkscape:cy="263.68821"
+     inkscape:zoom="0.6575"
+     inkscape:cx="268.44106"
+     inkscape:cy="470.72243"
      inkscape:window-width="2304"
      inkscape:window-height="1202"
      inkscape:window-x="-11"
@@ -83,13 +83,37 @@
     <use
        x="0"
        y="0"
+       xlink:href="#wave_bright"
+       id="use1-8-24"
+       transform="translate(705.5306,269.29186)">
+      <animate
+         attributeName="opacity"
+         values="1;0;0;1;1;1;0;0;1"
+         dur="2.8s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
        xlink:href="#wave_dark"
        id="use2-2-6-4"
-       transform="matrix(1.005547,0,0,1.005547,716.88213,234.54569)">
+       transform="matrix(0.67036468,0,0,0.67036468,666.20016,189.84546)">
       <animate
          attributeName="opacity"
          values="0;1;1;1;0;0;1;0"
          dur="3.5s"
+         repeatCount="indefinite" />
+    </use>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#wave_dark"
+       id="use2-2-6-7-4"
+       transform="matrix(0.67036468,0,0,0.67036468,704.01156,223.5571)">
+      <animate
+         attributeName="opacity"
+         values="1;1;0;0;0;1"
+         dur="4s"
          repeatCount="indefinite" />
     </use>
   </g>

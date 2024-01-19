@@ -103,7 +103,7 @@ export default class NavbarLayout extends Component<IProps, IState> {
       },
       {
         id: "players",
-        icon: <PeopleIcon />,
+        icon: "👥",
         menuData: getPlayersMenu(this.props),
         isEnabled: gameClient.game != null,
       },
@@ -112,9 +112,45 @@ export default class NavbarLayout extends Component<IProps, IState> {
         icon: "🕹️",
         menuData: getGameMenu(this.props),
       },
+      {
+        id: "about",
+        icon: "⭐",
+        menuData: getAboutMenu(this.props),
+      },
     ];
     return <Navbar data={nevbarData} />;
   }
+}
+
+function getAboutMenu(props: IProps): Array<IDropItemData> | null {
+  return [
+    {
+      id: "aboutAndrash",
+      leftIcon: (
+        <div style={{ scale: "1.3" }}>
+          <img
+            src="/images/andrash_photo_300.png"
+            alt="andrash"
+            style={{ borderRadius: "50%" }}
+          />
+        </div>
+      ),
+      label: "About Andrash",
+      onClick: () => {
+        simulateClick("/page/about_andrash");
+        return true;
+      },
+    },
+    {
+      id: "download",
+      leftIcon: "📥",
+      label: "Download Resume",
+      onClick: () => {
+        window.open("/files/Andrash_Yang_Resume.pdf", "_blank");
+        return true;
+      },
+    },
+  ];
 }
 
 function getModeMenu(props: IProps): Array<IDropItemData> | null {
@@ -305,7 +341,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
     },
     {
       id: "room",
-      label: `You're at ${isHost ? `your own` : `${hostPlayer?.name}'s`} room.`,
+      label: `You're in ${isHost ? `your own` : `${hostPlayer?.name}'s`} room.`,
       leftIcon: <HomeIcon />,
     },
     {
@@ -348,7 +384,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
         window.location.reload();
         return true;
       },
-      isEnabled: isHost && gameClient.mode != GameClient.MODE_EDITOR,
+      isEnabled: isHost && gameClient.mode == GameClient.MODE_ONLINE,
     },
   ];
 
@@ -356,7 +392,7 @@ function getGameMenu(props: IProps): Array<IDropItemData> {
     menuData.unshift({
       id: "editor",
       label: "Edit Map",
-      leftIcon: "📝",
+      leftIcon: "✏️",
       onClick: () => {
         gameClient.editor?.stopTesting();
         return true;
@@ -518,4 +554,15 @@ function CharacterIcon(props: { character: Character }) {
     return <img src={character.frameDef.imageName} alt="player" />;
   }
   return <PersonIcon />;
+}
+/**
+ * The click event will be captured by the page component and load the page directly without reloading.
+ */
+function simulateClick(pathName: string) {
+  let anchor = document.createElement("a");
+  document.body.appendChild(anchor);
+  anchor.style.display = "none";
+  anchor.href = pathName;
+  anchor.click();
+  document.body.removeChild(anchor);
 }

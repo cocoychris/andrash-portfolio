@@ -50,21 +50,21 @@
   },
   "water_01": {
     "bgColor": "#80e5ff",
-    "bgImageName": "tiles/water_01.svg",
+    "bgImageName": "tiles/water_still_01.png",
     "walkable": false,
     "texture": "water",
     "transition": null
   },
   "water_02": {
     "bgColor": "#80e5ff",
-    "bgImageName": "tiles/water_02.svg",
+    "bgImageName": "tiles/water_still_02.png",
     "walkable": false,
     "texture": "water",
     "transition": null
   },
   "water_03": {
     "bgColor": "#80e5ff",
-    "bgImageName": "tiles/water_03.svg",
+    "bgImageName": "tiles/water_still_03.png",
     "walkable": false,
     "texture": "water",
     "transition": null
