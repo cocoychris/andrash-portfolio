@@ -2,7 +2,7 @@
 
 ![Node.js Icon](/assets/default/images/items/nodejsCrystal.svg)
 
-## Familiarity: `★★★★★` ( 4.5 / 5 )
+## Familiarity: `★★★★☆` ( 4 / 5 )
 
 I've been utilizing Node.js for nearly four years and have gained substantial familiarity with it.
 
@@ -34,14 +34,15 @@ I have two projects in production that use Node.js:
    - Which is this portfolio website. It's built on top of a customized `multiplayer online game engine` that I developed. This engine provides visitors with an unconventional, game-like web browsing experience. It allows visitors to share the same game world (playground) and interact with each other in real-time.
    - Programming language: `TypeScript`.
    - Frameworks: `React.js`, `Express.js`, `socket.io`, `Jest`, `Vite`, `PM2`.
-   - See [About This Place](/page/md/About_This_Place) for more details.
-   - See the source code [on GitHub](https://github.com/cocoychris/andrash-portfolio)
+   - For more details, please refer to [About This Place](/page/md/About_This_Place).
+   - You can view the source code [on GitHub](https://github.com/cocoychris/andrash-portfolio).
 2. **Automated Robot platform** (ARP)
-   - A web-based RPA (Robotic Process Automation) platform that allows users to manage, inspect, and run automated tasks. These tasks, called robots, can be run on a schedule or on demand.
-   - I built the ARP platform and more than 30 robots on top of the platform over three years while working for the company (BRAND'S Suntory Ltd. Taiwan Branch).
+   - A web-based RPA (Robotic Process Automation) platform that allows users to manage, inspect, and run automated tasks. These tasks, called robots, can simulate human interactions with web pages and desktop applications. They can be run on a schedule or on demand.
+   - Over the course of more than 3 years working for the company (BRAND'S Suntory Ltd. Taiwan Branch), I built the ARP system and developed more than 30 robots on it.
    - Programming language: `JavaScript`.
    - Frameworks: `Express.js`, `EJS`, `jQuery`, `Jest`, `Puppeteer`, `Nut.js`, `PM2`.
-   - The source code is not available as it is a proprietary project of the company.
+   - For more details, please refer to the article [Automated Robot Platform (ARP)](/page/md/project_arp_system).
+   - The source code is not available as it is a proprietary project of the company. However, a [Demo video](https://youtu.be/IO3-2_hz4XU) is available that demonstrates how the system operates.
 
 ## Modules
 
@@ -50,10 +51,9 @@ I have also developed numerous Node.js modules for my projects. Some of these in
 - The `FieldDef` module, which can be used to define a data structure and validate the data type and value of each field at runtime. Since TypeScript only performs static type checking at compile time, this module is useful for dynamic type checking at runtime.
   - See the source code: [FieldDef.ts](https://github.com/cocoychris/andrash-portfolio/blob/master/frontend/src/lib/data/FieldDef.ts)
 - The `CLICore` module, which allows users to create a set of custom commands and execute them by sending a command string to the server. Each command is implemented as a JavaScript function. The command string is parsed and converted into a function call, with the result returned to the client. This module is utilized in the ARP project to implement a web-based command-line interface, enabling users to manage and run robots from the web browser.
-
-- The `Logger` module, which logs messages to the console and writes them to a log file in HTML format with syntax highlighting.
-- The `ConfigFile` module, which loads and saves configuration data to a JSON file.
 - The `Table` module, which reads `xlsx` and `csv` files and allows users to manipulate the data like a mini database. It provides type checking, data validation, indexing, sorting, merging, filtering, and more.
+- The `Logger` module, which logs messages to the console and writes them to a log file in HTML format with syntax highlighting.
+- The `ConfigFile` module, which loads and saves configuration data to a JSON file automatically when the data is modified.
 - And more...
 
 ## Source Code on GitHub

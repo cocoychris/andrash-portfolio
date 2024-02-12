@@ -2,7 +2,7 @@
 
 ![TypeScript](/assets/default/images/items/tsCrystal.svg)
 
-## Familiarity: `★★★★★` ( 4.5 / 5 )
+## Familiarity: `★★★★☆` ( 4 / 5 )
 
 Even though I've been using `TypeScript` for less than a year, I've become quite familiar with it in a short time. This is largely due to its similarity in syntax and structure to `ActionScript 3.0`, a language I used extensively in the early days of my career. Like `TypeScript`, `ActionScript 3.0` is a strongly typed OOP language based on `ECMAScript`.
 

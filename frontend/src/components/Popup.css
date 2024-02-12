@@ -162,6 +162,9 @@ ul {
   min-width: fit-content;
   margin: 0 1px;
 }
+.popup .messageBox button {
+  font-family: unset;
+}
 .popup .messageBox button:hover {
   filter: brightness(1.2);
 }

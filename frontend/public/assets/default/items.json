@@ -142,6 +142,17 @@
       }
     }
   },
+  "arpBot": {
+    "walkable": true,
+    "collectable": false,
+    "page": null,
+    "inFront": false,
+    "frames": {
+      "default": {
+        "imageName": "items/arpBot.png"
+      }
+    }
+  },
   "trafficConeYellow": {
     "walkable": true,
     "collectable": false,

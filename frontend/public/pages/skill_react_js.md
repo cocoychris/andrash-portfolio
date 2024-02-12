@@ -2,7 +2,7 @@
 
 ![React.js Icon](/assets/default/images/items/reactCrystal.svg)
 
-## Familiarity: `★★★★☆` ( 3.5 / 5 )
+## Familiarity: `★★★☆☆` ( 3 / 5 )
 
 The frontend of this portfolio website is built using React.js. Everything you see, including the navigation bar, dropdown menu, game rendering, characters, items, and tiles, are all built using React.js components.
 

@@ -1,25 +1,21 @@
-import { Component, ReactNode, useEffect, useRef, useState } from "react";
+import { Component, ReactNode } from "react";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
 import Navbar, { INavItemData } from "../components/Navbar";
 import { IDropItemData } from "../components/DropdownMenu";
 import screenfull from "screenfull";
-import { ReactComponent as MenuIcon } from "../icons/menu-svgrepo-com.svg";
-import { ReactComponent as BellIcon } from "../icons/bell-svgrepo-com.svg";
 import { ReactComponent as RightIcon } from "../icons/chevron-right-svgrepo-com.svg";
-import { ReactComponent as CommentIcon } from "../icons/comment-svgrepo-com.svg";
-import { ReactComponent as LockIcon } from "../icons/lock-svgrepo-com.svg";
 import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.svg";
 import { ReactComponent as PersonIcon } from "../icons/person-svgrepo-com.svg";
-import { ReactComponent as PeopleIcon } from "../icons/people-svgrepo-com.svg";
 import { ReactComponent as HomeIcon } from "../icons/home-svgrepo-com.svg";
 import { ReactComponent as LinkIcon } from "../icons/link-svgrepo-com.svg";
-import { ReactComponent as GiftIcon } from "../icons/gift-svgrepo-com.svg";
+import GITHUB_MARK_SRC from "../icons/github-mark.png";
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Game from "../lib/Game";
 import PopupLayout from "./PopupLayout";
 import SVGDisplay from "../components/game/SVGDisplay";
 import Character from "../lib/Character";
+// import { ReactSVG } from "react-svg";
 
 interface IProps {
   gameClient: GameClient;
@@ -91,10 +87,23 @@ export default class NavbarLayout extends Component<IProps, IState> {
         id: "fullscreen",
         icon: "🖥️",
         onClick: () => {
-          screenfull.toggle();
+          let isFullscreen = screenfull.isFullscreen;
+          screenfull.toggle()
+          setTimeout(() => {
+            if(screenfull.isFullscreen==isFullscreen){
+              this.props.popupRef.current?.show({
+                type: "warning",
+                title: "Fullscreen not supported",
+                content: (
+                  <p>
+                    Your browser or device does not support fullscreen mode. Please try another browser or device (Google Chrome and Microsoft Edge are recommended).
+                  </p>
+                ),
+              });
+            }
+          }, 100);
           return false;
         },
-        isEnabled: true,
       },
       {
         id: "mode",
@@ -114,7 +123,9 @@ export default class NavbarLayout extends Component<IProps, IState> {
       },
       {
         id: "about",
-        icon: "⭐",
+        icon: "💗",
+        // icon: <ReactSVG src="/assets/default/images/items/magentaCrystal_lite.svg" />,
+        // icon: <ReactSVG src="/assets/default/images/siteLogo.svg" />,
         menuData: getAboutMenu(this.props),
       },
     ];
@@ -150,6 +161,15 @@ function getAboutMenu(props: IProps): Array<IDropItemData> | null {
         return true;
       },
     },
+    {
+      id: "github",
+      leftIcon: <img src={GITHUB_MARK_SRC} alt="Git" width={30} height={30} />,
+      label: "Source Code on GitHub",
+      onClick: () => {
+        window.open("https://github.com/cocoychris/andrash-portfolio", "_blank");
+        return true;
+      }
+    }
   ];
 }
 
