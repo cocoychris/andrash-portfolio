@@ -34,7 +34,7 @@ I have two projects in production that use Node.js:
    - Which is this portfolio website. It's built on top of a customized `multiplayer online game engine` that I developed. This engine provides visitors with an unconventional, game-like web browsing experience. It allows visitors to share the same game world (playground) and interact with each other in real-time.
    - Programming language: `TypeScript`.
    - Frameworks: `React.js`, `Express.js`, `socket.io`, `Jest`, `Vite`, `PM2`.
-   - For more details, please refer to [About This Place](/page/md/About_This_Place).
+   - For more details, please refer to [About This Place](/page/md/about_this_place).
    - You can view the source code [on GitHub](https://github.com/cocoychris/andrash-portfolio).
 2. **Automated Robot platform** (ARP)
    - A web-based RPA (Robotic Process Automation) platform that allows users to manage, inspect, and run automated tasks. These tasks, called robots, can simulate human interactions with web pages and desktop applications. They can be run on a schedule or on demand.
