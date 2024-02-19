@@ -183,5 +183,7 @@ section#page button.btnClosePage {
   }
   .page {
     border-radius: 0;
+    padding: 15px 20px;
+    max-width: 100%;
   }
 }
