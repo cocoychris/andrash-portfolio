@@ -1,4 +1,4 @@
-# Indie Game Developer
+# Indie Game Development
 ![Magenta Crystal](/assets/default/images/items/magentaCrystal_lite.svg)
 
 I began my journey of self-learning in game development and programming around 2002, when I was in junior high school.
@@ -259,10 +259,11 @@ There is an older version (V1) of the game included in the download, which serve
 
 The latest version (V2) is a complete rebuild from scratch, featuring many more features and improvements.
 
-
-
 ### Demo Video
 
 If you don't have the appropriate environment to run the game, here's a demo video for your reference:
 
 [![Car Chasing Demo Video](/images/game_car_chasing_video_cover.png)](https://youtu.be/4Q0rJBbIV5o)
+
+## Keep Exploring
+To learn more about me, my skills and my projects, please continue exploring this playground.😁

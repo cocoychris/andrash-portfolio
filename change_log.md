@@ -1,12 +1,13 @@
 # Change Log for This Version
-New page `Indie Game Developer` added. Minor UI adjusted.
+Map updated to include `Indie Game development` page.
 
 ## Backend
 
 - None
 
 ## Frontend & Common
-- Updated: Minor UI adjusted for better mobile experience.
+- None
 
 ## Assets
-- Added: New page `Indie Game Developer` added. 20+ related images added.
+- Updated: Rename page to `Indie Game development`
+- Updated: Map edited. `Indie Game development` page can now be accessed from the map.
