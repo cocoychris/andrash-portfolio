@@ -35,11 +35,11 @@ At that time, I had already reached the maximum scale that a game could be imple
 Eventually, OOP became my preferred approach, and I have been coding in the OOP style ever since.
 
 ## Flash Game Projects
-By the time I entered college, I had already acquired a significant level of skills, enabling me to create almost any type of Flash game I wanted to build, given enough time.
+By the time I entered college (2008), I had already acquired a significant level of skills, enabling me to create almost any type of Flash game I wanted to build, given enough time.
 
 That's when I started making games for friends and offering them for free play.
 
-Here are the most notable ones that I'd like to share with you:
+Here are the most notable games that I created during that time:
 
 - [拯救婚禮大作戰 (The Wedding Protector)](#-the-wedding-protector)
     - I created this game as a gift for my friend to celebrate her wedding. In the game, you play as the protector, tasked with preventing the bride or groom from being kidnapped by evil aliens.
