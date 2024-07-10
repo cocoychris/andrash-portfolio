@@ -8,6 +8,10 @@ import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.sv
 import { ReactComponent as PersonIcon } from "../icons/person-svgrepo-com.svg";
 import { ReactComponent as HomeIcon } from "../icons/home-svgrepo-com.svg";
 import { ReactComponent as LinkIcon } from "../icons/link-svgrepo-com.svg";
+import { ReactComponent as FullscreenIcon } from "../icons/andrash-full-screen.svg";
+import { ReactComponent as ExitFullscreenIcon } from "../icons/andrash-exit-full-screen.svg";
+import { ReactComponent as GameControlIcon } from "../icons/andrash-game-control.svg";
+import { ReactComponent as HeartIcon } from "../icons/andrash-heart.svg";
 import GITHUB_MARK_SRC from "../icons/github-mark.png";
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
@@ -15,6 +19,7 @@ import Game from "../lib/Game";
 import PopupLayout from "./PopupLayout";
 import SVGDisplay from "../components/game/SVGDisplay";
 import Character from "../lib/Character";
+import photo from "../icons/andrash_photo_300.png";
 // import { ReactSVG } from "react-svg";
 
 interface IProps {
@@ -85,23 +90,31 @@ export default class NavbarLayout extends Component<IProps, IState> {
     let nevbarData: Array<INavItemData> = [
       {
         id: "fullscreen",
-        icon: "🖥️",
+        icon: screenfull.isFullscreen ? (
+          <ExitFullscreenIcon />
+        ) : (
+          <FullscreenIcon />
+        ),
         onClick: () => {
           let isFullscreen = screenfull.isFullscreen;
-          screenfull.toggle()
           setTimeout(() => {
-            if(screenfull.isFullscreen==isFullscreen){
+            if (screenfull.isFullscreen == isFullscreen) {
               this.props.popupRef.current?.show({
                 type: "warning",
                 title: "Fullscreen not supported",
                 content: (
                   <p>
-                    Your browser or device does not support fullscreen mode. Please try another browser or device (Google Chrome and Microsoft Edge are recommended).
+                    Your browser or device does not support fullscreen mode.
+                    Please try another browser or device (Google Chrome and
+                    Microsoft Edge are recommended).
                   </p>
                 ),
               });
+            } else {
+              this.forceUpdate();
             }
           }, 100);
+          screenfull.toggle();
           return false;
         },
       },
@@ -118,14 +131,13 @@ export default class NavbarLayout extends Component<IProps, IState> {
       },
       {
         id: "GameMenu",
-        icon: "🕹️",
+        icon: <GameControlIcon />,
         menuData: getGameMenu(this.props),
       },
       {
         id: "about",
-        icon: "💗",
-        // icon: <ReactSVG src="/assets/default/images/items/magentaCrystal_lite.svg" />,
-        // icon: <ReactSVG src="/assets/default/images/siteLogo.svg" />,
+        // icon: "💗",
+        icon: <HeartIcon />,
         menuData: getAboutMenu(this.props),
       },
     ];
@@ -140,7 +152,8 @@ function getAboutMenu(props: IProps): Array<IDropItemData> | null {
       leftIcon: (
         <div style={{ scale: "1.3" }}>
           <img
-            src="/images/andrash_photo_300.png"
+            // src="/images/andrash_photo_300.png"
+            src={photo}
             alt="andrash"
             style={{ borderRadius: "50%" }}
           />
@@ -166,10 +179,13 @@ function getAboutMenu(props: IProps): Array<IDropItemData> | null {
       leftIcon: <img src={GITHUB_MARK_SRC} alt="Git" width={30} height={30} />,
       label: "Source Code on GitHub",
       onClick: () => {
-        window.open("https://github.com/cocoychris/andrash-portfolio", "_blank");
+        window.open(
+          "https://github.com/cocoychris/andrash-portfolio",
+          "_blank"
+        );
         return true;
-      }
-    }
+      },
+    },
   ];
 }
 

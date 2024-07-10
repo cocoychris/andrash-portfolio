@@ -109,7 +109,8 @@
   filter: brightness(0.85);
 }
 
-.dropdown .icon-left svg {
+.dropdown .icon-left svg,
+.dropdown .icon-left img {
   width: 100%;
   height: 100%;
 }
