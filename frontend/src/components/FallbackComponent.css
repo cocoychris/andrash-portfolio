@@ -1,0 +1,9 @@
+.suspense-fallback {
+  background-color: #252530;
+  color: white;
+  padding: 5px;
+  text-align: center;
+}
+.suspense-fallback.suspense-fallback-error {
+  color: #ff6666;
+}

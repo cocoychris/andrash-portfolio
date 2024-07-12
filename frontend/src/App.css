@@ -21,4 +21,6 @@ section#editor {
 body {
   background: #252530;
   background: linear-gradient(352deg, #ffa73a 0%, #373747 20%, #252530 100%);
+  background-repeat: no-repeat;
+  min-height: 100vh;
 }

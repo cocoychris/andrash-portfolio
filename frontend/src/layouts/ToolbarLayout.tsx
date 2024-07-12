@@ -7,11 +7,11 @@ import {
   IDropItemData,
 } from "../components/DropdownMenu";
 import screenfull from "screenfull";
-import { ReactComponent as MenuIcon } from "../icons/menu-svgrepo-com.svg";
-import { ReactComponent as BellIcon } from "../icons/bell-svgrepo-com.svg";
 import { ReactComponent as RightIcon } from "../icons/chevron-right-svgrepo-com.svg";
 import { ReactComponent as LeftIcon } from "../icons/chevron-left-svgrepo-com.svg";
 import { ReactComponent as PencilIcon } from "../icons/pencil-svgrepo-com.svg";
+import { ReactComponent as FullscreenIcon } from "../icons/andrash-full-screen.svg";
+import { ReactComponent as ExitFullscreenIcon } from "../icons/andrash-exit-full-screen.svg";
 import AnyEvent from "../lib/events/AnyEvent";
 import {
   DataObject,
@@ -207,8 +207,31 @@ export default class ToolbarLayout extends Component<IProps> {
     let nevbarData: Array<INavItemData> = [
       {
         id: "fullscreen",
-        icon: "🖥️",
+        // icon: "🖥️",
+        icon: screenfull.isFullscreen ? (
+          <ExitFullscreenIcon />
+        ) : (
+          <FullscreenIcon />
+        ),
         onClick: () => {
+          let isFullscreen = screenfull.isFullscreen;
+          setTimeout(() => {
+            if (screenfull.isFullscreen == isFullscreen) {
+              this.props.popupRef.current?.show({
+                type: "warning",
+                title: "Fullscreen not supported",
+                content: (
+                  <p>
+                    Your browser or device does not support fullscreen mode.
+                    Please try another browser or device (Google Chrome and
+                    Microsoft Edge are recommended).
+                  </p>
+                ),
+              });
+            } else {
+              this.forceUpdate();
+            }
+          }, 100);
           screenfull.toggle();
           return false;
         },

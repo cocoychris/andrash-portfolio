@@ -1,18 +1,26 @@
 import "./App.css";
 import GameLayout from "./layouts/GameLayout";
-import { ReactElement, ReactNode, useEffect, useRef, useState } from "react";
+import React, {
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import GameClient, { IErrorEvent } from "./lib/GameClient";
 import { IGameStopEvent, IGameTickEvent } from "./lib/events/transEventTypes";
-import { IConnectEvent, IDisconnectEvent } from "./lib/events/Transmitter";
+import { IDisconnectEvent } from "./lib/events/Transmitter";
 import NavbarLayout from "./layouts/NavbarLayout";
-import ToolbarLayout from "./layouts/ToolbarLayout";
 import PopupLayout from "./layouts/PopupLayout";
 import { IPopupOptions } from "./components/Popup";
 import { update } from "@tweenjs/tween.js";
-import PageLayout from "./layouts/PageLayout";
-import EditorLayout from "./layouts/EditorLayout";
 import Editor, { IStartTestingEvent, IStopTestingEvent } from "./lib/Editor";
 import preventLongPressMenu from "./components/preventLongPressMenu";
+import SmarterSuspense from "./components/SmarterSuspense";
+// import ToolbarLayout from "./layouts/ToolbarLayout";
+// import PageLayout from "./layouts/PageLayout";
+// import EditorLayout from "./layouts/EditorLayout";
+// import { fakeImport } from "./util/fakeImport";
 
 /**
  * Keep the game running at 60fps
@@ -52,20 +60,29 @@ export default function App() {
     <PopupLayout key="popup-layout" gameClient={gameClient} ref={popupRef} />,
   ];
   if (showEditor) {
-    layouts.push(
-      <ToolbarLayout
-        key="toolbar-layout"
-        gameClient={gameClient}
-        popupRef={popupRef}
-      />
+    const ToolbarLayout = React.lazy(
+      () =>
+        // fakeImport("./layouts/ToolbarLayout", true)
+        import("./layouts/ToolbarLayout")
+    );
+    const EditorLayout = React.lazy(
+      () =>
+        //  fakeImport("./layouts/EditorLayout", true)
+        import("./layouts/EditorLayout")
     );
     layouts.push(
-      <EditorLayout
-        key="editor-layout"
-        editor={gameClient.editor as Editor}
-        popupRef={popupRef}
-        updateInterval={UPDATE_INTERVAL}
-      />
+      <SmarterSuspense key="toolbar-layout" name="Toolbar Layout">
+        <ToolbarLayout gameClient={gameClient} popupRef={popupRef} />
+      </SmarterSuspense>
+    );
+    layouts.push(
+      <SmarterSuspense key="editor-layout" name="Editor Layout">
+        <EditorLayout
+          editor={gameClient.editor as Editor}
+          popupRef={popupRef}
+          updateInterval={UPDATE_INTERVAL}
+        />
+      </SmarterSuspense>
     );
   } else {
     layouts.push(
@@ -83,7 +100,16 @@ export default function App() {
       />
     );
   }
-  layouts.push(<PageLayout key="page-layout" gameClient={gameClient} />);
+  const PageLayout = React.lazy(
+    () =>
+      //  fakeImport("./layouts/PageLayout", true)
+      import("./layouts/PageLayout")
+  );
+  layouts.push(
+    <SmarterSuspense key="page-layout" name="Page Layout">
+      <PageLayout gameClient={gameClient} />
+    </SmarterSuspense>
+  );
   return <>{layouts}</>;
 }
 

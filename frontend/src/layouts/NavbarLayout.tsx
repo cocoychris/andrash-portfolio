@@ -12,6 +12,10 @@ import { ReactComponent as FullscreenIcon } from "../icons/andrash-full-screen.s
 import { ReactComponent as ExitFullscreenIcon } from "../icons/andrash-exit-full-screen.svg";
 import { ReactComponent as GameControlIcon } from "../icons/andrash-game-control.svg";
 import { ReactComponent as HeartIcon } from "../icons/andrash-heart.svg";
+import { ReactComponent as PlayersIcon } from "../icons/andrash-players.svg";
+import { ReactComponent as LocalModeIcon } from "../icons/andrash-local-mode.svg";
+import { ReactComponent as OnlineModeIcon } from "../icons/andrash-online-mode.svg";
+import { ReactComponent as EditModeIcon } from "../icons/andrash-edit-mode.svg";
 import GITHUB_MARK_SRC from "../icons/github-mark.png";
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
@@ -21,6 +25,7 @@ import SVGDisplay from "../components/game/SVGDisplay";
 import Character from "../lib/Character";
 import photo from "../icons/andrash_photo_300.png";
 // import { ReactSVG } from "react-svg";
+import "./NavbarLayout.css";
 
 interface IProps {
   gameClient: GameClient;
@@ -31,9 +36,12 @@ interface IState {
 }
 
 const MODE_ICON_MAP = {
-  [GameClient.MODE_LOCAL]: "🏝️",
-  [GameClient.MODE_ONLINE]: "🌐",
-  [GameClient.MODE_EDITOR]: "📝",
+  // [GameClient.MODE_LOCAL]: "🏝️",
+  // [GameClient.MODE_ONLINE]: "🌐",
+  // [GameClient.MODE_EDITOR]: "📝",
+  [GameClient.MODE_LOCAL]: <LocalModeIcon />,
+  [GameClient.MODE_ONLINE]: <OnlineModeIcon />,
+  [GameClient.MODE_EDITOR]: <EditModeIcon />,
 };
 
 export default class NavbarLayout extends Component<IProps, IState> {
@@ -125,7 +133,8 @@ export default class NavbarLayout extends Component<IProps, IState> {
       },
       {
         id: "players",
-        icon: "👥",
+        // icon: "👥",
+        icon: <PlayersIcon />,
         menuData: getPlayersMenu(this.props),
         isEnabled: gameClient.game != null,
       },
@@ -283,7 +292,7 @@ function getModeMenu(props: IProps): Array<IDropItemData> | null {
     {
       id: "localMode",
       label: "Local Mode",
-      leftIcon: "🏝️",
+      leftIcon: MODE_ICON_MAP[GameClient.MODE_LOCAL],
       onClick:
         gameClient.mode == GameClient.MODE_LOCAL
           ? undefined
@@ -310,7 +319,7 @@ function getModeMenu(props: IProps): Array<IDropItemData> | null {
     {
       id: "onlineMode",
       label: "Online Mode",
-      leftIcon: "🌐",
+      leftIcon: MODE_ICON_MAP[GameClient.MODE_ONLINE],
       onClick:
         gameClient.mode == GameClient.MODE_ONLINE
           ? undefined
@@ -337,7 +346,7 @@ function getModeMenu(props: IProps): Array<IDropItemData> | null {
     {
       id: "editorMode",
       label: "Editor Mode",
-      leftIcon: "📝",
+      leftIcon: MODE_ICON_MAP[GameClient.MODE_EDITOR],
       onClick:
         gameClient.mode == GameClient.MODE_EDITOR
           ? undefined

@@ -39,7 +39,7 @@
   <defs
      id="defs2">
     <linearGradient
-       id="linearGradient2"
+       id="andrash-heart-linearGradient2"
        inkscape:collect="always">
       <stop
          style="stop-color:#ff3434;stop-opacity:1;"
@@ -52,8 +52,8 @@
     </linearGradient>
     <radialGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient2"
-       id="radialGradient3"
+       xlink:href="#andrash-heart-linearGradient2"
+       id="andrash-heart-radialGradient3"
        cx="217.01758"
        cy="218.82504"
        fx="217.01758"
@@ -68,7 +68,7 @@
      id="layer1">
     <path
        id="path1"
-       style="fill:url(#radialGradient3);fill-opacity:1;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+       style="fill:url(#andrash-heart-radialGradient3);fill-opacity:1;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
        d="M 71.910156 32.984375 C 69.831227 32.997176 67.82254 33.205542 65.902344 33.634766 C 36.23447 40.266452 9.1785097 75.318639 10.019531 105.70703 C 11.988873 176.86473 149.96735 266.96354 150.03516 267.00781 L 150.03516 267.01562 L 150.04102 267.01172 L 150.04688 267.01562 L 150.04688 267.00781 C 150.11468 266.96354 288.09316 176.86473 290.0625 105.70703 C 290.90352 75.318639 263.84756 40.266452 234.17969 33.634766 C 203.46657 26.769435 150.07583 76.487103 150.04102 76.519531 C 150.00837 76.48913 103.08325 32.792421 71.910156 32.984375 z " />
     <circle
        style="fill:#ffffff;fill-opacity:0.4;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"

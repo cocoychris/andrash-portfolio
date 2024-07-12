@@ -10,9 +10,12 @@ Here are some handy tips to get you started.
 
 ## Tips
 
+
 - ### Go Fullscreen
 
-  This playground is best experienced in fullscreen mode. You can toggle fullscreen mode by pressing `F11` on your keyboard or by clicking the fullscreen button `🖥️` on the top left corner of the navigation bar.
+  ![Fullscreen Icon](/images/andrash-full-screen.svg?width=80)
+
+  Click the fullscreen icon (as shown above) on the navigation bar to enter fullscreen mode. Alternatively, you can press `F11` on your keyboard to toggle fullscreen. Please note that fullscreen mode may not be supported on some devices.
 
 - ### Just Tap
 
@@ -31,12 +34,17 @@ Here are some handy tips to get you started.
 
 ## Don't Miss These Features
 
-- ### Real-time Multiplayer
 
-  Bring your friends along for the ride! Switch to `Online Mode` in the mode menu `🏝️` from the navigation bar first. Then, share the link in the address bar with your friends. They can join you by clicking the link. Alternatively, you can invite your friends by sharing the link from the `Players` menu `👥` in the navigation bar.
+- ### Real-time Multiplayer
+![Online Mode Icon](/images/andrash-online-mode.svg?width=80)
+
+  Bring your friends along for the ride! Switch to `Online Mode` in the mode menu from the navigation bar first. Then, share the link in the address bar with your friends. They can join you by clicking the link. Alternatively, you can invite your friends by sharing the link from the `Players` menu in the navigation bar.
+
 
 - ### Map Editor
-  Unleash your creativity with the map editor. Create your own playground and walk around in it with your character. However, sharing or inviting others to your own playground isn't supported yet. To use this feature, switch to `Editor Mode` in the mode menu `🏝️` from the navigation bar.
+![Editor Mode Icon](/images/andrash-edit-mode.svg?width=80)
+
+  Unleash your creativity with the map editor. Create your own playground and walk around in it with your character. However, sharing or inviting others to your own playground isn't supported yet. To use this feature, switch to `Editor Mode` in the mode menu from the navigation bar.
 
 ## That's All For Now 😊
 

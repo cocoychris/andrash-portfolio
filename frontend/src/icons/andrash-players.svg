@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="300"
+   height="300"
+   viewBox="0 0 300.00001 300.00001"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   sodipodi:docname="andrash-players.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#cccccc"
+     borderopacity="1"
+     inkscape:pageshadow="0"
+     inkscape:pageopacity="1"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="px"
+     showgrid="false"
+     units="px"
+     inkscape:showpageshadow="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.7984082"
+     inkscape:cx="90.635705"
+     inkscape:cy="193.22643"
+     inkscape:window-width="1920"
+     inkscape:window-height="1001"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="圖層 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g10"
+       transform="matrix(1.1052632,0,0,1.1052632,0.999995,-23.473699)"
+       style="stroke-width:0.904762">
+      <path
+         id="path2"
+         style="fill:#c8ab37;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+         d="M 91.02149,21.999998 C 57.884403,21.999997 31.021486,48.862913 31.021485,82 31.046911,105.8101 45.149109,127.35233 66.96094,136.90039 27.199375,156.29409 0.06052819,232.38669 0,298.09524 H 190 C 189.99562,229.87313 160.83506,152.15343 119.0332,134.89453 138.65679,124.53481 150.96032,104.19021 151.02149,82 c 0,-33.137085 -26.86292,-60 -60,-60.000002 z"
+         sodipodi:nodetypes="sccccccs" />
+      <g
+         id="g4"
+         transform="matrix(1.2716666,0,0,1.2716666,-22.42005,-4.0222779)"
+         style="stroke-width:0.711476;fill:#a0892c">
+        <circle
+           style="fill:#a0892c;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+           id="path4"
+           cx="59.370903"
+           cy="65.268677"
+           r="6.290957" />
+        <circle
+           style="fill:#a0892c;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+           id="circle4"
+           cx="103.5072"
+           cy="65.268677"
+           r="6.290957" />
+      </g>
+    </g>
+    <g
+       id="g11"
+       transform="matrix(1.2631579,0,0,1.2631579,-62.154031,19.803459)"
+       style="stroke-width:0.791666">
+      <path
+         id="path3"
+         style="fill:#5fbcd3;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+         d="M 201.02149,41.999998 A 60.000004,60.000004 0 0 0 141.02149,102 60.000004,60.000004 0 0 0 176.96094,156.90039 95.000004,150 0 0 0 110,300 H 300 A 95.000004,150 0 0 0 229.0332,154.89453 60.000004,60.000004 0 0 0 261.02149,102 a 60.000004,60.000004 0 0 0 -60,-60.000002 z" />
+      <g
+         id="g7"
+         transform="translate(-0.491375,-4)"
+         style="stroke-width:0.791666;fill:#2c89a0">
+        <path
+           id="path7"
+           style="fill:#2c89a0;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+           d="m 212.73481,103.63696 34.13484,-13.000001 v 6.635591 l -16.71059,6.36441 16.71059,6.3644 v 6.6356 z"
+           inkscape:transform-center-x="5.6891429" />
+        <path
+           id="path10"
+           style="fill:#2c89a0;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+           d="M 198.24794,103.63696 164.1131,90.636959 v 6.635591 l 16.71059,6.36441 -16.71059,6.3644 v 6.6356 z"
+           inkscape:transform-center-x="-5.6891475" />
+      </g>
+      <path
+         id="path9"
+         style="fill:#2c89a0;fill-opacity:1;stroke-width:0;stroke-linecap:round;stroke-linejoin:round"
+         d="m 171.79047,124.95638 a 35.075709,35.075709 0 0 0 33.20863,23.99999 35.075709,35.075709 0 0 0 33.21043,-23.99999 z" />
+    </g>
+  </g>
+</svg>

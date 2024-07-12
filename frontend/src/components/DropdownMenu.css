@@ -27,7 +27,6 @@
   color: var(--textColor);
   text-decoration: none;
 }
-
 .dropdown .menu-item {
   height: var(--itemHeight);
   display: flex;

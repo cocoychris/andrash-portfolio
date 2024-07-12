@@ -1,11 +1,13 @@
 import React, { Component, LegacyRef, ReactNode } from "react";
-import Markdown, { ExtraProps } from "react-markdown";
+// import Markdown, { ExtraProps } from "react-markdown";
+import { ExtraProps } from "react-markdown";
 import parse, { DOMNode } from "html-react-parser";
 import remarkGfm from "remark-gfm";
 import { Element } from "html-react-parser";
 import { ReactSVG } from "react-svg";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { nord as highlightStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
+import SmarterSuspense from "./SmarterSuspense";
 
 // Prevent rendering of <html> tag
 const REPLACE_TAGS: Set<string> = new Set(["html", "head", "body"]);
@@ -132,64 +134,9 @@ export default class Page extends Component<IProps, IState> {
             <p>{this._message ? this._message : ""}</p>
           </div>
         )}
-        {this.state.status === "loaded" && this._isMarkDown && (
-          <Markdown
-            className="content markdown"
-            remarkPlugins={[remarkGfm]}
-            components={{
-              img: (props) => {
-                props = addImageProps(props);
-                if (props.src?.endsWith(".svg")) {
-                  return (
-                    <ReactSVG
-                      src={props.src}
-                      width={props.width}
-                      height={props.height}
-                      style={props.style}
-                      wrapper="span"
-                    />
-                  );
-                }
-                return <img {...props} />;
-              },
-              h1: (props) => <h1 {...addIDToProps(props)} />,
-              h2: (props) => <h2 {...addIDToProps(props)} />,
-              h3: (props) => <h3 {...addIDToProps(props)} />,
-              h4: (props) => <h4 {...addIDToProps(props)} />,
-              table: (props) => {
-                let { node, ...rest } = props;
-                return (
-                  <div className="tableWrapper">
-                    <table {...rest} />
-                  </div>
-                );
-              },
-              code(props) {
-                const { children, className, node, ref, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || "");
-                if (!match) {
-                  return (
-                    <code {...rest} className={className}>
-                      {children}
-                    </code>
-                  );
-                }
-                return (
-                  <SyntaxHighlighter
-                    {...rest}
-                    ref={ref as any}
-                    PreTag="div"
-                    children={String(children).replace(/\n$/, "")}
-                    language={match[1]}
-                    style={highlightStyle}
-                  />
-                );
-              },
-            }}
-          >
-            {this._content}
-          </Markdown>
-        )}
+        {this.state.status === "loaded" &&
+          this._isMarkDown &&
+          renderMarkdown(this._content)}
         {this.state.status === "loaded" && !this._isMarkDown && (
           <div className="content webPage">
             {parse(this._content, {
@@ -200,6 +147,70 @@ export default class Page extends Component<IProps, IState> {
       </div>
     );
   }
+}
+
+function renderMarkdown(markdownText: string) {
+  const Markdown = React.lazy(() => import("react-markdown"));
+  return (
+    <SmarterSuspense name="Markdown">
+      <Markdown
+        className="content markdown"
+        remarkPlugins={[remarkGfm]}
+        components={{
+          img: (props) => {
+            props = addImageProps(props);
+            if (props.src?.endsWith(".svg")) {
+              return (
+                <ReactSVG
+                  src={props.src}
+                  width={props.width}
+                  height={props.height}
+                  style={props.style}
+                  wrapper="span"
+                />
+              );
+            }
+            return <img {...props} />;
+          },
+          h1: (props) => <h1 {...addIDToProps(props)} />,
+          h2: (props) => <h2 {...addIDToProps(props)} />,
+          h3: (props) => <h3 {...addIDToProps(props)} />,
+          h4: (props) => <h4 {...addIDToProps(props)} />,
+          table: (props) => {
+            let { node, ...rest } = props;
+            return (
+              <div className="tableWrapper">
+                <table {...rest} />
+              </div>
+            );
+          },
+          code(props) {
+            const { children, className, node, ref, ...rest } = props;
+            const match = /language-(\w+)/.exec(className || "");
+            if (!match) {
+              return (
+                <code {...rest} className={className}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <SyntaxHighlighter
+                {...rest}
+                ref={ref as any}
+                PreTag="div"
+                children={String(children).replace(/\n$/, "")}
+                language={match[1]}
+                style={highlightStyle}
+              />
+            );
+          },
+        }}
+      >
+        {markdownText}
+      </Markdown>
+    </SmarterSuspense>
+  );
 }
 
 function addIDToProps(

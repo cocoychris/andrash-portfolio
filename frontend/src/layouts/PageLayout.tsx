@@ -1,8 +1,6 @@
 import React, { Component } from "react";
 import PageView from "../components/PageView";
-import { create } from "domain";
 import GameClient, { IDidNewGameEvent } from "../lib/GameClient";
-import Game from "../lib/Game";
 import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Character from "../lib/Character";
 import AnyEvent from "../lib/events/AnyEvent";
