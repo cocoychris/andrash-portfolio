@@ -11,7 +11,7 @@ import SmarterSuspense from "./SmarterSuspense";
 
 // Prevent rendering of <html> tag
 const REPLACE_TAGS: Set<string> = new Set(["html", "head", "body"]);
-
+let Markdown: React.LazyExoticComponent<React.ComponentType<any>>;
 interface IProps {
   pageURL: string;
   useCache: boolean;
@@ -150,14 +150,16 @@ export default class Page extends Component<IProps, IState> {
 }
 
 function renderMarkdown(markdownText: string) {
-  const Markdown = React.lazy(() => import("react-markdown"));
+  if(!Markdown){
+    Markdown = React.lazy(() => import("react-markdown"));
+  }
   return (
     <SmarterSuspense name="Markdown">
       <Markdown
         className="content markdown"
         remarkPlugins={[remarkGfm]}
         components={{
-          img: (props) => {
+          img: (props:any) => {
             props = addImageProps(props);
             if (props.src?.endsWith(".svg")) {
               return (
@@ -172,11 +174,11 @@ function renderMarkdown(markdownText: string) {
             }
             return <img {...props} />;
           },
-          h1: (props) => <h1 {...addIDToProps(props)} />,
-          h2: (props) => <h2 {...addIDToProps(props)} />,
-          h3: (props) => <h3 {...addIDToProps(props)} />,
-          h4: (props) => <h4 {...addIDToProps(props)} />,
-          table: (props) => {
+          h1: (props:any) => <h1 {...addIDToProps(props)} />,
+          h2: (props:any) => <h2 {...addIDToProps(props)} />,
+          h3: (props:any) => <h3 {...addIDToProps(props)} />,
+          h4: (props:any) => <h4 {...addIDToProps(props)} />,
+          table: (props:any) => {
             let { node, ...rest } = props;
             return (
               <div className="tableWrapper">
@@ -184,7 +186,7 @@ function renderMarkdown(markdownText: string) {
               </div>
             );
           },
-          code(props) {
+          code(props:any) {
             const { children, className, node, ref, ...rest } = props;
             const match = /language-(\w+)/.exec(className || "");
             if (!match) {
