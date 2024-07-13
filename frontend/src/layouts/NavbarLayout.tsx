@@ -16,14 +16,14 @@ import { ReactComponent as PlayersIcon } from "../icons/andrash-players.svg";
 import { ReactComponent as LocalModeIcon } from "../icons/andrash-local-mode.svg";
 import { ReactComponent as OnlineModeIcon } from "../icons/andrash-online-mode.svg";
 import { ReactComponent as EditModeIcon } from "../icons/andrash-edit-mode.svg";
-import GITHUB_MARK_SRC from "../icons/github-mark.png";
 import AnyEvent from "../lib/events/AnyEvent";
 import { IDidSetUpdateEvent } from "../lib/data/DataHolder";
 import Game from "../lib/Game";
 import PopupLayout from "./PopupLayout";
 import SVGDisplay from "../components/game/SVGDisplay";
 import Character from "../lib/Character";
-import photo from "../icons/andrash_photo_300.png";
+import GITHUB_MARK_SRC from "../icons/github-mark.png";
+import ANDRASH_PHOTO_SRC from "../icons/andrash_photo_300.png";
 // import { ReactSVG } from "react-svg";
 import "./NavbarLayout.css";
 
@@ -155,19 +155,66 @@ export default class NavbarLayout extends Component<IProps, IState> {
 }
 
 function getAboutMenu(props: IProps): Array<IDropItemData> | null {
+  const aboutAndrashImg = (
+    <div style={{ scale: "1.3" }}>
+      <img src={ANDRASH_PHOTO_SRC} style={{ borderRadius: "50%" }} />
+    </div>
+  );
+  const aitHubMarkImg = (
+    <img src={GITHUB_MARK_SRC} alt="Git" width={30} height={30} />
+  );
+  const magentaCrystalLiteImg = (
+    <div style={{ scale: "1.3" }}>
+      <img
+        src="/assets/default/images/items/magentaCrystal_lite.svg"
+        width={30}
+        height={30}
+      />
+    </div>
+  );
+  const nodeJSCrystalImg = (
+    <div style={{ scale: "1.3" }}>
+      <img
+        src="/assets/default/images/items/nodejsCrystal.svg"
+        width={30}
+        height={30}
+      />
+    </div>
+  );
+  const reactJSCrystalImg = (
+    <div style={{ scale: "1.3" }}>
+      <img
+        src="/assets/default/images/items/reactCrystal.svg"
+        width={30}
+        height={30}
+      />
+    </div>
+  );
+  const typeScriptCrystalImg = (
+    <div style={{ scale: "1.3" }}>
+      <img
+        src="/assets/default/images/items/tsCrystal.svg"
+        width={30}
+        height={30}
+      />
+    </div>
+  );
+  const ferrisWheelImg = (
+    <div style={{ scale: "1.3" }}>
+      <img
+        src="/assets/default/images/items/ferrisWheel.svg"
+        width={30}
+        height={30}
+      />
+    </div>
+  );
+  const arpBotImg = (
+    <img src="/assets/default/images/items/arpBot.png" width={30} height={30} />
+  );
   return [
     {
       id: "aboutAndrash",
-      leftIcon: (
-        <div style={{ scale: "1.3" }}>
-          <img
-            // src="/images/andrash_photo_300.png"
-            src={photo}
-            alt="andrash"
-            style={{ borderRadius: "50%" }}
-          />
-        </div>
-      ),
+      leftIcon: aboutAndrashImg,
       label: "About Andrash",
       onClick: () => {
         simulateClick("/page/about_andrash");
@@ -185,7 +232,7 @@ function getAboutMenu(props: IProps): Array<IDropItemData> | null {
     },
     {
       id: "github",
-      leftIcon: <img src={GITHUB_MARK_SRC} alt="Git" width={30} height={30} />,
+      leftIcon: aitHubMarkImg,
       label: "Source Code on GitHub",
       onClick: () => {
         window.open(
@@ -194,6 +241,119 @@ function getAboutMenu(props: IProps): Array<IDropItemData> | null {
         );
         return true;
       },
+    },
+    {
+      id: "listOfContents",
+      leftIcon: "📜",
+      rightIcon: <RightIcon />,
+      label: "List of Contents",
+      menuData: [
+        {
+          id: "back",
+          leftIcon: <LeftIcon />,
+          label: "Back",
+          goBack: true,
+        },
+        {
+          id: "md-hello",
+          leftIcon: magentaCrystalLiteImg,
+          label: "Welcome",
+          onClick: () => {
+            simulateClick("/page/md/hello");
+            return true;
+          },
+        },
+        {
+          id: "md-about_this_place",
+          leftIcon: magentaCrystalLiteImg,
+          label: "About This Place",
+          onClick: () => {
+            simulateClick("/page/md/about_this_place");
+            return true;
+          },
+        },
+        {
+          id: "md-skill_node_js",
+          leftIcon: nodeJSCrystalImg,
+          label: "Skill: Node.js",
+          onClick: () => {
+            simulateClick("/page/md/skill_node_js");
+            return true;
+          },
+        },
+        {
+          id: "md-skill_react_js",
+          leftIcon: reactJSCrystalImg,
+          label: "Skill: React.js",
+          onClick: () => {
+            simulateClick("/page/md/skill_react_js");
+            return true;
+          },
+        },
+        {
+          id: "md-skill_type_script",
+          leftIcon: typeScriptCrystalImg,
+          label: "Skill: TypeScript",
+          onClick: () => {
+            simulateClick("/page/md/skill_type_script");
+            return true;
+          },
+        },
+        {
+          id: "md-project_arp_system",
+          leftIcon: arpBotImg,
+          label: "Project: ARP System",
+          onClick: () => {
+            simulateClick("/page/md/project_arp_system");
+            return true;
+          },
+        },
+        {
+          id: "md-mobile_app_dev",
+          leftIcon: "📱",
+          label: "Mobile App Development",
+          onClick: () => {
+            simulateClick("/page/md/mobile_app_dev");
+            return true;
+          },
+        },
+        {
+          id: "md-indie_game_development",
+          leftIcon: "🎮",
+          label: "Indie Game Development",
+          onClick: () => {
+            simulateClick("/page/md/indie_game_development");
+            return true;
+          },
+        },
+        {
+          id: "md-creativity",
+          leftIcon: ferrisWheelImg,
+          label: "Creativity",
+          onClick: () => {
+            simulateClick("/page/md/creativity");
+            return true;
+          },
+        },
+        {
+          id: "md-lets_talk",
+          leftIcon: "💬",
+          label: "Let's Talk",
+          onClick: () => {
+            simulateClick("/page/md/lets_talk");
+            return true;
+          },
+        },
+        {
+          id: "md-Server-Client_Communication_API",
+          leftIcon: magentaCrystalLiteImg,
+          label: "API Documentation",
+          onClick: () => {
+            simulateClick("/page/md/Server-Client_Communication_API");
+            return true;
+          },
+        },
+      ],
     },
   ];
 }
